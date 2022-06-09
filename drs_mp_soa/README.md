@@ -9,6 +9,9 @@ Using the Disaster Recovery Setup (DRS) utils
 IMPORTANT: Verify that you have completed all the pre-requisites listed
 below before using the DRS utils.
 
+Please refer to the following whitepaper for details about the topology and set up auomated by these scripts:
+https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf
+
 
 Pre-requisites 
 --------------
