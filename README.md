@@ -1,49 +1,56 @@
-hybrid_dr scripts version 1.0.
+# maa samples
 
-Copyright (c) 2022 Oracle and/or its affiliates
-Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+<!-- Describe your project's features, functionality and target audience -->
+
+Oracle’s Maximum Availability Architecture (Oracle MAA) is the best practices blueprint for data protection and availability of Oracle products (Database, Fusion Middleware, Applications) deployed on on-premises, private, public or hybrid clouds. Implementing Oracle Maximum Availability Architecture best practices is one of the key requirements for any Oracle deployment. Oracle Fusion Middleware and Oracle Databases include an extensive set of high availability features which can protect application deployments from unplanned downtime and minimize planned downtime. These features include: process death detection and restart, clustering, server migration, clusterware integration, GridLink datasources, load balancing, failover, backup and recovery, rolling upgrades, and rolling configuration changes.
+
+The maa samples repository contains a set of downloadable and installable demonstrations for creating different High Availability and Diaster Protection solutions for Oracle products. Each sample can be installed independently of any of the other demonstrations and may address different tiers and components of the Oracle stack. Most examples are intended to be used in Oracle Cloud Infrastructure (OCI) but may apply also to on-prem systems. Each demonstration has it's own folder within the maa repository. 
+
+## Installation
+
+<!-- Provide detailed step-by-step installation instructions -->
+Refer to each demonstration for the detailed steps to set up the MAA/DR topologies
+
+## Documentation
+
+<!-- Developer-oriented documentation can be published on GitHub, but all product
+     documentation must be published on <https://docs.oracle.com>. -->
+For details on MAA Best practices, pelase refer to https://www.oracle.com/database/technologies/maximum-availability-architecture/
+
+## Examples
+
+<!-- Describe any included examples or provide a link to a demo/tutorial -->
+These are the examples contained in this repo
+
+- Oracle Data Guard examples: scripts that can be used to set up Oracle Data Guard for an existing Oracle Database (on-prem to on-prem, oc to oci and on-prem to oci)
+-Hybrid DR examples: scripts that can be used to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI)
+-Weblogic for OCI DR examples: scripts that can be used to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment
+-Oracle SOA Marketplace DR examples: scripts that can be used to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt
 
 
-Summary of the scripts for Hybrid DR
-=====================================
+## Contributing
 
-rsync_copy_and_validate.sh
----------------------------
-Script that copies a folder to a remote host. It also performs a checksum validation of the copy.
-Usage:
-- Edit the script and customize the values in the "Internal parametrizable values" section (KEYFILE, USER, etc.).
-- Run the script providing the required input parameters:
-rsync_copy_and_validate.sh [ORIGIN_FOLDER] [DEST_FOLDER] [REMOTE_NODE] "[EXCLUDE_LIST]"
+<!-- If your project has specific contribution requirements, update the
+    CONTRIBUTING.md file to ensure those requirements are clearly explained. -->
 
-NOTE: "EXCLUDE_LIST" is an optional parameter. If provided, it must be passed between double quotas because it contains blank spaces. 
-The format is the same than the exclude list of the rsync command.
-For example: "--exclude 'dir1/' --exclude 'dir2/'"
+This project welcomes contributions from the community. Before submitting a pull
+request, please [review our contribution guide](./CONTRIBUTING.md).
 
-example_rync_XXXXX.sh scripts
-------------------------------
-These are example scripts that use the generic "rsync_copy_and_validate.sh" script to perform the copy of the FMW folders
-from primary midtiers to standby midtiers:
-- example_rsync_SHAREDCONFIG_to_SOA1.sh    Example script to copy the WLS shared config to a remote node
-- example_rsync_SHAREDRUNTIME_to_SOA1.sh   Example script to copy the shared runtime to a remote node
-- example_rsync_LOCALCONFIG_to_SOA1.sh     Example script to copy the local config to a remote node
-- example_rsync_PRODUCTS_to_SOA1.sh        Example script to copy the products folder to a remote node
-- example_rsync_orainventory_to_SOA1.sh    Example script to copy the orainventory folder to a remote node
+## Security
 
-These examples are provided for 1 soa host. To copy the private folders (products, local config, orainventory) to other soa hosts,
-create similar scripts (example_rsync_LOCALCONFIG_to_SOA2.sh, example_rsync_PRODUCTS_to_SOA2.sh) as per your needs.
+Please consult the [security guide](./SECURITY.md) for our responsible security
+vulnerability disclosure process.
 
-Usage: 
-- Edit each script and customize the values in the "CUSTOM VALUES" section (remote node, folders,etc.).
-- Make sure that the scripts are located in the same folder than the script rsync_copy_and_validate.sh
-- Run it from the appropriate host. No input parameters are required.
+## License
 
-update_dbconnect.sh
-----------------------
-This script can be used to automatically replace the database connect string in the datasources and jps files (see the point
-"1.	Prepare the datasources in primary" in the Hybrid DR document for more details).
-Usage:
-- Edit the script and provide the values for ORIGINAL_STRING and NEW_STRING.
-- Run the script in the admin server host (it makes the replacement in the ASERVER_HOME).
-- A complete WLS domain restart is needed for the changes to take effect: 
-    - stop managed servers and Admin server.
-    - start the Admin server first, and once in running, start the managed servers.
+<!-- The correct copyright notice format for both documentation and software
+    is "Copyright (c) [year,] year Oracle and/or its affiliates."
+    You must include the year the content was first released (on any platform) and
+    the most recent year in which it was revised. -->
+
+Copyright (c) 2022 Oracle and/or its affiliates.
+
+<!-- Replace this statement if your project is not licensed under the UPL -->
+
+Released under the Universal Permissive License v1.0 as shown at
+<https://oss.oracle.com/licenses/upl/>.
