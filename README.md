@@ -20,12 +20,14 @@ For details on MAA Best practices, pelase refer to https://www.oracle.com/databa
 ## Examples
 
 <!-- Describe any included examples or provide a link to a demo/tutorial -->
-These are the examples contained in this repo
+This repository stores a variety of examples demonstrating how to configure MAA/DR for different Oracle products. 
 
-- Oracle Data Guard examples: scripts that can be used to set up Oracle Data Guard for an existing Oracle Database (on-prem to on-prem, oc to oci and on-prem to oci)
--Hybrid DR examples: scripts that can be used to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI)
--Weblogic for OCI DR examples: scripts that can be used to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment
--Oracle SOA Marketplace DR examples: scripts that can be used to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt
+| Repo/Folder name  | Description |
+| ------------- | ------------- |
+| [Oracle Data Guard](./dg_setup_scripts) | Scripts that can be used to set up Oracle Data Guard for an existing Oracle Database (on-prem to on-prem, OCI to OCI and on-prem to OCI). |
+| [FMW Hybrid Disaster Recovery ](./hybrid_dr) | Scripts that can be used to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI).|
+| [Weblogic for OCI DR](./wls_mp_dr) |  Scripts that can be used to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment. |
+| [Oracle SOA Marketplace DR](./drs_mp_soa) | scripts that can be used to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt. |
 
 
 ## Contributing
@@ -54,3 +56,5 @@ Copyright (c) 2022 Oracle and/or its affiliates.
 
 Released under the Universal Permissive License v1.0 as shown at
 <https://oss.oracle.com/licenses/upl/>.
+
+Refer to each precise example licensing implications.
