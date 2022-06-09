@@ -1,0 +1,177 @@
+#
+# This is the DRS configuration file.  It must be set-up by the user before the DRS framework is run.
+#
+## DRS scripts
+##
+## Copyright (c) 2022 Oracle and/or its affiliates
+## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+##
+
+# General configuration parameters
+general:
+    # The SSH user name to use to log into an OCI DB or WLS host
+    # Example: ssh_user_name: opc
+    ssh_user_name: opc
+
+    # The ssh key file to authenticate the SSH login
+    # The private key  must be in PEM format
+    # Example: ssh_key_file:  "/home/opc/.ssh/oci_id.rsa"
+    ssh_key_file:  "/home/opc/.ssh/my_private_key.key"
+
+    # The user name that owns the Database and SOA installations
+    # Example: ora_user_name: oracle
+    ora_user_name: oracle
+
+    # The method used to communicate between primary and secondary networks.
+    # Set to True if primary and secondary networks are connected via Dynamic Routing Gateway and Remote VCN peering. In this case
+    # Data Guard uses private IP addresses to communicate between primary and standby databases (RECOMMENDED).
+    # Set to False if primary and secondary networks are not connected via DRG and Remote VCN peering. In this case
+    # Data Guard uses public IP addresses to communicate between primary and standby databases.
+    # Default is True.
+    # Example:
+    #     Default: dataguard_use_private_ip: True
+    #     Otherwise: dataguard_use_private_ip: False
+    dataguard_use_private_ip: true
+
+    # The name of the SOA URI to check.
+    # (Example URL: https://<front_end_ip>/soa-infra/)
+    # Default SOA URI: uri_to_check: /soa-infra/
+    # Uri for MFT environments:  uri_to_check: /sample-app/
+    # Note: use always the "/" at the end of this check uri. It prevents from undesired redirections.
+    uri_to_check: /soa-infra/
+
+    # The method used to transfer the WebLogic Domain configuration to secondary site
+    # Valid values are:
+    # DBFS  : when using DBFS based method. The domain config replication to secondary is done via Data Guard replica,
+    #         using a DBFS mount as assistance/stage directory.
+    # RSYNC : when using FSS with RSYNC. The domain config replication to the secondary site will be done via rsync,
+    #         using an FSS mount as assistance/stage directory.
+    # Choose the method used in your DR environment.
+    # Make sure you have followed the required steps described in the whitepaper
+    # to prepare your environment in each case
+    dr_method:  DBFS
+
+# Primary database configuration parameters
+# Note: Database host(s) must be up and SSH must be enabled
+db_prim:
+    # The IP address of the primary database host.
+    # Specify the public IP if public network is used, or private IP when private network is used
+    # DRS will connect to this IP address using SSH, so it needs to be reachable from the host running DRS
+    # In case of RAC, provide IP of any RAC node that is up.
+    # Example: host_ip: 129.12.23.34
+    host_ip: 123.123.123.123
+
+    # The SCAN IP address of the primary database RAC cluster
+    # If RAC (cluster) database is used, set 'rac_scan_ip' to any one of the available and reachable SCAN IPs
+    # for the primary database RAC cluster.  If RAC database is not used, you should leave the value blank.
+    # This IP needs to be reachable from the standby SOA hosts.
+    # Example for RAC:     rac_scan_ip: 10.0.2.1
+    # Example for non-RAC: rac_scan_ip:
+    rac_scan_ip: 
+
+    # The connection port for the database host
+    # Example: port: 1521
+    port: 1521 
+
+    # Name of the PDB used by SOA
+    # Example: pdb_name: soapdb
+    pdb_name: soapdb
+
+    # The user name for the SYSDBA database administrator
+    # Example: sysdba_user_name: sys
+    sysdba_user_name: sys
+
+    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
+    # DRS will interactivaly ask for it when it runs
+    sysdba_password: 
+
+# Standby database configuration parameters
+# Note: Database host(s) must be up and SSH must be enabled
+db_stby:
+    # The IP address of the standby database host.
+    # Specify the public IP if public network is used, or private IP when private network is used
+    # DRS will connect to this IP address using SSH, so it needs to be reachable from the host running DRS
+    # In case of RAC, provide IP of any RAC node that is up.
+    # Example: host_ip: 132.43.32.21
+    host_ip: 124.124.124.124
+
+    # The connection port for the database host
+    # Example: port: 1521
+    port: 1521
+
+    # Name of the PDB used by SOA
+    # Example: pdb_name: soapdb
+    pdb_name: soapdb
+
+    # The user name for the SYSDBA database administrator
+    # Example: sysdba_user_name: sys
+    sysdba_user_name: sys
+
+    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
+    # DRS will interactivaly ask for it when it runs
+    sysdba_password: 
+
+
+# Primary WebLogic Server (WLS) configuration parameters
+# Note: All hosts must be up and SSH must be enabled
+wls_prim:
+    # List of IP addresses for all nodes in the WLS cluster (first IP must be for admin node)
+    # Specify the public IPs if public network is used, or private IPs when private network is used
+    # DRS will connect to these IP addresses using SSH, so they need to be reachable from the host running DRS
+    # Example:
+    # wls_ip_list:
+    #   - a.b.c.d    # first one MUST be WLS Admin server IP
+    #   - e.f.g.h
+    wls_ip_list:
+        - 111.111.111.111   # first one MUST be WLS Admin server IP
+        - 111.111.111.112
+
+    # The user name for WLS administration
+    # Example: wlsadm_user_name: weblogic
+    wlsadm_user_name: weblogic
+
+    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
+    # DRS will interactivaly ask for it when it runs
+    wlsadm_password:
+
+    # The IP address of the front-end (OTD/Load Balancer)
+    # DRS will connect to this IP address using HTTPS
+    # Example:  front_end_ip: 140.5.4.3
+    front_end_ip: 111.111.111.113
+
+
+# Standby WebLogic Server (WLS) configuration parameters
+# Note: All hosts must be up and SSH must be enabled
+wls_stby:
+    # List of IP addresses for all nodes in the WLS cluster (first IP must be for admin node)
+    # Specify the public IPs if public network is used, or private IPs when private network is used
+    # DRS will connect to these IP addresses using SSH, so they need to be reachable from the host running DRS
+    # Example:
+    # wls_ip_list:
+    #   - m.n.o.p    # first one MUST be WLS Admin server IP
+    #   - q.r.s.t
+    wls_ip_list:
+        - 222.222.222.222    # first one MUST be WLS Admin server  IP
+        - 222.222.222.223
+
+    # The user name for WLS administration
+    # Example: wlsadm_user_name: weblogic
+    wlsadm_user_name: weblogic
+
+    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
+    # DRS will interactivaly ask for it when it runs
+    wlsadm_password:
+
+    # The IP address of the front-end (OTD/Load Balancer)
+    # DRS will connect to this IP address using HTTPS
+    # Example: front_end_ip: 120.5.4.3
+    front_end_ip: 222.222.222.224
+
+
+#######################################################################################################################
+# ********** RESERVED FOR INTERNAL USE -- DO NOT MODIFY ANYTHING BELOW THIS LINE *************
+#######################################################################################################################
+_internal_reserved:
+    _item1: value1
+    _item2: value2
+

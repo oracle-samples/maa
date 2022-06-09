@@ -1,0 +1,26 @@
+version=mp-v18
+
+V12 Updates:
+- Added DR method option (RSYNC or DBFS)
+- Added run option "--do_not_start"
+- Fixed a bug by which the DRS was not correctly managing servers' UNKNOWN status
+
+V13 Updates:
+- Added a check in standby to verify that the primary cluster frontend name is resolvable from the standby WLS hosts
+
+V14 Updates:
+- Added post step to clean up DBFS_INFO table
+
+V15 Updates:
+- Added checks to fmw dr scripts to verify that the gathered values are not null
+- Added warn in yaml to remind that the private key must be in PEM format
+
+V16 Updates:
+- Removed dependency on adminserver suffix from drs_main.py
+- Adapted fmw dr setup scripts to be agnostic to the host naming convention
+
+V17 Updates:
+- Added option "--checks_only" that only run the initial checks but does not perform any setup action.
+
+V18 Updates:
+- Added clarification about frontend check uri in drs_user_config.yaml file
