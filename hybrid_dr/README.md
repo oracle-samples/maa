@@ -4,6 +4,15 @@ Copyright (c) 2022 Oracle and/or its affiliates
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+Using the Oracle SOA Hybrid Disaster Protection scripts  
+==============================================
+
+Please refer to the following playbook for details about the topology and set up automated by these scripts:
+https://docs.oracle.com/en/solutions/soa-dr-on-cloud/index.html
+
+IMPORTANT: Verify that you have completed all the pre-requisites listed in paper above
+ before using this scripts.
+
 Summary of the scripts for Hybrid DR
 =====================================
 
