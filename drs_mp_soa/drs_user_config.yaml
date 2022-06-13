@@ -81,9 +81,11 @@ db_prim:
     # Example: sysdba_user_name: sys
     sysdba_user_name: sys
 
-    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
-    # DRS will interactivaly ask for it when it runs
-    sysdba_password: 
+    # The password for the SYSDBA database administrator
+    # Example: sysdba_password: "MyDBPassword#123"  (use double quotes)
+    # IMPORTANT: this is just for test environments.
+    # For Production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
+    sysdba_password:
 
 # Standby database configuration parameters
 # Note: Database host(s) must be up and SSH must be enabled
@@ -107,9 +109,11 @@ db_stby:
     # Example: sysdba_user_name: sys
     sysdba_user_name: sys
 
-    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
-    # DRS will interactivaly ask for it when it runs
-    sysdba_password: 
+    # The password for the SYSDBA database administrator
+    # Example: sysdba_password: "MyDBPassword#123"  (use double quotes)
+    # IMPORTANT: this is just for test environments.
+    # For Production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
+    sysdba_password:
 
 
 # Primary WebLogic Server (WLS) configuration parameters
@@ -130,9 +134,11 @@ wls_prim:
     # Example: wlsadm_user_name: weblogic
     wlsadm_user_name: weblogic
 
-    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
-    # DRS will interactivaly ask for it when it runs
-    wlsadm_password:
+    # The password for WLS administration
+    # Example: wlsadm_password: "mywlspassword9"    (use double quotes)
+    # IMPORTANT: This is just for test environments.
+    # For production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
+    wlsadm_password: 
 
     # The IP address of the front-end (OTD/Load Balancer)
     # DRS will connect to this IP address using HTTPS
@@ -158,9 +164,11 @@ wls_stby:
     # Example: wlsadm_user_name: weblogic
     wlsadm_user_name: weblogic
 
-    # This is just for test environemnts, DO NOT PROVIDE THE PASSWORD HERE.
-    # DRS will interactivaly ask for it when it runs
-    wlsadm_password:
+    # The password for WLS administration
+    # Example: wlsadm_password: "mywlspassword9"    (use double quotes)
+    # IMPORTANT: This is just for test environments.
+    # For production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
+    wlsadm_password: 
 
     # The IP address of the front-end (OTD/Load Balancer)
     # DRS will connect to this IP address using HTTPS

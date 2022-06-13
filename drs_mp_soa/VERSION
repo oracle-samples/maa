@@ -23,4 +23,9 @@ V17 Updates:
 - Added option "--checks_only" that only run the initial checks but does not perform any setup action.
 
 V18 Updates:
-- Added clarification about frontend check uri in drs_user_config.yaml file
+- Usage of python virtual env. Instructions provided in PREPARE_DRS_VENV.md.
+- Added clarification about frontend check uri in drs_user_config.yaml file.
+- Added recommendation to provide passwords interactively. In drs_user_config.yaml only for testing environments
+- Support for passwords starting with #.
+- Fixed bug in managed server names and listen addreses lists creation.
+- Log output improvements.

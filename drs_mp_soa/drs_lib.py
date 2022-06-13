@@ -294,10 +294,37 @@ class DRSHost(object):
         """
         fmt_cmd = CONSTANT.DRS_CMD_EXECUTE_SUDO_SU_CMD_FMT.format(user_name, cmd)
         #self.logger.debug("Executing cmd [{}] as user [{}] with warn [{}] on host [{}]".format(fmt_cmd, user_name, warn, self.host_ip))
-        self.logger.debug("Executing cmd [command not prompted] as user [{}] with warn [{}] on host [{}]".format(user_name, warn, self.host_ip))
+        secure_cmd = cmd.replace(CONFIG.DB_PRIM.sysdba_password, "******")
+        secure_cmd = secure_cmd.replace(CONFIG.WLS_PRIM.wlsadm_password, "******")
+        self.logger.debug(
+            "Executing cmd [{}] as user [{}] with warn [{}] on host [{}]".format(secure_cmd, user_name, warn,
+                                                                                 self.host_ip))
         # r = self.fab_conn.run(fmt_cmd, pty=True, hide=True)
         # r = self.fab_conn.run(fmt_cmd, pty=False, echo=True)
         r = self.fab_conn.run(fmt_cmd, pty=False, warn=warn)
+
+        self.logger.debug("Sudo user [{}] command output = {}".format(user_name, r.stdout.strip()))
+        return r
+
+    def execute_host_cmd_sudo_user_pty(self, cmd, user_name, warn=False):
+        # For bug 33748539 (not used)
+        """
+        Executes specified command on connected host
+        :param cmd: Command to execute
+        :param user_name: The user_name to use when executing 'cmd'
+
+        :return:  The output of the command
+        """
+        fmt_cmd = CONSTANT.DRS_CMD_EXECUTE_SUDO_SU_CMD_FMT.format(user_name, cmd)
+        # self.logger.debug("Executing cmd [{}] as user [{}] with warn [{}] on host [{}]".format(fmt_cmd, user_name, warn, self.host_ip))
+        secure_cmd = cmd.replace(CONFIG.DB_PRIM.sysdba_password, "******")
+        secure_cmd = secure_cmd.replace(CONFIG.WLS_PRIM.wlsadm_password, "******")
+        self.logger.debug(
+            "SECURED Executing cmd [{}] as user [{}] with warn [{}] on host [{}]".format(secure_cmd, user_name, warn,
+                                                                                         self.host_ip))
+        # r = self.fab_conn.run(fmt_cmd, pty=True, hide=True)
+        # r = self.fab_conn.run(fmt_cmd, pty=False, echo=True)
+        r = self.fab_conn.run(fmt_cmd, pty=True)
 
         self.logger.debug("Sudo user [{}] command output = {}".format(user_name, r.stdout.strip()))
         return r
@@ -310,7 +337,9 @@ class DRSHost(object):
         """
         fmt_cmd = CONSTANT.DRS_CMD_EXECUTE_SUDO_CMD_ONLY_FMT.format(cmd)
         #self.logger.debug("Executing sudo cmd [{}] on host [{}]".format(fmt_cmd, self.host_ip))
-        self.logger.debug("Executing sudo cmd [command not prompted] on host [{}]".format(self.host_ip))
+        secure_cmd = cmd.replace(CONFIG.DB_PRIM.sysdba_password, "******")
+        secure_cmd = secure_cmd.replace(CONFIG.WLS_PRIM.wlsadm_password, "******")
+        self.logger.debug("Executing sudo cmd [{}] on host [{}]".format(secure_cmd, self.host_ip))
         # r = self.fab_conn.run(fmt_cmd, pty=True, hide=True)
         # r = self.fab_conn.run(fmt_cmd, pty=False, echo=True)
         r = self.fab_conn.run(fmt_cmd, pty=False)
@@ -594,6 +623,17 @@ class DRSDatabase(object):
         """
         host = self.__get_valid_host()
         return host.execute_host_cmd_sudo_user(cmd, user_name)
+
+    def execute_host_cmd_pty(self, cmd, user_name):
+        # For Bug 33748539 (not used)
+        """
+        Executes specified command on database host
+        :param cmd: Command to execute
+        :param user_name: user name to use when executing cmd
+        :return:  The output of the command
+        """
+        host = self.__get_valid_host()
+        return host.execute_host_cmd_sudo_user_pty(cmd, user_name)
 
     def copy_local_file_to_db_host(self, local_file, remote_file):
         """
@@ -1007,7 +1047,8 @@ class DRSWls(object):
         :return: The contents of the WLS domain config file
         """
         wls_get_domain_config_file_cmd = CONSTANT.DRS_CMD_ORACLE_CAT_FILE.format(domain_config_file_path)
-
+        # For Bug 33748539 (not used)
+        #cmd_result = self.execute_host_cmd_pty(wls_get_domain_config_file_cmd, user_name)
         cmd_result = self.execute_host_cmd(wls_get_domain_config_file_cmd, user_name)
         self.logger.info("Got contents of WLS domain config file: [{}]".format(domain_config_file_path))
 

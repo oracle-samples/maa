@@ -19,7 +19,7 @@
 ###
 ### Non-interactive usage:
 ###         fmw_dr_setup_standby_standby.sh  A_DB_IP  A_PORT  PDB_SERVICE_PRIMARY  SYS_DB_PASSWORD  DR_METHOD
-###         fmw_dr_setup_standby_standby.sh  '129.146.117.58' '1521' 'soapdb.sub19281336420.soacsdrvcn.oraclevcn.com' 'my_sysdba_password' 'DBFS'
+###         fmw_dr_setup_standby_standby.sh  '129.146.117.58' '1521' 'soapdb.sub19281336420.soacsdrvcn.oraclevcn.com' "my_sysdba_password" 'DBFS'
 ###
 ### Where:
 ###	A_DB_IP			The IP address used to connect to remote primary database from this host. It should be set to:
@@ -314,7 +314,7 @@ check_if_RAC(){
 	set pages 0
 	select value from v\$parameter where name='cluster_database';
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	if  [[ $cluster_database = *TRUE* ]]; then
 		echo " Database is a RAC database"
@@ -423,7 +423,7 @@ get_CDB_values() {
 	set pages 0
 	select DB_UNIQUE_NAME from V\$DATABASE;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${A_DBNM} = "" ]] ; then
@@ -437,7 +437,7 @@ get_CDB_values() {
 	set pages 0
 	select value from v\$parameter where name='db_domain';
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${A_DB_DOMAIN} = "" ]] ; then
@@ -452,7 +452,7 @@ get_CDB_values() {
 	set pages 0
 	select DB_UNIQUE_NAME from V\$DATAGUARD_CONFIG where DEST_ROLE like '%STANDBY%';
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${B_DBNM} = "" ]] ; then
@@ -469,7 +469,7 @@ get_CDB_values() {
 	set lines 10000
 	SELECT DBMS_TNS.RESOLVE_TNSNAME ('"${B_DBNM}"') from dual;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Removing additional CID entry at the end of the string
 	b_remote_alias_string=$(echo $b_remote_alias_string  | awk -F '\\(CID=' '{print $1}')
@@ -758,7 +758,7 @@ convert_standby(){
         echo "Converting standby to $STANDBY_REQ_STATUS"
         # We connect dgmgr to rremote DB since it is the primary
         export conversion_result=$(
-        dgmgrl ${SYS_USERNAME}/${SYS_USER_PASSWORD}@\"${A_DB_IP}:${A_PORT}/${A_DBNM}.${A_DB_DOMAIN}\"  "convert database '${B_DBNM}' to ${STANDBY_REQ_STATUS}"
+        dgmgrl ${SYS_USERNAME}/\'${SYS_USER_PASSWORD}\'@\"${A_DB_IP}:${A_PORT}/${A_DBNM}.${A_DB_DOMAIN}\"  "convert database '${B_DBNM}' to ${STANDBY_REQ_STATUS}"
 
         )
         if [[ $conversion_result = *successful* ]]
@@ -778,7 +778,7 @@ get_primary_alias(){
         set lines 10000
         SELECT DBMS_TNS.RESOLVE_TNSNAME ('"${A_DBNM}"') from dual;
         exit
-        "  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${B_PRIV_HN}:${B_PORT}/${B_DBNM}.${B_DB_DOMAIN} "as sysdba"
+        "  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${B_PRIV_HN}:${B_PORT}/${B_DBNM}.${B_DB_DOMAIN} "as sysdba"
         )
 	if [[ ${VERBOSE} = "true" ]]; then
 		echo " Primary tns alias string as gathered from secondary ......" $primary_alias_string
@@ -835,7 +835,7 @@ get_dbfs_info_from_db(){
 	set pages 0
 	select DBFS_PREFIX from DBFS_INFO;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@$A_DB_IP:$A_PORT/$PDB_SERVICE_PRIMARY "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@$A_DB_IP:$A_PORT/$PDB_SERVICE_PRIMARY "as sysdba"
 	)
 
 	export DBFS_SCHEMA_PASSWORD_ENCRYPTED=$(
@@ -843,7 +843,7 @@ get_dbfs_info_from_db(){
 	set pages 0
 	select DBFS_PASSWORD from DBFS_INFO;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@$A_DB_IP:$A_PORT/$PDB_SERVICE_PRIMARY "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@$A_DB_IP:$A_PORT/$PDB_SERVICE_PRIMARY "as sysdba"
 	)
 	
 	export DBFS_SCHEMA_PASSWORD=$(
@@ -851,7 +851,7 @@ get_dbfs_info_from_db(){
 	set pages 0
 	select UTL_RAW.CAST_TO_varchar2(DBMS_CRYPTO.decrypt('$DBFS_SCHEMA_PASSWORD_ENCRYPTED', 4353,  UTL_RAW.CAST_TO_RAW ('$SYS_USER_PASSWORD'))) from dual;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@$A_DB_IP:$A_PORT/$PDB_SERVICE_PRIMARY "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@$A_DB_IP:$A_PORT/$PDB_SERVICE_PRIMARY "as sysdba"
         )
 
 }

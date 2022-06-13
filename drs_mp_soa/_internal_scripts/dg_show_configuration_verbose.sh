@@ -7,5 +7,5 @@
 ##
 
 # $1 = local DB SYS password
-dgmgrl sys/${1} "SHOW CONFIGURATION VERBOSE"
+dgmgrl sys/\'${1}\' "SHOW CONFIGURATION VERBOSE"
 

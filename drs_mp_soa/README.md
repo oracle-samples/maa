@@ -12,7 +12,6 @@ below before using the DRS utils.
 Please refer to the following whitepaper for details about the topology and set up automated by these scripts:
 https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf
 
-
 Pre-requisites 
 --------------
   NOTE: in case you are re-running DRS see "Troubleshooting" section for specific requisites

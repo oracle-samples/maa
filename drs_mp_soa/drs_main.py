@@ -247,6 +247,8 @@ def prompt_user_config_empty_values(dict_name, d):
                     continue
                 elif 'password' in k:
                     i = getpass.getpass('\nEnter password for configuration item [{}]: '.format(dict_name + '::' + k))
+                    # Valid for password starting with # and  works with all the scripts. If used, the char $ needs to be escaped as \$ when provided
+                    i = '"' + i + '"'
                 else:
                     i = input('\nEnter value for configuration item [{}]: '.format(dict_name + '::' + k))
                 d[k] = i
@@ -774,6 +776,9 @@ def get_wls_domain_configuration(role, domain_home):
     logger.info(" ")
     logger.info("==========  GET MANAGED SERVER CONFIG FROM CONFIG FILE -- {} SITE   ===========".format(role))
     xml_server_list = xml_config_dict['domain']['server']
+    # Fix managed servers not correctly ordered
+    SITE_CONFIG.managed_server_names = ["None"] * SITE_CONFIG.cluster_size
+    SITE_CONFIG.managed_server_hosts = ["None"] * SITE_CONFIG.cluster_size
     # This needs to be improved. As it is now, this breaks the idempotency because it looks for the stby manager using
     # the standby fqdn names, and this does not work if DRS as been run previously and the config has been already
     # copied from primary
@@ -782,10 +787,13 @@ def get_wls_domain_configuration(role, domain_home):
             # this must be a managed server entry
             managed_server_fqdn = xml_server['listen-address']
             index = SITE_CONFIG.cluster_node_fqdns.index(managed_server_fqdn)
-            SITE_CONFIG.managed_server_names.insert(index, xml_server['name'])
-            SITE_CONFIG.managed_server_hosts.insert(index, xml_server['listen-address'].split('.', 1)[0])
+            # SITE_CONFIG.managed_server_names.insert(index, xml_server['name'])
+            # SITE_CONFIG.managed_server_hosts.insert(index, xml_server['listen-address'].split('.', 1)[0])
+            # Fix managed servers not correctly ordered
+            SITE_CONFIG.managed_server_names[index] = xml_server['name']
+            SITE_CONFIG.managed_server_hosts[index] = xml_server['listen-address'].split('.', 1)[0]
             logger.info("Managed server [{}] is deployed on host [{}]".
-                        format(SITE_CONFIG.managed_server_names[-1], SITE_CONFIG.managed_server_hosts[-1]))
+                        format(SITE_CONFIG.managed_server_names[index], SITE_CONFIG.managed_server_hosts[index]))
 
     # Make sure here that the number of parsed nodes (from config) and those specified by the user in the
     # YAML config match each other
@@ -882,23 +890,86 @@ def verify_internal_configuration():
     logger.info(" ")
     logger.info("==========  VERIFYING CONFIGURATION CONSISTENCY  ===========")
 
-    LOCAL_CONFIG = copy.deepcopy(CONFIG)
+    logger.info(" ")
+    logger.info("==========  VERIFYING CONFIGURATION CONSISTENCY  ===========")
 
-    # TODO: this does not work because CONFIG is used as a class (without creating an instance), so deep copying it
-    # TODO: still ends up writing to the original CONFIG object and trashing values
-    """
-    LOCAL_CONFIG.DB_PRIM.sysdba_password = "<not displayed>"
-    LOCAL_CONFIG.DB_STBY.sysdba_password = "<not displayed>"
-    LOCAL_CONFIG.WLS_PRIM.wlsadm_password = "<not displayed>"
-    LOCAL_CONFIG.WLS_STBY.wlsadm_password = "<not displayed>"
-    """
-    #logger.info("\n------------------- BEGIN CONFIG DUMP ------------------------\n{}\n{}\n{}\n{}\n{}".format(
-    #    pprint.pformat(vars(LOCAL_CONFIG.GENERAL)),
-    #    pprint.pformat(vars(LOCAL_CONFIG.DB_PRIM)),
-    #    pprint.pformat(vars(LOCAL_CONFIG.DB_STBY)),
-    #    pprint.pformat(vars(LOCAL_CONFIG.WLS_PRIM)),
-    #    pprint.pformat(vars(LOCAL_CONFIG.WLS_STBY))))
-    #logger.info("\n------------------- END CONFIG DUMP ------------------------\n\nd")
+    logger.info("\n------------------- BEGIN CONFIG DUMP ------------------------\n ")
+    logger.info("CONFIG.GENERAL.database_is_rac : " + str(CONFIG.GENERAL.database_is_rac))
+    logger.info("CONFIG.GENERAL.dataguard_use_private_ip : " + str(CONFIG.GENERAL.dataguard_use_private_ip))
+    logger.info("CONFIG.GENERAL.ora_user_name : " + (CONFIG.GENERAL.ora_user_name))
+    logger.info("CONFIG.GENERAL.ssh_user_name : " + (CONFIG.GENERAL.ssh_user_name))
+    logger.info("CONFIG.GENERAL.uri_to_check : " + (CONFIG.GENERAL.uri_to_check))
+    logger.info("CONFIG.GENERAL.dr_method : " + (CONFIG.GENERAL.dr_method))
+    logger.info("CONFIG.DB_PRIM.db_host_domain : " + (CONFIG.DB_PRIM.db_host_domain))
+    logger.info("CONFIG.DB_PRIM.db_hostname : " + (CONFIG.DB_PRIM.db_hostname))
+    logger.info("CONFIG.DB_PRIM.db_name : " + (CONFIG.DB_PRIM.db_name))
+    logger.info("CONFIG.DB_PRIM.db_port : " + (CONFIG.DB_PRIM.db_port))
+    logger.info("CONFIG.DB_PRIM.db_unique_name : " + (CONFIG.DB_PRIM.db_unique_name))
+    logger.info("CONFIG.DB_PRIM.host_fqdn : " + (CONFIG.DB_PRIM.host_fqdn))
+    logger.info("CONFIG.DB_PRIM.host_ip : " + (CONFIG.DB_PRIM.host_ip))
+    logger.info("CONFIG.DB_PRIM.local_ip : " + (CONFIG.DB_PRIM.local_ip))
+    logger.info("CONFIG.DB_PRIM.os_version : " + (CONFIG.DB_PRIM.os_version))
+    logger.info("CONFIG.DB_PRIM.pdb_name : " + (CONFIG.DB_PRIM.pdb_name))
+    # logger.info("CONFIG.DB_PRIM.rac_scan_ip : " + str(CONFIG.DB_PRIM.rac_scan_ip))
+    logger.info("CONFIG.DB_PRIM.sysdba_user_name: " + (CONFIG.DB_PRIM.sysdba_user_name))
+    logger.info("CONFIG.DB_STBY.db_host_domain: " + (CONFIG.DB_STBY.db_host_domain))
+    logger.info("CONFIG.DB_STBY.db_hostname : " + (CONFIG.DB_STBY.db_hostname))
+    logger.info("CONFIG.DB_STBY.db_name : " + (CONFIG.DB_STBY.db_name))
+    logger.info("CONFIG.DB_STBY.db_port : " + (CONFIG.DB_STBY.db_port))
+    logger.info("CONFIG.DB_STBY.db_unique_name : " + (CONFIG.DB_STBY.db_unique_name))
+    logger.info("CONFIG.DB_STBY.host_fqdn : " + (CONFIG.DB_STBY.host_fqdn))
+    logger.info("CONFIG.DB_STBY.host_ip : " + (CONFIG.DB_STBY.host_ip))
+    logger.info("CONFIG.DB_STBY.local_ip : " + (CONFIG.DB_STBY.local_ip))
+    logger.info("CONFIG.DB_STBY.os_version : " + (CONFIG.DB_STBY.os_version))
+    logger.info("CONFIG.DB_STBY.pdb_name :  " + (CONFIG.DB_STBY.pdb_name))
+    logger.info("CONFIG.DB_STBY.sysdba_user_name : " + (CONFIG.DB_STBY.sysdba_user_name))
+    logger.info("CONFIG.WLS_PRIM.cluster_node_fqdns : " + str(CONFIG.WLS_PRIM.cluster_node_fqdns))
+    logger.info("CONFIG.WLS_PRIM.cluster_node_local_ips : " + str(CONFIG.WLS_PRIM.cluster_node_local_ips))
+    logger.info("CONFIG.WLS_PRIM.cluster_node_os_versions : " + str(CONFIG.WLS_PRIM.cluster_node_os_versions))
+    logger.info("CONFIG.WLS_PRIM.cluster_node_public_ips : " + str(CONFIG.WLS_PRIM.cluster_node_public_ips))
+    logger.info("CONFIG.WLS_PRIM.cluster_size : " + str(CONFIG.WLS_PRIM.cluster_size))
+    logger.info("CONFIG.WLS_PRIM.domain_home :" + (CONFIG.WLS_PRIM.domain_home))
+    logger.info("CONFIG.WLS_PRIM.domain_name : " + (CONFIG.WLS_PRIM.domain_name))
+    logger.info("CONFIG.WLS_PRIM.front_end_ip : " + (CONFIG.WLS_PRIM.front_end_ip))
+    logger.info("CONFIG.WLS_PRIM.managed_server_hosts : " + str(CONFIG.WLS_PRIM.managed_server_hosts))
+    logger.info("CONFIG.WLS_PRIM.managed_server_names : " + str(CONFIG.WLS_PRIM.managed_server_names))
+    logger.info("CONFIG.WLS_PRIM.mw_home : " + (CONFIG.WLS_PRIM.mw_home))
+    logger.info("CONFIG.WLS_PRIM.node_manager_host_ips : " + str(CONFIG.WLS_PRIM.node_manager_host_ips))
+    logger.info("CONFIG.WLS_PRIM.wl_home : " + (CONFIG.WLS_PRIM.wl_home))
+    logger.info("CONFIG.WLS_PRIM.wls_home : " + (CONFIG.WLS_PRIM.wls_home))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_host_domain : " + (CONFIG.WLS_PRIM.wlsadm_host_domain))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_host_ip : " + (CONFIG.WLS_PRIM.wlsadm_host_ip))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_hostname : " + (CONFIG.WLS_PRIM.wlsadm_hostname))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_listen_port : " + (CONFIG.WLS_PRIM.wlsadm_listen_port))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_nm_hostname : " + (CONFIG.WLS_PRIM.wlsadm_nm_hostname))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_nm_port : " + (CONFIG.WLS_PRIM.wlsadm_nm_port))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_nm_type :" + (CONFIG.WLS_PRIM.wlsadm_nm_type))
+    logger.info("CONFIG.WLS_PRIM.wlsadm_server_name : " + (CONFIG.WLS_PRIM.wlsadm_server_name))
+    logger.info("CONFIG.WLS_STBY.wlsadm_user_name : " + (CONFIG.WLS_STBY.wlsadm_user_name))
+    logger.info("CONFIG.WLS_STBY.cluster_node_fqdns :" + str(CONFIG.WLS_STBY.cluster_node_fqdns))
+    logger.info("CONFIG.WLS_STBY.cluster_node_local_ips :" + str(CONFIG.WLS_STBY.cluster_node_local_ips))
+    logger.info("CONFIG.WLS_STBY.cluster_node_os_versions : " + str(CONFIG.WLS_STBY.cluster_node_os_versions))
+    logger.info("CONFIG.WLS_STBY.cluster_node_public_ips :" + str(CONFIG.WLS_STBY.cluster_node_public_ips))
+    logger.info("CONFIG.WLS_STBY.cluster_size :" + str(CONFIG.WLS_STBY.cluster_size))
+    logger.info("CONFIG.WLS_STBY.domain_home : " + (CONFIG.WLS_STBY.domain_home))
+    logger.info("CONFIG.WLS_STBY.domain_name : " + (CONFIG.WLS_STBY.domain_name))
+    logger.info("CONFIG.WLS_STBY.front_end_ip : " + (CONFIG.WLS_STBY.front_end_ip))
+    logger.info("CONFIG.WLS_STBY.managed_server_hosts : " + str(CONFIG.WLS_STBY.managed_server_hosts))
+    logger.info("CONFIG.WLS_STBY.managed_server_names : " + str(CONFIG.WLS_STBY.managed_server_names))
+    logger.info("CONFIG.WLS_STBY.mw_home : " + (CONFIG.WLS_STBY.mw_home))
+    logger.info("CONFIG.WLS_STBY.node_manager_host_ips : " + str(CONFIG.WLS_STBY.node_manager_host_ips))
+    logger.info("CONFIG.WLS_STBY.wl_home : " + (CONFIG.WLS_STBY.wl_home))
+    logger.info("CONFIG.WLS_STBY.wls_home : " + (CONFIG.WLS_STBY.wls_home))
+    logger.info("CONFIG.WLS_STBY.wlsadm_host_domain : " + (CONFIG.WLS_STBY.wlsadm_host_domain))
+    logger.info("CONFIG.WLS_STBY.wlsadm_host_ip : " + (CONFIG.WLS_STBY.wlsadm_host_ip))
+    logger.info("CONFIG.WLS_STBY.wlsadm_hostname : " + (CONFIG.WLS_STBY.wlsadm_hostname))
+    logger.info("CONFIG.WLS_STBY.wlsadm_listen_port : " + (CONFIG.WLS_STBY.wlsadm_listen_port))
+    logger.info("CONFIG.WLS_STBY.wlsadm_nm_hostname : " + (CONFIG.WLS_STBY.wlsadm_nm_hostname))
+    logger.info("CONFIG.WLS_STBY.wlsadm_nm_port : " + (CONFIG.WLS_STBY.wlsadm_nm_port))
+    logger.info("CONFIG.WLS_STBY.wlsadm_nm_type : " + (CONFIG.WLS_STBY.wlsadm_nm_type))
+    logger.info("CONFIG.WLS_STBY.wlsadm_server_name : " + (CONFIG.WLS_STBY.wlsadm_server_name))
+    logger.info("CONFIG.WLS_STBY.wlsadm_user_name : " + (CONFIG.WLS_STBY.wlsadm_user_name))
+    logger.info("\n------------------- END CONFIG DUMP ------------------------\n\n")
 
     DRSUtil.test_config_object_fully_initialized(CONFIG.GENERAL)
     DRSUtil.test_config_object_fully_initialized(CONFIG.DB_PRIM)
@@ -2375,8 +2446,10 @@ def main():
         # =============================================================================================================
 
     except Exception as e:
-        logger.exception(e)
-
+        logger.error(
+            str(e).replace(CONFIG.DB_PRIM.sysdba_password, "*********").replace(CONFIG.WLS_PRIM.wlsadm_password,
+                                                                                "*********"))
+        sys.exit(1)
 
 """
  Entry point for the whole thing
