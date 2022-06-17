@@ -297,7 +297,7 @@ check_if_RAC(){
 	set pages 0
 	select value from v\$parameter where name='cluster_database';
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	if  [[ $cluster_database = *TRUE* ]]; then
 		echo " Database is a RAC database"
@@ -399,7 +399,7 @@ get_CDB_values() {
 	set pages 0
 	select DB_UNIQUE_NAME from V\$DATABASE;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${A_DBNM} = "" ]] ; then
@@ -412,7 +412,7 @@ get_CDB_values() {
 	set pages 0
 	select value from v\$parameter where name='db_domain';
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${A_DB_DOMAIN} = "" ]] ; then
@@ -426,7 +426,7 @@ get_CDB_values() {
 	set pages 0
 	select DB_UNIQUE_NAME from V\$DATAGUARD_CONFIG where DEST_ROLE like '%STANDBY%';
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${B_DBNM} = "" ]] ; then
@@ -441,7 +441,7 @@ get_CDB_values() {
 	set lines 10000
 	SELECT DBMS_TNS.RESOLVE_TNSNAME ('"${B_DBNM}"') from dual;
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
 	)
 	# Checks to make sure these variables are gathered
 	if [[ ${remote_alias_string} = "" ]] ; then
@@ -733,7 +733,7 @@ save_dbfs_info(){
         set pages 0
         select DBMS_CRYPTO.encrypt(UTL_RAW.CAST_TO_RAW('$DBFS_SCHEMA_PASSWORD'), 4353 /* = dbms_crypto.DES_CBC_PKCS5 */, UTL_RAW.CAST_TO_RAW ('$SYS_USER_PASSWORD')) from dual;
         exit
-        "  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba"
+        "  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba"
         )
 
 	echo "Saving DBFS Information..................................."
@@ -749,7 +749,7 @@ save_dbfs_info(){
 	CREATE TABLE DBFS_INFO  (DBFS_PREFIX VARCHAR(50), DBFS_PASSWORD VARCHAR(50));
 	INSERT INTO DBFS_INFO (DBFS_PREFIX, DBFS_PASSWORD) VALUES('$PRIMARY_SCHEMA_PREFIX','$ENCRYPTED_DBFS_SCHEMA_PASSWORD');
 	exit
-	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@${A_JDBC_URL} "as sysdba" > /dev/null
+	"  | sqlplus -s $SYS_USERNAME/${SYS_USER_PASSWORD}@${A_JDBC_URL} "as sysdba" > /dev/null
 	echo "DBFS Information saved!"
 }
 
