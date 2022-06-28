@@ -53,5 +53,5 @@ DB_unique_name_suffix = "OCIDR"
 PDBName = "PDB1"
 
 # Database user sys's password. If not set here, it will be interactively requested
-sys_password = "MyPassw0rd#"
+sys_password = 
 
