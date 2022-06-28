@@ -56,3 +56,8 @@ Usage:
 - A complete WLS domain restart is needed for the changes to take effect: 
     - stop managed servers and Admin server.
     - start the Admin server first, and once in running, start the managed servers.
+
+soa_hybrid_dr_terraform folder
+-------------------------------
+A set of terraform scripts to create the OCI resources as described in the playbook https://docs.oracle.com/en/solutions/soa-dr-on-cloud/index.html
+See the README.md in that folder for additional details.
