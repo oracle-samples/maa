@@ -28,6 +28,7 @@ This repository stores a variety of examples demonstrating how to configure MAA/
 | [FMW Hybrid Disaster Recovery ](./hybrid_dr) | Scripts that can be used to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI).|
 | [Weblogic for OCI DR](./wls_mp_dr) |  Scripts that can be used to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment. |
 | [Oracle SOA Marketplace DR](./drs_mp_soa) | scripts that can be used to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt. |
+| [Private DNS views for DR](./private_dns_views_for_dr) | Terraform scripts to create private DNS views in primary and standby OCI VCNs. This is used in Disaster Recovery environments. These private DNS views contain the other site's host names, but resolved with local IPs.  |
 
 
 ## Contributing
