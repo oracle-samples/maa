@@ -57,7 +57,7 @@ Also, the **secondary hostnames** are added to the **DNS resolver** of the prima
     - This approach is **NOT valid** when **non-fully qualified hostnames**  are used as listener addresses (e.g. "soahost1") instead of using the fully qualified names (e.g. "soahost1.example.com), AND they are not the same in primary and secondary. For example, if the WLS server uses "soahost1" instead of "soahost1.example.com" as listener address, and "soahost1" is not a non-fully qualified name of any of the secondary hosts. In this case, the hosts in secondary will not ne able to resolve "soahost1" into the private view for the domain "example.com".  
     However:  
         - This is not a common practice: normally fqdn hostnames are used as listener addresses.
-        - This limitation does NOT apply to SOAMP DR, or WLS for OCI DR scenarios, because the non-fully qualified hostnames of primary and standby nodes are the same, as described in their respective DR setup documents. Besides this, the values configured as the listen addresses for the WLS servers are the fully qualified names.
+        - This limitation does NOT apply to SOAMP DR and WLS for OCI DR scenarios. Because the values configured as the listen addresses for the WLS servers are the fully qualified names. Besides this, the non-fully qualified hostnames of primary and standby nodes are the same, as described in their respective DR setup documents. 
          
         NOTE: in case this limitation applies, you can add the required domain name (e.g. "example.com") to the "search" list in /etc/resolv.conf file on each host. It is a manual operation that needs to be performed in the all the hosts involved. Note that the changes on /etc/resolv.conf may be not persisted across reboots in the OCI compute instances due to dhcp client. Alternatively, you can also add an additional DHCP Option to the VNC configuration, to add the domain to the Search list. See documentation https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Tasks/managingDHCP.htm for additional DHCP options in OCI.  
 
@@ -252,7 +252,7 @@ The terraform.tfvars would look like this:
 ## Configure using the OCI Console
 <details><summary> Click to expand </summary>
 
-You can also perform the same changes using the OCI Console instead of terraform scripts:
+You can perform the same changes using the OCI Console:
 - Identify the hostnames (fqdn) and the IPs of the primary and secondary mid-tier hosts.
 - For **PRIMARY region**. In OCI Console, go to primary region and:
     - Create the PRIVATE VIEW to resolve the names of the secondary hosts WITH THE PRIMARY IPS.
@@ -263,7 +263,7 @@ You can also perform the same changes using the OCI Console instead of terraform
     - Add the private view to the primary VCN's DNS resolver:
         - Click in PRIMARY VCN > Click in the "DNS resolver" resource.
         - Add the DNS private view to the list of private views. This way, the hosts in the primary VCN, will resolve the names of secondary midtier hosts using that private view.
-    - Validate the resolution in the PRIMARY hosts, by doing ping and nslookup of the SECONDARY midtier hostnames. They must be resolved with the primary hosts' IPs. To make sure that DNS resolution is used for these names, you can make sure that the aliases do not exist in the /etc/hosts file of the midtiers.
+    - Validate the resolution in the PRIMARY hosts, by doing nslookup of the SECONDARY midtier hostnames. They must be resolved with the primary hosts' IPs. 
     NOTE: it is not essential to add the secondary hostnames to the primary site. It is expected that only the primary hostnames appear in the WebLogic configuration. But this is to prevent issues, just in case any reference to secondary names is added in the config while the secondary site takes the primary role. But this is done to avoid errors in primary, in case that any reference to secondary names was added to the config while the secondary site takes the primary role.
 
 - For **SECONDARY region**, do the same but in the other way.  In OCI Console, go to secondary region and:
@@ -275,7 +275,7 @@ You can also perform the same changes using the OCI Console instead of terraform
     - Add the private view to the secondary VCN's DNS resolver:
         - Click in SECONDARY VCN > Click in th "DNS resolver" resource
         - Add the DNS private view to the list of the prviate views. This way, the hosts in the secondary VCN, will resolve the names of primary midtier hosts using that private view.
-    - Validate the resolution in the SECONDARY hosts, by doing ping and nslookup of the PRIMARY midtir hostnames. They must be resolved with the equivalent SECONDARY IPs. NOTE: to make sure that DNS resolution is used for these names, you can make sure that the aliases do not exist in the /etc/hosts file of the midtiers.
+    - Validate the resolution in the SECONDARY hosts, by running nslookup of the PRIMARY midtir hostnames. They must be resolved with the equivalent SECONDARY IPs. 
 </details>
 
 ## Authors and acknowledgment
