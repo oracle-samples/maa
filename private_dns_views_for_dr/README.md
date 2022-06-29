@@ -287,5 +287,5 @@ SOA Marketplace Disaster Recovery - https://www.oracle.com/a/tech/docs/maa-soamp
 Wls for OCI Disaster Recovery - https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf  
 Hybrid DR solution for Oracle SOA Suite - https://docs.oracle.com/en/solutions/soa-dr-on-cloud/index.html  
 FMW Disaster Recovery Guide - https://docs.oracle.com/en/middleware/fusion-middleware/12.2.1.4/asdrg/index.html  
-DNS Choices in VCNs: https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/dns.htm#Choices
+DNS Choices in VCNs: https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/dns.htm#Choices  
 OCI and Terraform:  https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/terraform.htm https://registry.terraform.io/providers/oracle/oci/latest/docs
