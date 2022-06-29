@@ -249,7 +249,7 @@ The terraform.tfvars would look like this:
 
 </details> 
 
-#### Configure using the OCI Console
+## Configure using the OCI Console
 <details><summary> Click to expand </summary>
 
 You can also perform the same changes using the OCI Console instead of terraform scripts:
