@@ -64,9 +64,9 @@ Also, the **secondary hostnames** are added to the **DNS resolver** of the prima
 
 ## HOW TO USE THESE TERRAFORM SCRIPTS
 
-The Oracle Cloud Infrastructure (OCI) allows you to use Terraform to interact with Oracle Cloud Infrastructure resources. Terraform is an open source tool that allows you to programmatically manage, version, and persist infrastructure through the "infrastructure-as-code" model. For more information about Terraform and OCI see: 
-https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/terraform.htm
-https://registry.terraform.io/providers/oracle/oci/latest/docs
+The Oracle Cloud Infrastructure (OCI) allows you to use Terraform to interact with Oracle Cloud Infrastructure resources. Terraform is an open source tool that allows you to programmatically manage, version, and persist infrastructure through the "infrastructure-as-code" model. For more information about Terraform and OCI see:  
+https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/terraform.htm  
+https://registry.terraform.io/providers/oracle/oci/latest/docs  
 
 These terraform scripts create the DNS private views for each site, adding the entries of the other site midtier hostnames, but resolved with the local IPs. The private view of each site is added to the default DNS Resolver of the VCN in each site, so all the hosts in the VCN are able to use the private views.  
 
