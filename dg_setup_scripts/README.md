@@ -6,6 +6,7 @@ Licensed under the Universal Permissive License v 1.0 as shown at https://oss.or
 ### Scripts for configuring Oracle Data Guard
 -------------------------------------------------------------------------------------------
 These scripts setup a standby database for an existing primary database using the "restore from service" feature and Data Guard Broker.
+Please refer to the following playbook for details about how to use these scripts: https://docs.oracle.com/en/solutions/configure-standby-db/
 
 #### Assumptions
 -------------------------------------------------------------------------------------------
