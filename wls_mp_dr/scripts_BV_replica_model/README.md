@@ -12,8 +12,8 @@ https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf
 
 | Folder  | Description |
 | ------------- | ------------- |
-| replacement_script_BVmodel/ | This folder contains an script to perform the replacement of the db connection string in the WebLogic datasources and config files. 
-| example_OCICli_BVmodel/ | This folder contains an example of a semi-automation script based on OCI Cli, for a switchover in the Block Volume replication DR model.
+| [replacement_script_BVmodel/](./replacement_script_BVmodel) | This folder contains an script to perform the replacement of the db connection string in the WebLogic datasources and config files, in the Block Volume replication DR model. 
+| [example_OCICli_BVmodel/](./example_OCICli_BVmodel) | This folder contains an example of a semi-automation script based on OCI Cli, for a switchover in the Block Volume replication DR model.
 
 
 

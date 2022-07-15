@@ -26,5 +26,6 @@ Usage
 | [fmw_dr_setup_standby.sh](./fmw_dr_setup_standby.sh) | This script prepares the WLS for OCI secondary system for Disaster Protection. |
 | [config_replica.sh](./config_replica.sh) | This script is used to replicate WLS domain configuration from primary to secondary. |
 | [updateDBServiceName.sh](./updateDBServiceName.sh) | This script updates the connection string in the datasources and in jps files.. |
+| [scripts_BV_replica_model](./scripts_BV_replica_model) | This folder contains scripts specific to the Block Volume Cross-region replica DR model.. |
 
 
