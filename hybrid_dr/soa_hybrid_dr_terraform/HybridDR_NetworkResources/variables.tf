@@ -43,8 +43,5 @@ variable "frontend_admin_port" { default = "7001"}
 variable "frontend_internal_port" { default = "8888"}
 
 variable "adminserver_port" { default = "7001"}
-variable "wsmcluster_port" { default = "7010"}
-variable "soacluster_port" { default = "8001"}
-variable "osbcluster_port" { default = "8010"}
-variable "esscluster_port" { default = "8020"}
-variable "bamcluster_port" { default = "9001"}
+variable "wlsservers_ports" {}
+

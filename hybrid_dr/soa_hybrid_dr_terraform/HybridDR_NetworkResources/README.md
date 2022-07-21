@@ -15,7 +15,7 @@ This terraform code will create:
 - (Optional) An Internet Gateway to the VCN. 
  
 This terraform code will NOT create: 
-- This does not create Fast Connect related configuration. 
+- This does not create Fast Connect nor Site-to-Site related configuration. 
 - This does not allow incoming traffic to SSH from 0.0.0.0/0 to the subnets. If needed, add the rule manually to the subnet's security list after provisioning. 
  
  
@@ -23,4 +23,5 @@ Steps to use:
 - Edit terraform.tfvars file. 
 - Provide the customer values. 
 - Run "terraform plan" to review the resources that are going to be created. 
-- Run "terraform apply" to create the resources. 
+- Run "terraform apply" to create the resources.
+

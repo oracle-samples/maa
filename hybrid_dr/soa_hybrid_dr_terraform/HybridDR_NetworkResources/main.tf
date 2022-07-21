@@ -161,6 +161,25 @@ resource "oci_core_security_list" "web_tier_security_list" {
     }
   }
 
+  # Allow access from on-prem to SSH port (for OHS)
+  dynamic ingress_security_rules {
+    for_each = [var.ssh_port]
+    content {
+    #Required
+    protocol = "6" // TCP
+    source   = var.onprem_CIDR
+    #Optional
+    description = "Allow access from on-prem network to frontend ${ingress_security_rules.value} port"
+    source_type = "CIDR_BLOCK"
+    stateless   = "false"
+    tcp_options {
+      min = ingress_security_rules.value
+      max = ingress_security_rules.value
+    }
+    }
+  }
+
+
   # Allow access from mid-tier to frontend ports (HTTPS, HTTP)
   dynamic ingress_security_rules {
     for_each = [ var.frontend_https_port, var.frontend_http_port ]
@@ -180,7 +199,7 @@ resource "oci_core_security_list" "web_tier_security_list" {
   }
   # Egresss rules from web-tier to mid-tier
   dynamic egress_security_rules {
-    for_each = [ var.adminserver_port, var.wsmcluster_port, var.soacluster_port, var.osbcluster_port, var.esscluster_port, var.bamcluster_port ]
+    for_each = flatten([var.adminserver_port, var.wlsservers_ports])
     content {
     #Required
     destination = var.midtier_CIDR
@@ -222,7 +241,7 @@ resource "oci_core_security_list" "mid_tier_security_list" {
 
   # Allow from on-prem to different ports
   dynamic ingress_security_rules {
-    for_each = [ var.ssh_port, var.adminserver_port, var.wsmcluster_port, var.soacluster_port, var.osbcluster_port, var.esscluster_port, var.bamcluster_port ]
+    for_each = flatten([var.ssh_port, var.adminserver_port, var.wlsservers_ports])
     content {
     #Required
     protocol = "6" // TCP
@@ -238,9 +257,9 @@ resource "oci_core_security_list" "mid_tier_security_list" {
     }
   }
 
-  # Allow from we-tier to different ports
+  # Allow from web-tier to different ports
   dynamic ingress_security_rules {
-    for_each = [ var.adminserver_port, var.wsmcluster_port, var.soacluster_port, var.osbcluster_port, var.esscluster_port, var.bamcluster_port ]
+    for_each = flatten([var.adminserver_port, var.wlsservers_ports]) 
     content {
     #Required
     protocol = "6" // TCP
@@ -399,7 +418,7 @@ resource "oci_core_security_list" "mid_tier_security_list" {
     }
   }
 
-  # Egress rules from mid-tier to HTTPS (needed for SOA Callbacks to LBR )
+  # Egress rules from mid-tier to HTTPS (needed for potential application callbacks to LBR )
   egress_security_rules {
     #Required
     destination = var.webtier_is_private ? var.webtier_CIDR : "0.0.0.0/0"

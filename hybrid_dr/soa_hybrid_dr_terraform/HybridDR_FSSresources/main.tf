@@ -27,9 +27,9 @@ data "oci_identity_availability_domains" "ADs" {
   compartment_id = var.compartment_id
 }
 
-output "ADs" {
-  value = data.oci_identity_availability_domains.ADs.availability_domains
-}
+#output "ADs" {
+#  value = data.oci_identity_availability_domains.ADs.availability_domains
+#}
 
 
 

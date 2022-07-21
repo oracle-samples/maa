@@ -4,15 +4,13 @@
 ### Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ###
 
-## These are sample values. Customize with the values of your environment
-
 ## OCI Provider details
-tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa7dkeohv7777777777777777777kon3f2bxo6z6e2odqxsklgq"
-user_ocid        = "ocid1.user.oc1..aaaaaaaa77pn6uke4z444444444444444444doteepq6d7jqaubes3fsq4q"
-fingerprint      = "5c:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55"
-private_key_path = "/home/opc/my_keys/oracleidentitycloudservice_user.name-02-28-08-31.pem"
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa7dkeo77777777777777777777okon3f2bxo6z6e2odqxsklgq"
+user_ocid        = "ocid1.user.oc1..aaaaaaaa77pn6uke444444444444444444445doteepq6d7jqaubes3fsq4q"
+fingerprint      = "5c:55:55:55:55:55:55:55:55:55:55:55:55:55:55:55a"
+private_key_path = "/home/opc/my_keys/oracleidentitycloudservice_user.names-02-28-08-31.pem"
 region           = "us-ashburn-1"
-compartment_id   = "ocid1.compartment.oc1..aaaaaaaa6zlezuv22222222222222yl3faqfhi6x6qdtd2vathgya"
+compartment_id   = "ocid1.compartment.oc1..aaaaaaaa6zlezuvycwpmaiyuunyfqrunkcutyl3faqfhi6x6qdtd2vathgya"
 
 
 ### Network resources
@@ -26,7 +24,7 @@ fsstier_subnet_name = "fsstierSubnet"
 # Public or private
 webtier_is_private = "false"
 midtier_is_private = "false"
-dbtier_is_private  = "true"
+dbtier_is_private  = "false"
 fsstier_is_private = "true"
 
 # CIDR ranges
@@ -49,9 +47,6 @@ frontend_http_port  = "80"
 frontend_admin_port = "7001"
 frontend_internal_port = "8888"
 adminserver_port    = "7001"
-wsmcluster_port     = "7010"
-soacluster_port     = "8001"
-osbcluster_port     = "8011"
-esscluster_port     = "8021"
-bamcluster_port     = "9001"
+# Add the listener ports of the WebLogic managed servers. These are the ports that receive the requests from the webtier
+wlsservers_ports    = ["7010", "8001","8011","8021", "9001" ]
 

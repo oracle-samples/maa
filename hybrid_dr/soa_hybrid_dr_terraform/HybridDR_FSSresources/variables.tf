@@ -20,18 +20,18 @@ variable "AD1_name" {}
 variable "AD2_name" {}
 
 # Mount target names
-variable "mounttarget1_displayname" { default = "SOADRmountTarget" }
+variable "mounttarget1_displayname" { default = "WLSDRmountTarget1" }
 variable "mounttarget2_displayname" {}
 
 # Filesystem names
-variable "sharedconfig_FSSname" { default = "soadrconfigFSS" }
-variable "runtime_FSSname" { default = "soadrruntimeFSS" }
-variable "products1_FSSname" { default = "soadrproducts1FSS" }
-variable "products2_FSSname" { default = "soadrproducts2FSS" }
+variable "sharedconfig_FSSname" { default = "wlsdrconfigFSS" }
+variable "runtime_FSSname" { default = "wlsdrruntimeFSS" }
+variable "products1_FSSname" { default = "wlsdrproducts1FSS" }
+variable "products2_FSSname" { default = "wlsdrproducts2FSS" }
 
 # Export Paths
-variable "sharedconfig_exportpath" { default = "/export/soadrconfig" }
-variable "runtime_exportpath" { default = "/export/soadrruntime" }
-variable "products1_exportpath" { default = "/export/soadrproducts1" }
-variable "products2_exportpath" { default = "/export/soadrproducts2" }
+variable "sharedconfig_exportpath" { default = "/export/wlsdrconfig" }
+variable "runtime_exportpath" { default = "/export/wlsdrruntime" }
+variable "products1_exportpath" { default = "/export/wlsdrproducts1" }
+variable "products2_exportpath" { default = "/export/wlsdrproducts2" }
 
