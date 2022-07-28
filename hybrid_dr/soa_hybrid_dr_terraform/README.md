@@ -26,7 +26,8 @@ Terraform code to create the OCI Load Balancer and its configuration as describe
 1) HybridDR_NetworkResources, to create the network resources.
 2) HybridDR_DBSystem, to create the DB system.
 3) HybridDR_FSSresources, to create the FSS resources.
-4) HybridDR_SOAComputeInstances to create the midtier nodes, and then HybridDR_OCILoadBalancer (which requires the midtier nodes).
+4) HybridDR_SOAComputeInstances to create the midtier nodes
+5) HybridDR_OCILoadBalancer, to create the OCI Load Balancer (which requires the midtier nodes).
 
 Note: the order of 2,3,4 does not matter.
 
