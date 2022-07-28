@@ -2,7 +2,7 @@ SOA Hybrid dr terraform scripts v 1.0
 Copyright (c) 2022 Oracle and/or its affiliates  
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/  
 
-# Terraform code for creating network resources for SOA Hybrid DR
+# Terraform code for creating OCI FS resources for SOA Hybrid DR
 ---------------------------------------------------------------
 This terraform code is referenced in the section "Prepare the Storage on OCI" 
 of the playbook "Configure a hybrid DR solution for Oracle SOA Suite" 
