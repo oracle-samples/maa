@@ -132,7 +132,7 @@ show_databases_info_single(){
 	echo "Secondary Oracle Home................." $ORACLE_HOME
 	echo "Secondary Grid home..................." $GRID_HOME
 	echo "Secondary tns admin folder............" $TNS_ADMIN
-	echo "Location for TDE wallet folder........" $TDE_LOC_BASE
+	echo "Secondary location for TDE wallet files........" $B_TDE_LOC
 }
 
 show_databases_info_rac(){
@@ -170,7 +170,7 @@ show_databases_info_rac(){
     echo "Secondary Oracle Home................." $ORACLE_HOME
 	echo "Secondary Grid home..................." $GRID_HOME
     echo "Secondary tns admin folder............" $TNS_ADMIN
-    echo "Location for TDE wallet folder........" $TDE_LOC_BASE
+    echo "Secondary Location for TDE wallet files........" $B_TDE_LOC
     echo "***************************************************************************************************"
     echo ""
 
@@ -341,9 +341,9 @@ EOF
 }
 
 get_wallet_from_primary(){
-	if [ -z "$TDE_LOC_BASE" ]; then
+	if [ -z "$B_TDE_LOC" ]; then
 		echo ""
-                echo "TDE_LOC_BASE not provided. This is expected only if TDE is not used."
+                echo "B_TDE_LOC not provided. This is expected only if TDE is not used."
                 echo "If TDE is used , verify the input parameters"
         else
 		echo ""
@@ -352,9 +352,9 @@ get_wallet_from_primary(){
 			echo "Error: Input wallet tar $INPUT_WALLET_TAR does not exist or not correctly provided"
 			exit 1
 		fi
-		su $ORACLE_OSUSER -c "mv ${TDE_LOC_BASE}/$B_DBNM ${TDE_LOC_BASE}/$B_DBNM.$dt"
-		su $ORACLE_OSUSER -c "mkdir -p ${TDE_LOC_BASE}/$B_DBNM"
-		cd $TDE_LOC_BASE/$B_DBNM
+		su $ORACLE_OSUSER -c "mv ${B_TDE_LOC} ${B_TDE_LOC}.$dt"
+		su $ORACLE_OSUSER -c "mkdir -p ${B_TDE_LOC}"
+		cd $B_TDE_LOC
 		su $ORACLE_OSUSER -c "tar -xzf $INPUT_WALLET_TAR"
 # this is not needed because we are now retrieving .sso also (more feasible for RAC cases if TDE is not in shared location)
 #	su $ORACLE_OSUSER -c "sqlplus -s / as sysdba <<EOF
@@ -362,13 +362,13 @@ get_wallet_from_primary(){
 #EOF
 #"
 
-		echo "Wallet created in ${TDE_LOC_BASE}/$B_DBNM !"
-		linecount=$(grep -ci "ENCRYPTION_WALLET_LOCATION=(SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY=$TDE_LOC_BASE/$B_DBNM)))" $TNS_ADMIN/sqlnet.ora)
+		echo "Wallet created in ${B_TDE_LOC} !"
+		linecount=$(grep -ci "ENCRYPTION_WALLET_LOCATION=(SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY=$B_TDE_LOC)))" $TNS_ADMIN/sqlnet.ora)
         	if [[ $linecount -eq 0  ]]; then
 			echo "Adding wallet to $TNS_ADMIN/sqlnet.ora"
 	 		su $ORACLE_OSUSER -c "cp $TNS_ADMIN/sqlnet.ora $TNS_ADMIN/sqlnet.ora.${dt}"
 			su $ORACLE_OSUSER -c "cat >> $TNS_ADMIN/sqlnet.ora <<EOF
-ENCRYPTION_WALLET_LOCATION=(SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY=$TDE_LOC_BASE/$B_DBNM)))
+ENCRYPTION_WALLET_LOCATION=(SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY=$B_TDE_LOC)))
 EOF
 "
 		fi
