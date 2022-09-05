@@ -353,7 +353,7 @@ get_wallet_from_primary(){
 			exit 1
 		fi
 		su $ORACLE_OSUSER -c "mv ${TDE_LOC_BASE}/$B_DBNM ${TDE_LOC_BASE}/$B_DBNM.$dt"
-		su $ORACLE_OSUSER -c "mkdir ${TDE_LOC_BASE}/$B_DBNM"
+		su $ORACLE_OSUSER -c "mkdir -p ${TDE_LOC_BASE}/$B_DBNM"
 		cd $TDE_LOC_BASE/$B_DBNM
 		su $ORACLE_OSUSER -c "tar -xzf $INPUT_WALLET_TAR"
 # this is not needed because we are now retrieving .sso also (more feasible for RAC cases if TDE is not in shared location)
