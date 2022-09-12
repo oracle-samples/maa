@@ -173,7 +173,8 @@ get_variables(){
         export CDB_SERVICE_FILE=/u01/data/domains/local_CDB_jdbcurl.nodelete
 	if [ -f "$CDB_SERVICE_FILE" ]; then
 		echo "Local CDB file found. Proceeding"
-	        export LOCAL_CDB_URL=$(cat $CDB_SERVICE_FILE)
+		export LOCAL_CDB_URL=$(head -n 1 $CDB_SERVICE_FILE)
+	        #export LOCAL_CDB_URL=$(cat $CDB_SERVICE_FILE)
 	else
 		echo "$CDB_SERVICE_FILE not found. Please make sure that your system has been configured for DR using fmw DR setup scripts (or DRS tool)"
 		exit 1
@@ -222,7 +223,13 @@ get_variables(){
 		export LOCAL_DB_FILE=${DOMAIN_HOME}/dbfs/localdb.log
 		if [ -f "$LOCAL_DB_FILE" ]; then
 		        echo "Local DB file found. Proceeding"
-        		export LOCAL_DB_UNQNAME=$(cat $LOCAL_DB_FILE)
+        		#export LOCAL_DB_UNQNAME=$(cat $LOCAL_DB_FILE)
+			#Changed to support local DG. 
+			#This is used only when this site is standby role, to convert it to snapshot
+			#in case the standby site has 2 local db, we will convert the first one
+			#Taking the first line will be valid in all the cases (with local DG or not)
+			#NOTE: in fact we may not need to add the local DG name to this "pointer file"
+			export LOCAL_DB_UNQNAME=$(head -n 1 $LOCAL_DB_FILE)
 		else
 		        echo "$LOCAL_DB_FILE not found. Please make sure that your system has been configured for DR using DBFS method"
 			exit 1
@@ -247,10 +254,10 @@ get_variables(){
 }
 
 
+
 get_localdb_role(){
 	echo ""
         echo "************** GET LOCAL DB ROLE *************************************************"
-
 	export count=0;
 	export top=3;
 	while [ $count -lt  $top ]; do
@@ -279,7 +286,38 @@ get_localdb_role(){
 		echo "cursor.execute(\"select database_role from v\$database\")" >> /tmp/get_local_role.py
 		echo "print cursor.fetchone()" >> /tmp/get_local_role.py
 		export db_role=$($MIDDLEWARE_HOME/oracle_common/common/bin/wlst.sh /tmp/get_local_role.py | tail -1)
-		echo ${db_role}
+		echo "The role of the database is: ${db_role}"
+
+		# Added to support LOCAL DG 
+                # Check also the role of the local DG
+		# Because in case of a local switchover, the role site is still primary
+		lines=$(cat $CDB_SERVICE_FILE | wc -l)
+		if [[ $lines = "2" ]]; then
+			echo "   The file $CDB_SERVICE_FILE contains 2 lines. This site has a local Data Guard"
+	                # In case a local switchover, the role site is still primary
+                	echo "   Checking the role of the additional local database..."
+                        export LOCAL_CDB_URL_2=$(head -2 $CDB_SERVICE_FILE | tail -1)
+                        export jdbc_url="jdbc:oracle:thin:@"${LOCAL_CDB_URL_2}
+                        export username="sys as sysdba"
+                        export password=${SYS_USER_PASSWORD}
+                        echo "from com.ziclix.python.sql import zxJDBC" > /tmp/get_local_role.py
+                        echo "jdbc_url = \"$jdbc_url\" " >> /tmp/get_local_role.py
+                        echo "username = \"$username\" " >> /tmp/get_local_role.py
+                        echo "password = \"$password\" " >> /tmp/get_local_role.py
+                        echo "driver = \"oracle.jdbc.xa.client.OracleXADataSource\" " >> /tmp/get_local_role.py
+                        echo "conn = zxJDBC.connect(jdbc_url, username, password, driver)" >> /tmp/get_local_role.py
+                        echo "cursor = conn.cursor(1)" >> /tmp/get_local_role.py
+                        echo "cursor.execute(\"select database_role from v\$database\")" >> /tmp/get_local_role.py
+                        echo "print cursor.fetchone()" >> /tmp/get_local_role.py
+                        export db_role_2=$($MIDDLEWARE_HOME/oracle_common/common/bin/wlst.sh /tmp/get_local_role.py | tail -1)
+                        echo "   The role of the local DG database is: " ${db_role_2}
+                        if  [[ ${db_role} = *PRIMARY* ]] || [[ ${db_role_2} = *PRIMARY* ]]; then
+                                db_role="PRIMARY"
+				echo "The role of this SITE is $db_role"
+			fi
+                fi
+		# End of code to support LOCAL DG 
+
 
 		if  [[ ${db_role} = *PRIMARY* ]] || [[ ${db_role} = *STANDBY* ]]; then
 	   	echo "Sys password is valid. Proceeding..."
@@ -377,10 +415,9 @@ checks_in_primary_DBFS(){
 		sleep 10
 		if mountpoint -q $DBFS_MOUNT; then
 			echo "    Mount at $DBFS_MOUNT is ready!"
-			return 1
 		else
 			echo "    Error: DBFS Mount point not available even after another try to mount. Check your DBFS set up."
-                	return 0
+            exit 1
 		fi
 	fi
 }
@@ -440,17 +477,22 @@ checks_in_secondary_DBFS(){
 }
 
 retrieve_remote_unq_name(){
+	#select DB_UNIQUE_NAME from V\$DATAGUARD_CONFIG where DB_UNIQUE_NAME != '${LOCAL_DB_UNQNAME}';
+	# Lets retrieve the one that is the primary role
+	# This function runs always when site is standby
+	# So this will retrieve the remote DB unique name of the DB that is primary (regardless local DGs)
 	export REMOTE_DB_UNQNAME=$(
 	echo "set feed off
 	set pages 0
 	alter session set NLS_COMP=ANSI;
 	alter session set NLS_SORT=BINARY_CI;
-	select DB_UNIQUE_NAME from V\$DATAGUARD_CONFIG where DB_UNIQUE_NAME != '${LOCAL_DB_UNQNAME}';
+	select DB_UNIQUE_NAME from V\$DATAGUARD_CONFIG where DEST_ROLE like '%PRIMARY%';
 	exit
 	"  | sqlplus -s $SYS_USERNAME/$SYS_USER_PASSWORD@$LOCAL_DB_UNQNAME "as sysdba"
 	)
+
 	if [[ ${VERBOSE} = "true" ]]; then	
-		echo "Remote UNQ"  $REMOTE_DB_UNQNAME
+		echo "Remote UNQ (primary DB)"  $REMOTE_DB_UNQNAME
 	fi
 }
 
