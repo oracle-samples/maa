@@ -40,8 +40,8 @@
 
 #######################################################################
 # CUSTOMIZABLE VARIABLES 
-# For "WLS for OCI" DR, keep the default values, DO NOT modify them.
-# For other scenarios, customize to your env's values.
+# For "WLS for OCI" DR OCI to OC), keep the default values, DO NOT modify them.
+# For other scenarios (e.g. WLS Hybrid DR, on-premises hosts), customize to your env's values.
 #######################################################################
 #  Set to NO to skip db client installation if it is already installed. Default is YES.
 export INSTALL_DBCLIENT=YES
