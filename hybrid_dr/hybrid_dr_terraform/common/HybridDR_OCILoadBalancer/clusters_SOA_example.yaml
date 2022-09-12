@@ -1,0 +1,81 @@
+## WLS Hybrid DR terraform scripts  
+##
+## Copyright (c) 2022 Oracle and/or its affiliates
+## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+clusters:
+        - cluster:
+                name :  "WSM-PM_Cluster"
+                servers_IPs :   
+                        - "111.111.111.1"
+                        - "111.111.111.3"
+                port :  "7010"
+                uris :          
+                        - "/wsm-pm"
+                internal: "yes"
+
+        - cluster:
+                name:   "SOA_Cluster"
+                servers_IPs:    
+                        - "111.111.111.1"
+                        - "111.111.111.2"
+                port:   "8001"
+                uris:           
+                        - "/soa-infra"
+                        - "/inspection.wsil"
+                        - "/integration"
+                        - "/sdpmessaging/userprefs-ui"
+                        - "/DefaultToDoTaskFlow"
+                        - "/workflow"
+                        - "/ADFAttachmentHelper"
+                        - "/soa/composer"
+                        - "/bpm/composer"
+                        - "/bpm/workspace"
+                        - "/bpm/casemgmt"
+                        - "/b2bconsole"
+                        - "/b2b/services"
+                        - "/b2b/httpreceiver"
+                internal: "no"
+
+        - cluster:
+                name:   "OSB_Cluster"
+                servers_IPs:    
+                        - "111.111.111.1"
+                        - "111.111.111.2"
+                port:   "8011"
+                uris:           
+                        - "/sbinspection.wsil"
+                        - "/sbresource"
+                        - "/osb"
+                        - "/alsb"
+                internal: "yes"
+
+        - cluster:
+                name:   "BAM_Cluster"
+                servers_IPs:
+                        - "111.111.111.1"
+                        - "111.111.111.2"
+                port:   "9001"
+                uris:
+                        - "/bam"
+                        - "/composer"
+                        - "/OracleBAMWS"
+                        - "/oracle/bam"
+                internal: "no"
+
+        - cluster:
+                name:   "ESS_Cluster"
+                servers_IPs:
+                        - "111.111.111.1"
+                        - "111.111.111.2"
+                port:   "8021"
+                uris:
+                        - "/ess"
+                        - "/EssHealthCheck"
+                        - "/ess-async"
+                        - "/ess-wsjob"
+                internal: "no"
+
+ 
+#Add more clusters if needed
+

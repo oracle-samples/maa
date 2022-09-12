@@ -1,0 +1,55 @@
+## WLS Hybrid DR terraform scripts  
+##
+## Copyright (c) 2022 Oracle and/or its affiliates
+## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+clusters:
+        - cluster:
+                name :  "My_Cluster_1"
+                servers_IPs :   
+                        - "111.111.111.1"
+                        - "111.111.111.2"
+                        - "111.111.111.3"
+                port :  "1111"
+                uris :          
+                        - "/app1"
+                        - "/test1"
+                internal: "no"
+
+        - cluster:
+                name:   "My_Cluster_2"
+                servers_IPs:    
+                        - "222.222.222.1"
+                        - "222.222.222.2"
+                port:   "2222"
+                uris:           
+                        - "/app2"
+                        - "/test2"
+                internal: "no"
+
+        - cluster:
+                name:   "My_Cluster_3"
+                servers_IPs:    
+                        - "223.223.223.1"
+                        - "223.223.223.2"
+                port:   "3333"
+                uris:           
+                        - "/app3"
+                        - "/test3"
+                internal: "yes"
+
+        - cluster:
+                name:   "My_Cluster_4"
+                servers_IPs:
+                        - "224.224.224.1"
+                        - "224.224.224.2"
+                port:   "4444"
+                uris:
+                        - "/app4"
+                        - "/test4"
+                        - "/another4"
+                internal: "no"
+ 
+#Add more clusters if needed
+
+
