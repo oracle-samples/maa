@@ -7,8 +7,8 @@
 ## OCI Provider details
 tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2vefxxrokon3f2bxo6z6e2odqxsklgq"
 user_ocid        = "ocid1.user.oc1..aaaaaaaa77pn6uke4zyxeumfxv4tfyveensu5doteepq6d7jqaubes3fsq4q"
-fingerprint      = "5c:44:53:23:4c:a6:20:76:34:9c:0d:ae:98:28:e6:ba"
-private_key_path = "/home/opc/TERRAFORM_TESTS/my_keys/oracleidentitycloudservice_iratxe.etxebarria-02-28-08-31.pem"
+fingerprint      = "5c:44:53:.....98:28:e6:ba"
+private_key_path = "/home/opc/TERRAFORM_TESTS/my_keys/oracleidentitycloudservice_user.name-02-28-08-31.pem"
 region           = "us-ashburn-1"
 
 # Compartment and subnet
