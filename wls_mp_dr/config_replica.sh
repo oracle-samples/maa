@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## PaaS DR scripts - version 1.1
+## PaaS DR scripts - script version 1.2
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -40,8 +40,9 @@
 ###
 ###	REMOTE_KEYFILE:		[ONLY WHEN DR_METHOD IS RSYNC]. The private ssh keyfile to connect to remote Weblogic Administration server node.
 ###
-###	The SYS_USER_PASSWORD will be requested interactively
-
+### - In both options, the SYS_USER_PASSWORD will be requested interactively. You can hardcode it in this script (encrypted), in the section "ENCRYPTED SYS PASSWORD".
+###   If you hardcode it, the password will not be interactively requested.
+###
 #export VERBOSE=true
 
 # To get input customizable parameters
@@ -90,23 +91,28 @@ else
 	################## BEGIN CUSTOMIZED PARAMETERS SECTION ########################################################
 	###############################################################################################################
 	# In case the parameters are not passed as input parameters they can be hardcoded here
-	export DR_METHOD=
+	export DR_METHOD=			# DBFS or RSYNC
 	export REMOTE_ADMIN_NODE_IP=   		# Required only for RSYNC method
 	export REMOTE_KEYFILE=			# Required only for RSYNC method
-	#[OPTIONAL] You can set the encrypted sys password here. If not, you will be prompted to enter it interactively
-	#Check the whitepaper for instructions to encrypt it
-	#Example of encrypted sys password
-	#export ENCRYPTED_SYS_USER_PASSWORD={AES256}DVJKPjS0Yw9o+rM/DcbjIPfEhdxq3oPDrppFsLFmU2b3i3ya9lR/ZtzJMKNbZvmT
-	export ENCRYPTED_SYS_USER_PASSWORD=
 	###############################################################################################################
 	################## END OF CUSTOMIZED PARAMATERS SECTION #######################################################
 	###############################################################################################################
         echo " DR_METHOD							= $DR_METHOD "
         echo " REMOTE_ADMIN_NODE_IP (required only for RSYNC DR METHOD)	= $REMOTE_ADMIN_NODE_IP"
         echo " REMOTE_KEYFILE       (required only for RSYNC DR METHOD)	= $REMOTE_KEYFILE"
-	echo " ENCRYPTED_SYS_USER_PASSWORD					= <value_not_shown>"
 	sleep 10
 fi
+
+###############################################################################################################
+################## BEGIN ENCRYPTED SYS PASSWORD SECTION #######################################################
+# You can set the encrypted sys password here. If not, you will be prompted to enter it interactively
+# Check the whitepaper for instructions to encrypt it
+# Example of encrypted sys password
+#export ENCRYPTED_SYS_USER_PASSWORD='{AES256}DVJKPjS0Yw9o+rM/DcbjIPfEhdxq3oPDrppFsLFmU2b3i3ya9lR/ZtzJMKNbZvmT'
+###############################################################################################################
+################## END OF ENCRYPTED SYS PASSWORD SECTION ######################################################
+###############################################################################################################
+
 
 
 ######################################################################################################################
@@ -408,7 +414,6 @@ checks_in_primary_DBFS(){
 	echo "Checking DBFS mount point..."
 	if mountpoint -q $DBFS_MOUNT; then
 		echo "    Mount at $DBFS_MOUNT is ready!"
-		return 1
 	else
 		echo "    DBFS Mount point not available. Will try to mount again..."
 		${DBFS_MOUNT_SCRIPT}
@@ -417,7 +422,7 @@ checks_in_primary_DBFS(){
 			echo "    Mount at $DBFS_MOUNT is ready!"
 		else
 			echo "    Error: DBFS Mount point not available even after another try to mount. Check your DBFS set up."
-            exit 1
+                	exit 1
 		fi
 	fi
 }
