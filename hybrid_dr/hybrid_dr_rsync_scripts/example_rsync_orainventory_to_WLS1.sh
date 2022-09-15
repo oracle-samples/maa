@@ -11,25 +11,23 @@
 ###########################################################################
 
 # Provide the remote node hostname or IP
-REMOTE_NODE=hydrsoa1.example.com
+REMOTE_NODE=hostwls1.example.com
 
-# Provide the path of the RUNTIME FOLDER
-ORACLE_RUNTIME=/u01/oracle/runtime/soadomain
+# Provide the path of the ORAINVENTORY FOLDER
+ORAINVENTORY_FOLDER=/u01/app/oraInventory
 
-# Provide custom exclude list. These folders/files will not be included in the rsync copy
-# CUSTOM_EXCLUDE_LIST="--exclude dir1/ --exclude dir2/"
+# Provide custom exclude list. Not needed for this case
 CUSTOM_EXCLUDE_LIST=""
 
 ###########################################################################
 # END OF CUSTOM VALUES
 ###########################################################################
 
-
 ###########################################################################
 # PREPARE VARIABLES AND RUN THE SCRIPT THAT PERFORMS THE COPY
 ###########################################################################
-ORIGIN_FOLDER=$ORACLE_RUNTIME
-DEST_FOLDER=$ORACLE_RUNTIME
+ORIGIN_FOLDER=$ORAINVENTORY_FOLDER
+DEST_FOLDER=$ORAINVENTORY_FOLDER
 EXCLUDE_LIST="${CUSTOM_EXCLUDE_LIST}"
 ./rsync_copy_and_validate.sh $ORIGIN_FOLDER $DEST_FOLDER $REMOTE_NODE "$EXCLUDE_LIST"
 

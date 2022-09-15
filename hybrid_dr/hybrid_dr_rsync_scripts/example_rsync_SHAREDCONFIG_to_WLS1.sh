@@ -11,12 +11,12 @@
 ###########################################################################
 
 # Provide the remote node hostname or IP
-REMOTE_NODE=hydrsoa1.example.com
+REMOTE_NODE=hostwls1.example.com
 
 # Provide the path of the shared config folders to copy
-ASERVER_HOME=/u01/oracle/config/domains/soadomain
-APPLICATION_HOME=/u01/oracle/config/applications/soadomain
-DEPLOY_PLAN_HOME=/u01/oracle/config/dp/soadomain
+ASERVER_HOME=/u01/oracle/config/domains/mydomain
+APPLICATION_HOME=/u01/oracle/config/applications/mydomain
+DEPLOY_PLAN_HOME=/u01/oracle/config/dp/mydomain
 KEYSTORE_HOME=/u01/oracle/config/keystores
 
 # NOTE: this script performs the copy of each artifact in separated steps to provide more granularity.

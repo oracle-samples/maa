@@ -10,7 +10,7 @@
 # CUSTOM VALUES
 ###########################################################################
 # Provide the remote node hostname or IP
-REMOTE_NODE=hydrsoa1.example.com
+REMOTE_NODE=hostwls1.example.com
 
 # Provide the path of the products folder 
 PRODUCTS_FOLDER=/u01/oracle/products
