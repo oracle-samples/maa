@@ -23,8 +23,8 @@ fsstier_subnet_name = "fsstierSubnet"
 
 # Public or private
 webtier_is_private = "false"
-midtier_is_private = "false"
-dbtier_is_private  = "false"
+midtier_is_private = "true"
+dbtier_is_private  = "true"
 fsstier_is_private = "true"
 
 # CIDR ranges
