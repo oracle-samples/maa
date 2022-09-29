@@ -496,7 +496,7 @@ resource "oci_core_security_list" "db_tier_security_list" {
   # Egress rules from db-tier to on-prem
   egress_security_rules {
     #Required
-    destination = var.dbtier_CIDR
+    destination = var.onprem_CIDR
     protocol    = "6" // TCP
 
     #Optional
