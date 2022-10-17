@@ -776,6 +776,7 @@ run {
 startup nomount
 restore standby controlfile from service '${A_DBNM}';
 alter database mount;
+CONFIGURE DEFAULT DEVICE TYPE clear;
 CONFIGURE DEVICE TYPE 'SBT_TAPE' clear;
 CONFIGURE CHANNEL DEVICE TYPE 'SBT_TAPE' clear;
 restore database from service '${A_DBNM}' section size 5G;
