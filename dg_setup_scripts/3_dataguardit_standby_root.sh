@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## dg_setup_scripts version 1.0.
+## dg_setup_scripts version 2.0.
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -35,6 +35,7 @@ fi
 ########################################################################################
 # Variables with fixed or dynamically obtained values
 #########################################################################################
+
 export dt=$(date +%Y-%m-%d-%H_%M_%S)
 . /home/${ORACLE_OSUSER}/.bashrc
 
@@ -340,6 +341,19 @@ EOF
 	echo "DGBroker configuration removed!"
 }
 
+# This function is used when adding additional standby DB to an existing DG configuration (ADDITIONAL_STANDBY=YES)
+remove_this_stby_from_broker(){
+        echo ""
+        echo "Removing local stby from DGBroker (to clean up it in case it was already) ..."
+        su $ORACLE_OSUSER -c "$ORACLE_HOME/bin/dgmgrl -silent ${SYS_USERNAME}/${SYS_USER_PASSWORD}@${A_DBNM} <<EOF
+remove database '${B_DBNM}'
+exit
+EOF
+"
+        echo "Database ${B_DBNM} removed from DGBroker!"
+}
+
+
 get_wallet_from_primary(){
 	if [ -z "$B_TDE_LOC" ]; then
 		echo ""
@@ -358,7 +372,7 @@ get_wallet_from_primary(){
 		su $ORACLE_OSUSER -c "tar -xzf $INPUT_WALLET_TAR"
 # this is not needed because we are now retrieving .sso also (more feasible for RAC cases if TDE is not in shared location)
 #	su $ORACLE_OSUSER -c "sqlplus -s / as sysdba <<EOF
-#ADMINISTER KEY MANAGEMENT CREATE AUTO_LOGIN KEYSTORE FROM KEYSTORE '$TDE_LOC_BASE/$B_DBNM' IDENTIFIED BY ${SYS_USER_PASSWORD};
+#ADMINISTER KEY MANAGEMENT CREATE AUTO_LOGIN KEYSTORE FROM KEYSTORE '$B_TDE_LOC' IDENTIFIED BY ${SYS_USER_PASSWORD};
 #EOF
 #"
 
@@ -634,6 +648,10 @@ modify_retrieved_pfile(){
 	#################
 	sed -i '/log_file_name_convert/d' /tmp/retrieved.pfile
 	sed -i '/db_file_name_convert/d' /tmp/retrieved.pfile
+	# Needed when we are adding an additional DG to an existing DG (ADDITIONAL_STANDBY=YES). 
+	if  [[ $ADDITIONAL_STANDBY = "YES" ]]; then
+		sed -i '/log_archive_config/d' /tmp/retrieved.pfile
+	fi
 
 	# RAC specific modifications
 	#############################
@@ -776,7 +794,7 @@ run {
 startup nomount
 restore standby controlfile from service '${A_DBNM}';
 alter database mount;
-CONFIGURE DEFAULT DEVICE TYPE clear;
+CONFIGURE DEFAULT DEVICE TYPE clear; 
 CONFIGURE DEVICE TYPE 'SBT_TAPE' clear;
 CONFIGURE CHANNEL DEVICE TYPE 'SBT_TAPE' clear;
 restore database from service '${A_DBNM}' section size 5G;
@@ -893,6 +911,7 @@ restart_database_mount(){
 create_dataguard_broker_config(){
 	echo ""
 	echo "Creating new DG Broker configuration..."
+
 	su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/sqlplus -s ${SYS_USERNAME}/${SYS_USER_PASSWORD}@${A_DBNM} as sysdba <<EOF
   alter system set dg_broker_start=FALSE;
   alter system set dg_broker_config_file1='${A_FILE_DEST}/dr1.dat';
@@ -923,6 +942,52 @@ EOF
 	sleep 20
 	echo "New DG Broker configuration created!"
 }
+
+
+update_dataguard_broker() {
+	#Use this function when adding an additional standby
+        echo ""
+        echo "Updating DG Broker configuration..."
+
+        su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/sqlplus -s / as sysdba <<EOF
+alter system set dg_broker_start=FALSE;
+alter system set dg_broker_config_file1='${B_FILE_DEST}/dr1.dat';
+alter system set dg_broker_config_file2='${B_RECOVERY_FILE_DEST}/dr2.dat';
+alter system set dg_broker_start=TRUE;
+exit;
+EOF
+"
+        sleep 20
+
+        # to remove inherited  dg broker config in the new standby
+	echo ""
+	echo "Removing posible inherited dg broker config in the new standby..."
+	echo "  (will fail if there is no dg broker inherited, ignore the failure)"
+	su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/dgmgrl -silent ${SYS_USERNAME}/${SYS_USER_PASSWORD}@${B_DBNM} <<EOF
+remove configuration;
+sql \"alter system reset log_archive_dest_2 scope=both\";
+sql \"alter system reset log_archive_dest_3 scope=both\";
+sql \"alter system reset log_archive_config scope=both\";
+exit
+EOF
+"
+	# to add the additional standby
+	echo ""
+	echo "Adding the new standby to the existing DG configuration..."
+	su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/dgmgrl -silent ${SYS_USERNAME}/${SYS_USER_PASSWORD}@${A_DBNM} <<EOF
+add database '${B_DBNM}' as connect identifier is '${B_DBNM}' maintained as physical;
+enable database '${B_DBNM}';
+show configuration verbose
+exit
+EOF
+"
+
+        sleep 20
+        echo "DG Broker configuration updated!"
+
+}
+
+
 
 
 enable_flashback_standby(){
@@ -983,7 +1048,14 @@ echo ""
 echo "###################################################"
 echo "#### Cleanup DG conf and removing secondary DB ####"
 echo "###################################################"
-remove_dataguard_broker_config
+if  [[ ${ADDITIONAL_STANDBY} = "NO" ]]; then
+	remove_dataguard_broker_config
+elif [[ ${ADDITIONAL_STANDBY} = "YES" ]]; then
+	remove_this_stby_from_broker
+else
+	echo "ADDITIONAL_STANDBY parameter must be YES or NO"
+	exit 1
+fi
 delete_orig_db
 archivelog_cleanup
 shutdown_db
@@ -1031,7 +1103,14 @@ echo ""
 echo "#######################################################"
 echo "#### Configuring DG broker and enabling flashback #####"
 echo "#######################################################"
-create_dataguard_broker_config
+if  [[ ${ADDITIONAL_STANDBY} = "NO" ]]; then
+        create_dataguard_broker_config
+elif [[ ${ADDITIONAL_STANDBY} = "YES" ]]; then
+        update_dataguard_broker
+else
+        echo "ADDITIONAL_STANDBY must be YES or NO"
+        exit 1
+fi
 enable_flashback_standby
 echo ""
 

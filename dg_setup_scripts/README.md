@@ -1,4 +1,4 @@
-dg_setup_scripts version 1.0.   
+dg_setup_scripts version 2.0.   
 Copyright (c) 2022 Oracle and/or its affiliates  
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/  
   
@@ -11,7 +11,7 @@ Please refer to the following playbook for details about how to use these script
 #### Assumptions
 -------------------------------------------------------------------------------------------
 - The primary database already exists.
-- The standby system already exists, with or without an existing database. If there is an existing database in the standby, the scripts will delete it before recreating the new one as standby.
+- The standby system where the standby database is going to be configured already exists, with or without an existing database. If there is an existing database in the standby system, the scripts will delete it before recreating the new one as standby.
 - There is connectivity between primary and standby to the listener port. I.e:  
 For single instances: primary db host must be able to connect to standby's listener's IP and port, and viceversa.  
 For RAC: primary db hosts must be able to connect to standby's scan and vip IPs and ports, and viceversa.  
@@ -22,7 +22,6 @@ The command "nc -vw 5 -z IP PORT" can be used to verify remote connectivity.
 - The RDBMS sofware owner (e.g. "oracle" user) loads the oracle environment variables (ORACLE_HOME, LD_LIBRARY_PATH, etc.) in its profile.
 - It is assumed that a symmetric topology is used (i.e. if primary is single DB, standby is single DB; if primary is a RAC DB, standby is a RAC DB too).
 - If the databases are RAC, it is assumed that each RAC has 2 nodes.
-- The scripts are intended to add one standby DB (i.e. the scripts are not designed to add an additional standby DB to an existing Data Guard).
 
 #### Features
 -------------------------------------------------------------------------------------------
@@ -34,6 +33,8 @@ The command "nc -vw 5 -z IP PORT" can be used to verify remote connectivity.
 - The scripts are validated in 12c (12.2), 18c, 19c and 21c RDBMS versions.
 - The scripts are validated in Oracle Cloud Infrastructure (DB Systems) and in on-prem environment.
 - The scripts are valid both for RAC and single environments (in a symmetric topology).
+- The scripts are valid for configuring an standby database for a primary database that does not have any standby database already. 
+- The scripts are also valid for adding a new additional standby database to an existing Data Guard. For this scenario you need to use the property "ADDITIONAL_STANDBY=YES" in the properties file. In this case, the new standby will be added to the existing Data Guard Broker configuration.
 
 #### Scripts
 -------------------------------------------------------------------------------------------
@@ -44,11 +45,11 @@ This is required to be run only one time, regardless primary is a RAC or a singl
 - 2_dataguardit_primary.sh  
 This script prepares the primary host(s) for the Data Guard (create the required tns aliases, check connectivity, create required output tar files, etc.).
 - 3_dataguardit_standby_root.sh  
-This script prepares the standby host(s) and creates the standby database using the "restore from service" feature and DG Broker.
+This script prepares the new standby host(s) and creates the new standby database using the "restore from service" feature and DG Broker.
 - create_pw_tar_from_asm_root.sh  
 This script is required only when the primary password file is stored in ASM.
 - DG_properties.ini  
-This is the property file. Is used by all the scripts both in primary and standby. It needs to be customized with the environment's specific values.
+This is the properties file. Is used by all the scripts, both in primary and standby. Customize it with the environment's specific values.
 
 #### Instructions to run the scripts
 -------------------------------------------------------------------------------------------
@@ -63,7 +64,7 @@ Each parameter is self-explained. The file contains all the input parameters req
 create_pw_tar_from_asm_root.sh  
 DG_properties.ini
  
-##### 3.- Upload these files to the standby db host(s) (grant execute permissions for root OS user):  
+##### 3.- Upload these files to the new standby db host(s) (grant execute permissions for root OS user):  
 3_dataguardit_standby_root.sh  
 DG_properties.ini
 
@@ -82,8 +83,11 @@ This script prepares the primary host(s) for the Data Guard. Only when it is req
 These output files are: the TAR of the password file, and the TAR of the TDE wallet (when used).  
 
 ##### 7.- Run the script "3_dataguardit_standby_root.sh"
-Where to run:     In STANDBY db host(s).  If RAC: run first in the standby db host 1, and then in standby db host 2.  
+Where to run:     In the new STANDBY db host(s).  If RAC: run first in the new standby db host 1, and then in the new standby db host 2.  
 Run with user:    root  
-This script prepares the standby host(s), creates the standby database using the "restore from service" feature, and configures the DG Broker.  
-In case of a RAC, most of the actions are performed when it runs in the first node, and only a subset of the steps are performed when it runs in the secondary node of the RAC.
+This script prepares the new standby host(s), creates the new standby database using the "restore from service" feature, and configures the DG Broker.  
+In case of a RAC, most of the actions are performed when the script runs in the first node. Only a subset of the steps are performed when it runs in the secondary node of the RAC.
 NOTE: in case there are environment values that differ from primary (i.e. the ORACLE_HOME path, the Grid OS user, etc.) make sure you update the DG_properties.ini file accordingly in the standby db hosts.
+
+##### 8.- Post steps 
+This is only needed if you added a new standby database to an existing Oracle Data Guard instance (ADDITIONAL_STANDBY=YES), then add the TNS entry that points to the previously existing standby database, in the new standby database tnsnames.ora file, and conversely. Ensure that the standby databases are able to connect each other to the listener port. 
