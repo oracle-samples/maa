@@ -14,10 +14,8 @@
 ###					This is the IP address of the secondary Weblogic Administration server node.
 ###					This IP needs to be reachable from this host. 
 ###					It is recommended to use Dynamic Routing Gateway to interconnect primary and secondary sites, hence you can provide the private IP.
-###	REMOTE_ADMIN_NODE_IP:		
-###					This is the IP address of the secondary Weblogic Administration server node.
-###					This IP needs to be reachable from this host. 
-###					It is recommended to use Dynamic Routing Gateway to interconnect primary and secondary sites, hence you can provide the private IP.
+###	REMOTE_SSH_PRIV_KEYFILE:
+###		                        The private ssh keyfile to connect to remote Weblogic Administration server node.
 ###	FSS_MOUNT:
 ###					This is the OCI File Storage Mounted directory that will be used to stage the WLS domain configuration
 
