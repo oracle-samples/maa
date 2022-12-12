@@ -975,28 +975,53 @@ retrieve_remote_jdbc_url_RSYNC(){
 
         # For RAC ons node list
         export REMOTE_ONS_ADDRESS=$(grep ons-node-list ${COPY_FOLDER}/${WLS_DOMAIN_NAME}/config/jdbc/${DATASOURCE_NAME} | awk -F '[<>]' '{print $3}')
+
+        if [ -d "${COPY_FOLDER}/${WLS_DOMAIN_NAME}/config/fmwconfig" ]; then
+                export REMOTE_JPS_FILE="${COPY_FOLDER}/${WLS_DOMAIN_NAME}/config/fmwconfig/jps-config.xml"
+                export REMOTE_JPS_CONNECT_STRING=$(grep url ${REMOTE_JPS_FILE} | awk -F ':@' '{print $2}' |awk -F '"/>' '{print $1}')
+                echo "Remote Connect String (JPS file)......" $REMOTE_JPS_CONNECT_STRING
+        fi
+
+
 }
 
 
 retrieve_remote_jdbc_url_DBFS(){
 	export REMOTE_JDBC_URL=$(grep url ${DBFS_MOUNT_PATH}/$WLS_DOMAIN_NAME/config/jdbc/${DATASOURCE_NAME} | awk -F ':@' '{print $2}' |awk -F '</url>' '{print $1}')
-       	echo "Remote Connect String................" $REMOTE_JDBC_URL
+       	echo "Remote Connect String (datasource)...." $REMOTE_JDBC_URL
 
-        # For RAC ons node list
+	# For RAC ons node list
 	export REMOTE_ONS_ADDRESS=$(grep ons-node-list ${DBFS_MOUNT_PATH}/${WLS_DOMAIN_NAME}/config/jdbc/${DATASOURCE_NAME} | awk -F '[<>]' '{print $3}')
+
+	if [ -d "${DBFS_MOUNT_PATH}/${WLS_DOMAIN_NAME}/config/fmwconfig" ]; then
+		export REMOTE_JPS_FILE="${DBFS_MOUNT_PATH}/${WLS_DOMAIN_NAME}/config/fmwconfig/jps-config.xml"
+		export REMOTE_JPS_CONNECT_STRING=$(grep url ${REMOTE_JPS_FILE} | awk -F ':@' '{print $2}' |awk -F '"/>' '{print $1}')
+		echo "Remote Connect String (JPS file)......" $REMOTE_JPS_CONNECT_STRING
+	fi
+
 }
 
 replace_connect_info(){
 	echo ""
         echo "************** Replacing instance specific DB connect information *****************************************"
 
-	echo "Replacing jdbc url in config files..........................."
+	echo "Replacing jdbc url in config/jdbc files..........................."
         echo "-------------------------------------------------------------"
-	cd ${DOMAIN_HOME}/config/
+	cd ${DOMAIN_HOME}/config/jdbc
 	echo "String for primary...................." ${REMOTE_JDBC_URL}
 	echo "String for secondary.................." ${LOCAL_JDBC_URL}
         find . -name '*.xml' | xargs sed -i 's|'${REMOTE_JDBC_URL}'|'${LOCAL_JDBC_URL}'|gI'
         echo "Replacement complete!"
+
+	if [ -d "$DOMAIN_HOME/config/fmwconfig" ]; then	
+		echo "Replacing jdbc url in config/fmwconfig files..........................."
+		echo "-------------------------------------------------------------"
+		cd ${DOMAIN_HOME}/config/fmwconfig
+		echo "String for primary...................." ${REMOTE_JPS_CONNECT_STRING}
+		echo "String for secondary.................." ${LOCAL_JDBC_URL}
+		find . -name '*.xml' | xargs sed -i 's|'${REMOTE_JPS_CONNECT_STRING}'|'${LOCAL_JDBC_URL}'|gI'
+		echo "Replacement complete!"
+	fi
 
         # TBD
         # To update other datasources where the string is not exactly the same than in opps (i.e: they use other service name)

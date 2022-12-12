@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## PaaS DR scripts - script version 1.2
+## PaaS DR scripts - script version 1.3
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -92,7 +92,7 @@ else
 	###############################################################################################################
 	# In case the parameters are not passed as input parameters they can be hardcoded here
 	export DR_METHOD=			# DBFS or RSYNC
-	export REMOTE_ADMIN_NODE_IP=   		# Required only for RSYNC method
+	export REMOTE_ADMIN_NODE_IP=		# Required only for RSYNC method
 	export REMOTE_KEYFILE=			# Required only for RSYNC method
 	###############################################################################################################
 	################## END OF CUSTOMIZED PARAMATERS SECTION #######################################################
@@ -108,7 +108,7 @@ fi
 # You can set the encrypted sys password here. If not, you will be prompted to enter it interactively
 # Check the whitepaper for instructions to encrypt it
 # Example of encrypted sys password
-#export ENCRYPTED_SYS_USER_PASSWORD='{AES256}DVJKPjS0Yw9o+rM/DcbjIPfEhdxq3oPDrppFsLFmU2b3i3ya9lR/ZtzJMKNbZvmT'
+#export ENCRYPTED_SYS_USER_PASSWORD={AES256}CYopKUs8B0loJwJPZu0LGoeojbMdvkZCwNENnJahSPT8g556zxUJPnAEHO7Nel8z
 ###############################################################################################################
 ################## END OF ENCRYPTED SYS PASSWORD SECTION ######################################################
 ###############################################################################################################
@@ -347,16 +347,22 @@ retrieve_remote_connect_info(){
 	echo ""
 	echo "************** RETRIEVE REMOTE CONNECT INFO ***************************************"
 	if  [[ ${DR_METHOD} = "RSYNC" ]]; then
-		export REMOTE_JDBC_URL=$(grep url ${COPY_FOLDER}/$WLS_DOMAIN_NAME/config/jdbc/${DATASOURCE_NAME} | awk -F ':@' '{print $2}' |awk -F '</url>' '{print $1}')
-		export REMOTE_ONS_ADDRESS=$(grep ons-node-list ${COPY_FOLDER}/${WLS_DOMAIN_NAME}/config/jdbc/${DATASOURCE_NAME} | awk -F '[<>]' '{print $3}')
+		export REMOTE_DOM_FOLDER=${COPY_FOLDER}/${WLS_DOMAIN_NAME}
+
 	elif [[ ${DR_METHOD} = "DBFS" ]];then
-		export REMOTE_JDBC_URL=$(grep url $DBFS_MOUNT_PATH/$WLS_DOMAIN_NAME/config/jdbc/${DATASOURCE_NAME} | awk -F ':@' '{print $2}' |awk -F '</url>' '{print $1}')
-		export REMOTE_ONS_ADDRESS=$(grep ons-node-list ${DBFS_MOUNT_PATH}/${WLS_DOMAIN_NAME}/config/jdbc/${DATASOURCE_NAME} | awk -F '[<>]' '{print $3}')
+		export REMOTE_DOM_FOLDER=${DBFS_MOUNT_PATH}/${WLS_DOMAIN_NAME}
 	else
 		echo "Error. DR topology unknown"
 		exit 1
 	fi
-	echo "Remote Connect String................" $REMOTE_JDBC_URL
+	export REMOTE_JDBC_URL=$(grep url ${REMOTE_DOM_FOLDER}/config/jdbc/${DATASOURCE_NAME} | awk -F ':@' '{print $2}' |awk -F '</url>' '{print $1}')
+	export REMOTE_ONS_ADDRESS=$(grep ons-node-list ${REMOTE_DOM_FOLDER}/config/jdbc/${DATASOURCE_NAME} | awk -F '[<>]' '{print $3}')
+	echo "Remote Connect String (Datasources)......." $REMOTE_JDBC_URL
+	if [ -d "${REMOTE_DOM_FOLDER}/config/fmwconfig" ]; then
+		export REMOTE_JPS_FILE="${REMOTE_DOM_FOLDER}/config/fmwconfig/jps-config.xml"
+		export REMOTE_JPS_CONNECT_STRING=$(grep url ${REMOTE_JPS_FILE} | awk -F ':@' '{print $2}' |awk -F '"/>' '{print $1}')
+		echo "Remote Connect String (JPS file)......" $REMOTE_JPS_CONNECT_STRING
+	fi
 	echo ""
 }
 
@@ -749,11 +755,23 @@ sync_in_secondary_DBFS(){
 replace_connect_info(){
         echo ""
         echo "************** REPLACE INSTANCE SPECIFIC DB CONNECT INFORMATION ***************************"
-	cd ${DOMAIN_HOME}/config/
+	echo "Replacing jdbc url in config/jdbc files..........................."
+	cd ${DOMAIN_HOME}/config/jdbc
 	echo "String for primary...................." ${REMOTE_JDBC_URL}
 	echo "String for secondary.................." ${LOCAL_JDBC_URL}
 	find . -name '*.xml' | xargs sed -i 's|'${REMOTE_JDBC_URL}'|'${LOCAL_JDBC_URL}'|gI'
 	echo "Replacement complete!"
+
+
+	if [ -d "$DOMAIN_HOME/config/fmwconfig" ]; then
+		echo "Replacing jdbc url in config/fmwconfig files..........................."
+		cd ${DOMAIN_HOME}/config/fmwconfig
+		echo "String for primary...................." ${REMOTE_JPS_CONNECT_STRING}
+		echo "String for secondary.................." ${LOCAL_JDBC_URL}
+		find . -name '*.xml' | xargs sed -i 's|'${REMOTE_JPS_CONNECT_STRING}'|'${LOCAL_JDBC_URL}'|gI'
+		echo "Replacement complete!"
+	fi
+
 
 	# Uncomment this to update other datasources where the string is not exactly the same than in opss (i.e: they use other service name)
 	#echo "Replacing instance specific scan name in datasources with differen url (i.e: different service name)..."
