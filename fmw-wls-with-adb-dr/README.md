@@ -19,7 +19,7 @@ Usage
   
   | Script name  | Description |
 | ------------- | ------------- |
-| [fmwadbs_change_to_tns_alias.sh](./fmwadbs_change_to_tns_alias.sh) | This script can be used to replace the connect strings used by WLS datasources (under $DOMAIN_HOME}/config/jdbc) and jps config files (under ${DOMAIN_HOME}/config/fmwconfig) with a tns alias. |
+| [fmwadbs_change_to_tns_alias.sh](./fmwadbs_change_to_tns_alias.sh) | This script can be used to replace the connect strings used by WLS datasources and jps config files with a tns alias. |
 | [fmwadbs_config_replica.sh](./fmwadbs_config_replica.sh) | This script is used to replicate configuration between sites. |
 | [fmwadbs_dec_pwd.sh](./fmwadbs_dec_pwd.sh) | This script decrypts a WLS-encrypted password. |
 | [fmwadbs_dr_prim.sh](./fmwadbs_dr_prim.sh) | Prepares a primary site for the DR setup. |
