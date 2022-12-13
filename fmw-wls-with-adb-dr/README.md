@@ -8,8 +8,7 @@ Using the Oracle FMW-WLS with Autonomous Database Shared's Remote Refreshable Cl
 This directory contains scripts and utilities to configure and manage FMW DR with ADBS using Cross Region Refreshable Clones. Refer to the Oracle Architecture Center Playbook for details: https://docs.oracle.com/en/solutions/adb-refreshable-clones-dr/index.html 
 
 
-IMPORTANT: Verify that you have completed all the pre-requisites listed in paper above
- before using this scripts.
+IMPORTANT: Read and complete all the pre-requisites and steps per the isntructions in the paper above before using these scripts directly.
 
 Usage 
 --------------
