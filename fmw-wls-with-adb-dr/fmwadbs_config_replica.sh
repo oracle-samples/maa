@@ -6,9 +6,9 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
-
+### This script is used to replicate configuration between sites.
 ### This script should be executed in the WLS Administration Node (either primary or standby).
-##  Typically it woul dbe croned/scheduled to replicate configuration between a primary and standby FMW-ADBS system.
+### Typically it woul dbe croned/scheduled to replicate configuration between a primary and standby FMW-ADBS system.
 ### This script checks the current role of the local database to determine if it is running in primary or standby site.
 ### When it runs in PRIMARY site: 
 ###	it copies the domain config from primary domain to local assistance folder (FSS), 
