@@ -5,15 +5,15 @@
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-# This script returns the oracle.net.tnsadmin directory that a WLS/SOA/FMW datasource is using if any
+### This script returns the connect string that a WLS/SOA/FMW datasource is using
 ##
 ### Usage:
-###         ./fmwadbs_get_connect_string.sh DATASOURCE_FILE
+###         ./fmwadbs_get_connect_string.sh [DATASOURCE_FILE]
 ###
 ### Where:
 ###	DATASOURCE_FILE 	The WLS jdbc datasource file (complete path)
 
-### EXAMPLE: (notice the escapes before $ and ')
+### EXAMPLE: 
 
 ### ./fmwadbs_get_connect_string.sh  /u01/data/domains/my_domain/config/jdbc/opss-datasource-jdbc.xml 
 
