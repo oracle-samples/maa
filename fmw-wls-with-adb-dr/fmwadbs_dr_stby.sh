@@ -5,6 +5,7 @@
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
+### This script repares a secondary site for the DR setup
 ### This script should be executed in the SECONDARY Weblogic Administration server node. BEFORE executing this script
 ### the fmwadbs_dr_rsync_only_prim.sh script should have been executed in the primary system so that a copy of the primary domain exists in the local
 ##  FSS mount
