@@ -27,5 +27,5 @@ Usage
 | [fmwadbs_get_connect_string.sh](./fmwadbs_get_connect_string.sh) | This script returns the connect string that a WLS/SOA/FMW datasource is using. |
 | [fmwadbs_get_ds_property.sh](./fmwadbs_get_ds_property.sh) | This script returns the value of a specific datasource property. |
 | [fmwadbs_rest_api_listabds.sh](./fmwadbs_rest_api_listabds.sh) | This script is used to obtain the Autonomous Database role base on the ADB ID and tenancy information. |
-| [fmwadbs_runsqlquery_nosqlplus.sh](./fmwadbs_enc_pwd.sh) | This script can be used to execute any SQL query passsed in the command line as argument in the ADBS used by FMW. |
+| [fmwadbs_runsqlquery_nosqlplus.sh](./fmwadbs_runsqlquery_nosqlplus.sh) | This script can be used to execute any SQL query passsed in the command line as argument in the ADBS used by FMW. |
 | [fmwadbs_switch_db_conn.sh](./fmwadbs_switch_db_conn.sh) | This script replaces the existing connect information with a new ADBS WALLET. |
