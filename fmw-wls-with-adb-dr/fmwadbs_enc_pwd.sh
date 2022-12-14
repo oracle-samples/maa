@@ -6,6 +6,14 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
+### This script encrypts a password using WLS encryption.
+### Usage:
+###
+###      ./fmwadbs_enc_pwd.sh [UNENCRYPTED_PASSWORD]
+### Where:
+###	UNENCRYPTED_PASSWORD:
+###					This is the uncrypted password that will be encrypted.
+
 export DEC_PASSWORD=$1
 echo "domain='${DOMAIN_HOME}'" > /tmp/pret.py
 echo "service=weblogic.security.internal.SerializedSystemIni.getEncryptionService(domain)" >>/tmp/pret.py
