@@ -5,7 +5,7 @@
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-### This script returns the value of a specific datasource property in a WLS/SOA/FMW datasource is using if any
+### This script returns the value of a specific datasource property in a WLS/SOA/FMW datasource
 ##
 ### Usage:
 ###         ./fmwadbs_get_ds_property.sh [DATASOURCE_FILE] [DATASOURCE_PROPERTY]
