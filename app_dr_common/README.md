@@ -5,7 +5,7 @@ Licensed under the Universal Permissive License v 1.0 as shown at https://oss.or
 
 Using the Application DR common scripts  
 ==============================================
-These are common scripts reference by different Disaster Recovery documents.
+These are common scripts referenced by different Disaster Recovery documents.
 
  
   
