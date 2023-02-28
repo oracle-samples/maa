@@ -61,7 +61,7 @@
 ###	REMOTE_KEYFILE
 ###		[ONLY WHEN DR_METHOD IS RSYNC]
 ###		The private ssh keyfile to connect to remote Weblogic Administration server node.
-###		Example: /home/oracle/my_keys/KeyWithoutPassPhraseSOAMAA.priv
+###		Example: /home/oracle/my_keys/my_private_key.priv
 ###
 ###	FSS_MOUNT
 ###		[ONLY WHEN DR_METHOD IS RSYNC]
@@ -74,12 +74,12 @@
 ################# BEGIN OF CUSTOMIZED PARAMATERS SECTION ######################################################
 ###############################################################################################################
 DR_METHOD=RSYNC
-LOCAL_CDB_CONNECT_STRING=drdbrac8a-scan.dbsubnet.vcnlon160.oraclevcn.com:1521/ORCL8_LON.dbsubnet.vcnlon160.oraclevcn.com
+LOCAL_CDB_CONNECT_STRING=mydb-scan.dbsubnet.vcndomain.oraclevcn.com:1521/ORCL_iad2zb.dbsubnet.vcndomain.oraclevcn.com
 LOCAL_STANDBY_CDB_CONNECT_STRING=
 ENCRYPTED_SYS_USER_PASSWORD="{AES256}18aFY7QOoGi9gWmBX3Fqm2VizvENr52bqF58qUliuB/Mo0zjx2/CWJYzSlCJgMPo"
 # ONLY when using RSYNC METHOD:
-REMOTE_ADMIN_NODE_IP=10.4.160.105
-REMOTE_KEYFILE=/u01/install/ssh_keys/KeyWithoutPassPhraseSOAMAA.priv
+REMOTE_ADMIN_NODE_IP=10.2.1.1
+REMOTE_KEYFILE=/home/oracle/my_keys/my_private_key.priv
 FSS_MOUNT=/u01/share
 
 
