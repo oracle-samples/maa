@@ -10,7 +10,7 @@ Please refer to the following whitepaper for details about the topology and set 
 https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf
 
 IMPORTANT: Verify that you have completed all the pre-requisites listed in paper above
- before using this scripts.
+ before using these scripts. These scripts depend on the common scripts of app_dr_common.
 
 
 Usage 
