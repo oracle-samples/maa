@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ## replacement_script_BVmodel.sh
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
@@ -36,29 +38,39 @@ fi
 
 replace_connect_info(){
         echo ""
-        echo "************** REPLACE INSTANCE SPECIFIC DB CONNECT INFORMATION ***************************"
+        echo "String for remote PDB service .................." ${REMOTE_PDB_SERVICE}
+        echo "String for local PDB service  .................." ${LOCAL_PDB_SERVICE}
+        echo "String for remote SCAN name   .................." ${REMOTE_DB_SCAN_NAME}
+        echo "String for local SCAN name    .................." ${LOCAL_DB_SCAN_NAME}
+
+        echo "Replacing instance specific information in datasource files..."
         cd ${DOMAIN_HOME}/config/
-        echo "String for remote PDB service ...................." ${REMOTE_PDB_SERVICE}
-        echo "String for local PDB service .................." ${LOCAL_PDB_SERVICE}
         find . -name '*.xml' | xargs sed -i 's|'${REMOTE_PDB_SERVICE}'|'${LOCAL_PDB_SERVICE}'|gI'
-
-        echo "String for remote SCAN name ...................." ${REMOTE_DB_SCAN_NAME}
-        echo "String for local SCAN name .................." ${LOCAL_DB_SCAN_NAME}
         find . -name '*.xml' | xargs sed -i 's|'${REMOTE_DB_SCAN_NAME}'|'${LOCAL_DB_SCAN_NAME}'|gI'
-
         echo "Replacement in ${DOMAIN_HOME}/config/ complete!"
         echo ""
 }
 
-replace_tnsnamesora(){
+replace_tnsnamesora_dbfs(){
 	if [ -d "${DOMAIN_HOME}/dbfs" ]; then
 	        cd ${DOMAIN_HOME}/dbfs/
-        	echo "Replacing instance specific in tnsnames.ora..."
-        	sed -i 's|'${REMOTE_PDB_SERVICE}'|'${LOCAL_PDB_SERVICE}'|g' tnsnames.ora
-        	sed -i 's|'${REMOTE_DB_SCAN_NAME}'|'${LOCAL_DB_SCAN_NAME}'|g' tnsnames.ora
+        	echo "Replacing instance specific information in ${DOMAIN_HOME}/dbfs/tnsnames.ora..."
+        	sed -i 's|'${REMOTE_PDB_SERVICE}'|'${LOCAL_PDB_SERVICE}'|gI' tnsnames.ora
+        	sed -i 's|'${REMOTE_DB_SCAN_NAME}'|'${LOCAL_DB_SCAN_NAME}'|gI' tnsnames.ora
         	echo "Replacement complete!"
 	fi
 }
+
+replace_tnsnamesora_tnsadmin(){
+        # When tns alias apporach is used
+	cd ${DOMAIN_HOME}/config/
+        echo "Replacing instance specific information in other tnsnames.ora file..."
+        find . -name 'tnsnames.ora' | xargs sed -i 's|'${REMOTE_DB_SCAN_NAME}'|'${LOCAL_DB_SCAN_NAME}'|gI'
+        find . -name 'tnsnames.ora' | xargs sed -i 's|'${REMOTE_PDB_SERVICE}'|'${LOCAL_PDB_SERVICE}'|gI'
+        echo "Replacement complete!"
+}
+
+
 remove_tmp_lck_files(){
 	rm ${DOMAIN_HOME}/servers/*/data/nodemanager/*.lck
 	rm ${DOMAIN_HOME}/servers/*/data/nodemanager/*.state
@@ -66,5 +78,6 @@ remove_tmp_lck_files(){
 
 
 replace_connect_info
-replace_tnsnamesora
+replace_tnsnamesora_dbfs
+replace_tnsnamesora_tnsadmin
 remove_tmp_lck_files
