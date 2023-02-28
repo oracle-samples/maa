@@ -3,7 +3,7 @@
     MAA DR Setup and Configuration Constants.
 """
 __author__ = "Oracle "
-__version__ = '18.0'
+__version__ = '19.0'
 __copyright__ = """ Copyright (c) 2022 Oracle and/or its affiliates. Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/ """
 
 try:
@@ -70,7 +70,9 @@ class DRS_CONSTANTS:
     #  =====  FMW DR SCRIPTS
     DRS_SCRIPT_FMW_DR_SETUP_PRIMARY = 'fmw_dr_setup_primary.sh'
     DRS_SCRIPT_FMW_DR_SETUP_STANDBY = 'fmw_dr_setup_standby.sh'
-    DRS_SCRIPT_FMW_PRIMARY_CHECK_DB_CONNECTIVITY = 'fmw_primary_check_db_connectivity.sh'
+    DRS_SCRIPT_FMW_DR_SETUP_PRIMARY_DEP_LIST = ('fmw_get_ds_property.sh', 'fmw_dec_pwd.sh', 'fmw_sync_in_primary.sh')
+    DRS_SCRIPT_FMW_DR_SETUP_STANDBY_DEP_LIST = ('fmw_get_dbrole_wlst.sh', 'fmw_dec_pwd.sh', 'fmw_sync_in_standby.sh')
+    #DRS_SCRIPT_FMW_PRIMARY_CHECK_DB_CONNECTIVITY = 'fmw_primary_check_db_connectivity.sh'
     DRS_SCRIPT_FMW_STANDBY_CHECK_DB_CONNECTIVITY = 'fmw_standby_check_db_connectivity.sh'
     DRS_SCRIPT_FMW_PRIMARY_CHECK_CONNECTIVITY_TO_STANDBY_ADMIN = 'fmw_primary_check_connectivity_to_stby_admin.sh'
     #v13

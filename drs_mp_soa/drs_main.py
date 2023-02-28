@@ -7,7 +7,7 @@ See the README.md file in this directory for details on how to configure and use
 """
 
 __author__ = "Oracle Corp."
-__version__ = '18.0'
+__version__ = '19.0'
 __copyright__ = """ Copyright (c) 2022 Oracle and/or its affiliates. Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/ """
 
 # ====================================================================================================================
@@ -277,7 +277,7 @@ def read_user_yaml_configuration():
     user_config_dict = prompt_user_config_empty_values('user_config', user_config_dict)
 
     # FOR DEBUG ONLY... prints secure info
-    print("Updated config dict is: \n[{}]".format(user_config_dict))
+    #print("Updated config dict is: \n[{}]".format(user_config_dict))
 
     # =============================================================================================================
     # logger.info(" ")
@@ -317,6 +317,17 @@ def read_user_yaml_configuration():
         "dr_method: %s is not valid, should be RSYNC or DBFS" % \
         user_config_dict['general']['dr_method']
     CONFIG.GENERAL.dr_method = user_config_dict['general']['dr_method']
+    CONFIG.GENERAL.fss_mount = user_config_dict['general']['fss_mount']
+    CONFIG.GENERAL.add_aliases_to_etc_hosts = user_config_dict['general']['add_aliases_to_etc_hosts']
+
+    assert user_config_dict['general']['add_aliases_to_etc_hosts'] in yaml_boolean_true \
+           or user_config_dict['general']['add_aliases_to_etc_hosts'] in yaml_boolean_false, \
+        "add_aliases_to_etc_hosts: %s is not valid, should be True or False" % \
+        user_config_dict['general']['add_aliases_to_etc_hosts']
+    if user_config_dict['general']['add_aliases_to_etc_hosts'] in yaml_boolean_true:
+        CONFIG.GENERAL.add_aliases_to_etc_hosts = True
+    elif user_config_dict['general']['add_aliases_to_etc_hosts'] in yaml_boolean_false:
+        CONFIG.GENERAL.add_aliases_to_etc_hosts = False
 
     # DB PRIMARY
     CONFIG.DB_PRIM.host_ip = user_config_dict['db_prim']['host_ip']
@@ -329,9 +340,9 @@ def read_user_yaml_configuration():
     # DB STANDBY
     CONFIG.DB_STBY.host_ip = user_config_dict['db_stby']['host_ip']
     CONFIG.DB_STBY.db_port = user_config_dict['db_stby']['port']
-    CONFIG.DB_STBY.sysdba_user_name = user_config_dict['db_stby']['sysdba_user_name']
-    CONFIG.DB_STBY.sysdba_password = user_config_dict['db_stby']['sysdba_password']
-    CONFIG.DB_STBY.pdb_name = user_config_dict['db_stby']['pdb_name']
+    CONFIG.DB_STBY.sysdba_user_name = user_config_dict['db_prim']['sysdba_user_name']
+    CONFIG.DB_STBY.sysdba_password = user_config_dict['db_prim']['sysdba_password']
+    CONFIG.DB_STBY.pdb_name = user_config_dict['db_prim']['pdb_name']
 
     # WLS PRIMARY
     CONFIG.WLS_PRIM.node_manager_host_ips = user_config_dict['wls_prim']['wls_ip_list']
@@ -343,8 +354,8 @@ def read_user_yaml_configuration():
     # WLS STANDBY
     CONFIG.WLS_STBY.node_manager_host_ips = user_config_dict['wls_stby']['wls_ip_list']
     CONFIG.WLS_STBY.wlsadm_host_ip = user_config_dict['wls_stby']['wls_ip_list'][0]
-    CONFIG.WLS_STBY.wlsadm_user_name = user_config_dict['wls_stby']['wlsadm_user_name']
-    CONFIG.WLS_STBY.wlsadm_password = user_config_dict['wls_stby']['wlsadm_password']
+    CONFIG.WLS_STBY.wlsadm_user_name = user_config_dict['wls_prim']['wlsadm_user_name']
+    CONFIG.WLS_STBY.wlsadm_password = user_config_dict['wls_prim']['wlsadm_password']
     CONFIG.WLS_STBY.front_end_ip = user_config_dict['wls_stby']['front_end_ip']
 
     logger.info("Local configuration is initialized")
@@ -1840,13 +1851,13 @@ def fmw_primary_check_connectivity_to_stby_admin():
     prim_wls_adminhost.disconnect_host()
 
 
-
+"""
 def fmw_primary_check_db_connectivity():
-    """
+   
     Check if PRIMARY FMW node has connectivity to PRIMARY database
     :return: None
 
-    """
+   
     logger.info(" ")
     logger.info("==========  CHECK CONNECTIVITY -- PRIMARY WLS to PRIMARY DB  ===========")
 
@@ -1861,7 +1872,7 @@ def fmw_primary_check_db_connectivity():
     prim_wls.execute_internal_script_on_host(CONSTANT.DRS_SCRIPT_INTERPRETER_SH,
                                              CONSTANT.DRS_SCRIPT_FMW_PRIMARY_CHECK_DB_CONNECTIVITY, script_params, None,
                                              CONFIG.GENERAL.ora_user_name, oraenv=True)
-
+"""
 
 def fmw_standby_check_db_connectivity():
     """
@@ -1948,12 +1959,12 @@ def fmw_dr_setup_primary(verify_check=True):
     # If dr_method is DBFS
     # fmw_dr_setup_primary.sh DB_SYS_PASSWORD DR_METHOD
     # If dr_method is RSYNC
-    # fmw_dr_setup_primary.sh DB_SYS_PASSWORD DR_METHOD REMOTE_ADMIN_NODE_IP REMOTE_SSH_PRIV_KEYFILE
+    # fmw_dr_setup_primary.sh DB_SYS_PASSWORD DR_METHOD REMOTE_ADMIN_NODE_IP REMOTE_SSH_PRIV_KEYFILE FSS_MOUNT
 
     if CONFIG.GENERAL.dr_method == "DBFS":
         script_params = [
-            CONFIG.DB_STBY.sysdba_password,
-            CONFIG.GENERAL.dr_method
+            CONFIG.GENERAL.dr_method,
+            CONFIG.DB_STBY.sysdba_password
         ]
     elif CONFIG.GENERAL.dr_method == "RSYNC":
         # copy the private keyfile to primary soa host and change it to oracle owner and 600
@@ -1979,18 +1990,35 @@ def fmw_dr_setup_primary(verify_check=True):
             remote_admin_ip = CONFIG.WLS_STBY.wlsadm_host_ip
 
         script_params = [
-            CONFIG.DB_STBY.sysdba_password,
             CONFIG.GENERAL.dr_method,
             remote_admin_ip,
-            ssh_key_tmp_file
+            ssh_key_tmp_file,
+            CONFIG.GENERAL.fss_mount
         ]
 
     # Run the script fmw_dr_setup_primary.sh on primary WLS admin host
     prim_wls = DRSWls()
     prim_wls.connect_host(CONFIG.WLS_PRIM.wlsadm_host_ip, CONFIG.GENERAL.ssh_user_name, CONFIG.GENERAL.ssh_key_file)
-    prim_wls.execute_internal_script_on_host(CONSTANT.DRS_SCRIPT_INTERPRETER_SH,
-                                             CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_PRIMARY, script_params, None,
+
+    # Added control error v19
+    try:
+        prim_wls.execute_internal_script_on_host(CONSTANT.DRS_SCRIPT_INTERPRETER_SH,
+                                             CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_PRIMARY, script_params, CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_PRIMARY_DEP_LIST,
                                              CONFIG.GENERAL.ora_user_name, oraenv=True)
+    except Exception as e:
+        prim_wls.disconnect_host()
+        # If dr_method is RSYNC, remove the copied ssh keyfile from primary WLS Admin host
+        if CONFIG.GENERAL.dr_method == "RSYNC":
+            prim_wls_adminhost = DRSHost()
+            prim_wls_adminhost.connect_host(CONFIG.WLS_PRIM.wlsadm_host_ip, CONFIG.GENERAL.ssh_user_name,
+                                        CONFIG.GENERAL.ssh_key_file)
+            prim_wls_adminhost.delete_remote_file_from_host(ssh_key_tmp_file, CONFIG.GENERAL.ora_user_name)
+            prim_wls_adminhost.disconnect_host()
+        logger.fatal(
+            "ERROR: Execution of [{}] failed on primary host [{}].".format(CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_PRIMARY,CONFIG.WLS_PRIM.wlsadm_host_ip))
+        logger.fatal(str(e).replace(CONFIG.DB_PRIM.sysdba_password, "*********").replace(CONFIG.WLS_PRIM.wlsadm_password,
+                                                                            "*********"))
+        sys.exit(1)
 
     # If dr_method is RSYNC, remove the copied ssh keyfile from primary WLS Admin host
     if CONFIG.GENERAL.dr_method == "RSYNC":
@@ -2000,6 +2028,7 @@ def fmw_dr_setup_primary(verify_check=True):
         prim_wls_adminhost.delete_remote_file_from_host(ssh_key_tmp_file, CONFIG.GENERAL.ora_user_name)
         prim_wls_adminhost.disconnect_host()
 
+    prim_wls.disconnect_host()
 
 
 def fmw_dr_setup_standby_node(index, verify_check=True):
@@ -2053,6 +2082,7 @@ def fmw_dr_setup_standby_node(index, verify_check=True):
                           CONFIG.DB_STBY.db_unique_name, attempts=15)
 
     # 4) Execute the FMW setup script on the specified standby node
+
     logger.info(" ")
     logger.info("===========  EXECUTE FMW STANDBY SETUP SCRIPT ON THIS NODE  ==========")
 
@@ -2069,21 +2099,37 @@ def fmw_dr_setup_standby_node(index, verify_check=True):
         # Otherwise use the supplied public IP
         primary_db_ip = CONFIG.DB_PRIM.host_ip
 
-    script_params = [
-        primary_db_ip,
-        CONFIG.DB_PRIM.db_port,
-        prim_pdb_service,
-        CONFIG.DB_STBY.sysdba_password,
-        CONFIG.GENERAL.dr_method
-    ]
+    ### if method DBFS
+    ###         fmw_dr_setup_standby.sh  DR_METHOD A_DB_IP  A_PORT  PDB_SERVICE_PRIMARY  SYS_DB_PASSWORD
+    ### if method RSYNC, it only needs
+    ###         fmw_dr_setup_standby_standby.sh DR_METHOD FSS_MOUNT
+    if CONFIG.GENERAL.dr_method == 'DBFS':
+        script_params = [
+            CONFIG.GENERAL.dr_method,
+            primary_db_ip,
+            CONFIG.DB_PRIM.db_port,
+            prim_pdb_service,
+            CONFIG.DB_STBY.sysdba_password
+        ]
+    elif CONFIG.GENERAL.dr_method == 'RSYNC':
+        script_params = [
+            CONFIG.GENERAL.dr_method,
+            CONFIG.GENERAL.fss_mount
+        ]
 
 
     stby_wls = DRSWls()
     stby_wls.connect_host(host_ip, CONFIG.GENERAL.ssh_user_name, CONFIG.GENERAL.ssh_key_file)
-    stby_wls.execute_internal_script_on_host(CONSTANT.DRS_SCRIPT_INTERPRETER_SH,
-                                             CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_STANDBY, script_params, None,
-                                             CONFIG.GENERAL.ora_user_name, oraenv=True, warn=True)
-
+    try:
+        stby_wls.execute_internal_script_on_host(CONSTANT.DRS_SCRIPT_INTERPRETER_SH,
+                                             CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_STANDBY, script_params, CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_STANDBY_DEP_LIST,
+                                             CONFIG.GENERAL.ora_user_name, oraenv=True)
+    except Exception as e:
+        stby_wls.disconnect_host()
+        logger.fatal(
+            "ERROR: Execution of [{}] failed on primary host [{}].".format(CONSTANT.DRS_SCRIPT_FMW_DR_SETUP_STANDBY,host_ip))
+        logger.fatal(str(e).replace(CONFIG.DB_PRIM.sysdba_password, "*********").replace(CONFIG.WLS_PRIM.wlsadm_password,"*********"))
+        sys.exit(1)
     # =============================================================================================================
     # 5) Verify that DB is in SNAPSHOT STANDBY mode
 
@@ -2313,9 +2359,9 @@ def main():
                               CONFIG.DB_STBY.db_unique_name, attempts=15)
 
         # =============================================================================================================
-
-        log_header(logger, "CHECK FMW PRIMARY TO PRIMARY DB CONNECTIVITY")
-        fmw_primary_check_db_connectivity()
+        # Removed v19, no sense
+        #log_header(logger, "CHECK FMW PRIMARY TO PRIMARY DB CONNECTIVITY")
+        #fmw_primary_check_db_connectivity()
 
         log_header(logger, "CHECK FMW STANDBY TO PRIMARY DB CONNECTIVITY")
         fmw_standby_check_db_connectivity()
@@ -2361,19 +2407,18 @@ def main():
             exit(0)
 
         # =============================================================================================================
-        log_header(logger, "PATCH /ETC/HOSTS FILES -- PRIMARY SITE WLS HOSTS")
-        patch_all_wls_etc_hosts(CONSTANT.DRS_SITE_ROLE_PRIMARY)
+        if CONFIG.GENERAL.add_aliases_to_etc_hosts:
+            log_header(logger, "PATCH /ETC/HOSTS FILES -- PRIMARY SITE WLS HOSTS")
+            patch_all_wls_etc_hosts(CONSTANT.DRS_SITE_ROLE_PRIMARY)
 
-        log_header(logger, "PATCH /ETC/HOSTS FILES -- STANDBY SITE WLS HOSTS")
-        patch_all_wls_etc_hosts(CONSTANT.DRS_SITE_ROLE_STANDBY)
+            log_header(logger, "PATCH /ETC/HOSTS FILES -- STANDBY SITE WLS HOSTS")
+            patch_all_wls_etc_hosts(CONSTANT.DRS_SITE_ROLE_STANDBY)
 
-        # =============================================================================================================
+            log_header(logger, "PATCH /ETC/OCI-HOSTNAME.CONF FILES -- PRIMARY SITE WLS HOSTS")
+            patch_all_wls_etc_oci_hostname_conf(CONSTANT.DRS_SITE_ROLE_PRIMARY)
 
-        log_header(logger, "PATCH /ETC/OCI-HOSTNAME.CONF FILES -- PRIMARY SITE WLS HOSTS")
-        patch_all_wls_etc_oci_hostname_conf(CONSTANT.DRS_SITE_ROLE_PRIMARY)
-
-        log_header(logger, "PATCH /ETC/OCI-HOSTNAME.CONF FILES -- STANDBY SITE WLS HOSTS")
-        patch_all_wls_etc_oci_hostname_conf(CONSTANT.DRS_SITE_ROLE_STANDBY)
+            log_header(logger, "PATCH /ETC/OCI-HOSTNAME.CONF FILES -- STANDBY SITE WLS HOSTS")
+            patch_all_wls_etc_oci_hostname_conf(CONSTANT.DRS_SITE_ROLE_STANDBY)
 
         # =============================================================================================================
 
@@ -2442,6 +2487,8 @@ def main():
         # =============================================================================================================
 
         log_header(logger, "MAA SOA DR SETUP FINISHED SUCCESSFULLY!")
+        if parser_args.do_not_start is True:
+            log_header(logger, "NOTE: You run DRS with --do_not_start flag. Please verify manually that the DR has been succesfully configured in the environment")
 
         # =============================================================================================================
 

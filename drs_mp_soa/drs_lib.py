@@ -6,7 +6,7 @@
 """
 
 __author__ = "Oracle "
-__version__ = '18.0'
+__version__ = '19.0'
 __copyright__ = """ Copyright (c) 2022 Oracle and/or its affiliates. Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/ """
 
 try:
@@ -438,6 +438,11 @@ class DRSHost(object):
             for dep in deps_list:
                 self.copy_local_file_to_host(CONSTANT.DRS_INTERNAL_SCRIPT_DIR + '/' + dep,
                                              remote_staging_dir + '/' + dep)
+                #v19
+                remote_cmd = CONSTANT.DRS_CMD_SUDO_CHMOD.format('744', remote_staging_dir + '/' + dep)
+                chmod_result = self.execute_host_cmd_sudo_root(remote_cmd)
+                self.logger.debug("Permissions change (chmod) result = {}".format(chmod_result.stdout.strip()))
+
 
         # Modify remote directory ownership and permissions if necessary
         if user_name != self.user_name:

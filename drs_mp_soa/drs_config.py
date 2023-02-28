@@ -6,7 +6,7 @@ Configuration values.
 """
 
 __author__ = "Oracle Corp."
-__version__ = '18.0'
+__version__ = '19.0'
 __copyright__ = """ Copyright (c) 2022 Oracle and/or its affiliates. Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/ """
 
 
@@ -24,7 +24,9 @@ class DRS_CONFIG:
         dataguard_use_private_ip = None
         uri_to_check = None
         dr_method = None
+        fss_mount = None
         database_is_rac = None
+        add_aliases_to_etc_hosts = None
 
     # Database - Primary
     # noinspection PyPep8Naming

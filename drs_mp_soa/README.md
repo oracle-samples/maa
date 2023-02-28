@@ -60,7 +60,7 @@ Pre-requisites
 Download & Extraction
 -----------------------
 
-* DRS utils should be run on a host running Oracle Enterprise Linux 7. It is recommended to run it from one of the secondary SOA nodes.
+* DRS utils should be run on a host running Oracle Enterprise Linux 7 or 8. It is recommended to run it from one of the secondary SOA nodes.
 * Download the file 'drs-mp.tar.gz' file and extract its contents using 
   the command:
     $ tar -xvzf drs-mp.tar.gz
@@ -123,22 +123,22 @@ d) You may also additionally pass a "--skip_checks" flag to the script
     that has failed for some reason (see "Troubleshooting" section).
 
 e) You may also additionally pass a "--do_not_start" flag to the script, in order to
-   make DRS to skip the steps that start and verify the  WLS processes in standby.
-   Without this flag, after the DR setup in each standby node, the DRS tool starts 
-   the node manager and the WLS servers in each node. It verifies that they are correctly 
-   started, it checks the secondary frontend url, and then it stops the WLS servers again.
-   This is the recommended approach, because this way the DR setup is verified by the DRS tool.
+   make DRS to skip the steps that start and verify the WLS processes in standby.
+   By default (without setting this flag), the DRS toolf starts the node manager and the WLS servers in each node
+   after the DR setup. It verifies that they are correctly started, it checks the secondary frontend url, 
+   and then it stops the WLS servers again. This is the recommended approach, because this way the DR setup is verified by the DRS tool.
 
-   However, if you want that DRS only configure DR but do not start/verify the secondary WLS servers, 
-   provide the flag "--do_not_start". Examples of usage:
+   If you provide the flag "--do_not_start", these steps are skipped. DRS will only configure DR 
+   but will not start/verify the secondary WLS servers, 
+   Examples of usage:
 
-   $ sh drs_run.sh --config_dr --do_not_start
+    $ sh drs_run.sh --config_dr --do_not_start
+    
+    OR
+    
+    $ sh drs_run.sh --config_dr --do_not_start --skip_checks
 
-   OR
-
-   $ sh drs_run.sh --config_dr --do_not_start --skip_checks
-
-   This maybe required for example, if you need to run a custom action in the standby servers post 
+   This maybe needed for example, if you have to run a custom action in the standby servers post 
    DR setup but before starting the standby WLS servers.
 
    NOTE: if you run DRS using --do_not_start flag, you must verify later that the 
@@ -162,17 +162,16 @@ Troubleshooting
 ---------------
 If the DRS execution encounters errors and fails while setting up SOA 
 mid-tier nodes at the standby site, you can re-execute it
-after resetting the standby domain back to the original state.  Follow
-these steps to restore the domain and re-run DRS:
+after resetting the standby domain back to the original state. 
+Follow these steps to restore the domain and re-run DRS:
 
 1) Stop all WLS components (Managed Servers, Admin Servers and
    Node Managers) on all mid-tier nodes at the standby site in case they are running.
-2) Restore the WLS domain on both nodes at the standby site by using the backup copy saved
-   earlier (see Pre-requisites section above). If there is no copy it is because DRS did 
-   not modify the standby domain folder yet.
+2) Restore the WLS domain on both nodes at the standby site by using the domain backup copy
+   that DRS has performed. If there is no backup copy, it is because DRS did not modify the standby domain folder yet.
 3) Do not try to start any component in standby midtiers, they may not start if in a 
    previous DRS run the secondary database has been converted to standby.
-4) Verify that the standby database is in snapshot standby database.
+4) Verify that the standby database is in snapshot standby database mode.
 5) Run DRS tool with the option to skip checks. For example:
 
     $ sh drs_run.sh --config_dr --skip_checks

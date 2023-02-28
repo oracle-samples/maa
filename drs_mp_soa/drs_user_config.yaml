@@ -49,7 +49,26 @@ general:
     # Choose the method used in your DR environment.
     # Make sure you have followed the required steps described in the whitepaper
     # to prepare your environment in each case
-    dr_method:  DBFS
+    dr_method:  RSYNC
+
+    # If the DR method is RSYNC, this is the path to the mount point where the OCI File Storage file system is mounted
+    # This OCI File Storage file system will be used to stage the WLS domain configuration.
+    # Example: 
+    # fss_mount:  /u01/share
+    # If you are using DBFS method, set it to None
+    # fss_mount:  None
+    #
+    fss_mount:  /u01/share
+
+    # To add the other site WebLogic server's hostnames to the /etc/hosts files.
+    # If you set this parameter to true, DRS will add the other site WebLogic server's hostnames to the /etc/hosts file
+    # of the WebLogic hosts in each site. The remote WebLogic server's hostnames will be added as aliases of the local
+    # site WebLogic server's hostnames, so they are resolved by local IPs.
+    # If you set this parameter to false, DRS will not modify the /etc/hosts file of the WebLogic hosts. Use this
+    # approach when you are using OCI Private DNS Views to resolve the other site WebLogic hostnames to local IPs,
+    # or when you have already configured the aliases in the /etc/hosts files.
+    # See the step "Create the mid-tier hosts aliases" in the DR setup document for more details.
+    add_aliases_to_etc_hosts: true
 
 # Primary database configuration parameters
 # Note: Database host(s) must be up and SSH must be enabled
@@ -101,20 +120,6 @@ db_stby:
     # Example: port: 1521
     port: 1521
 
-    # Name of the PDB used by SOA
-    # Example: pdb_name: soapdb
-    pdb_name: soapdb
-
-    # The user name for the SYSDBA database administrator
-    # Example: sysdba_user_name: sys
-    sysdba_user_name: sys
-
-    # The password for the SYSDBA database administrator
-    # Example: sysdba_password: "MyDBPassword#123"  (use double quotes)
-    # IMPORTANT: this is just for test environments.
-    # For Production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
-    sysdba_password:
-
 
 # Primary WebLogic Server (WLS) configuration parameters
 # Note: All hosts must be up and SSH must be enabled
@@ -130,6 +135,11 @@ wls_prim:
         - 111.111.111.111   # first one MUST be WLS Admin server IP
         - 111.111.111.112
 
+    # The IP address of the front-end (OTD/Load Balancer)
+    # DRS will connect to this IP address using HTTPS
+    # Example:  front_end_ip: 140.5.4.3
+    front_end_ip: 111.111.111.113
+
     # The user name for WLS administration
     # Example: wlsadm_user_name: weblogic
     wlsadm_user_name: weblogic
@@ -138,12 +148,7 @@ wls_prim:
     # Example: wlsadm_password: "mywlspassword9"    (use double quotes)
     # IMPORTANT: This is just for test environments.
     # For production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
-    wlsadm_password: 
-
-    # The IP address of the front-end (OTD/Load Balancer)
-    # DRS will connect to this IP address using HTTPS
-    # Example:  front_end_ip: 140.5.4.3
-    front_end_ip: 111.111.111.113
+    wlsadm_password:
 
 
 # Standby WebLogic Server (WLS) configuration parameters
@@ -159,16 +164,6 @@ wls_stby:
     wls_ip_list:
         - 222.222.222.222    # first one MUST be WLS Admin server  IP
         - 222.222.222.223
-
-    # The user name for WLS administration
-    # Example: wlsadm_user_name: weblogic
-    wlsadm_user_name: weblogic
-
-    # The password for WLS administration
-    # Example: wlsadm_password: "mywlspassword9"    (use double quotes)
-    # IMPORTANT: This is just for test environments.
-    # For production environments, DO NOT PROVIDE THE PASSWORD HERE. Leave it empty and DRS will interactively ask for it.
-    wlsadm_password: 
 
     # The IP address of the front-end (OTD/Load Balancer)
     # DRS will connect to this IP address using HTTPS

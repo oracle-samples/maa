@@ -1,4 +1,4 @@
-version=mp-v18
+version=mp-v19
 
 V12 Updates:
 - Added DR method option (RSYNC or DBFS)
@@ -27,5 +27,12 @@ V18 Updates:
 - Added clarification about frontend check uri in drs_user_config.yaml file.
 - Added recommendation to provide passwords interactively. In drs_user_config.yaml only for testing environments
 - Support for passwords starting with #.
-- Fixed bug in managed server names and listen addreses lists creation.
+- Fixed bug in managed server names and listen addresses lists creation.
 - Log output improvements.
+
+V19 Updates:
+- Scripts updated to use tns_admin folder in the datasources and tns alias in the connect strings
+- Added error control in the execution of the fmw dr scripts
+- Improved exit message when using "--do_not_start" flag
+- Reduced the number of user/password requested as input (because primary and standby have the same user/passwords)
+- The modification of the /etc/hosts is now optional
