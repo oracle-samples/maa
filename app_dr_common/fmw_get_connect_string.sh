@@ -5,7 +5,7 @@
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-## This script returns  connect string that a WLS/SOA/FMW datasource is using
+## This script returns the connect string that a WLS/SOA/FMW datasource is using
 ##
 ## Usage:
 ##        ./fmw_get_connect_string.sh DATASOURCE_FILE
