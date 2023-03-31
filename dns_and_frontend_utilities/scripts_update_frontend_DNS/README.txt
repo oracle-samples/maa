@@ -10,7 +10,7 @@ Example for updating the front-end virtual hostname in the Oracle Cloud DNS serv
 It is assumed a PaaS DR setup based on one of the following whitepapers:
 "SOA Cloud Service Disaster Recovery on OCI"    (https://www.oracle.com/a/tech/docs/maa-soacs-dr-oci.pdf)
 "SOA Suite on Oracle Cloud Infrastructure Marketplace Disaster Recovery" (https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf)
-"Oracle WebLogicServer forOracle Cloud InfrastructureDisaster Recovery" (https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf)
+"Oracle WebLogic Server for Oracle Cloud Infrastructure Disaster Recovery" (https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf)
 
 In this example, the DNS frontend virtual hostname is registered in an Oracle DNS Zone, and the updates are performed using an OCI client script.
 If Oracle Site Guard is used, these scripts can be also invoked by Site Guard during a switchover/failover procedure.
@@ -66,5 +66,5 @@ The oci client command to replace a DNS record is the following syntax:
 References: 
 OCI CLI Command Reference (DNS) https://docs.cloud.oracle.com/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/dns/record/zone/update.html
 "SOA Suite on Oracle Cloud Infrastructure Marketplace Disaster Recovery" (https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf)
-"Oracle WebLogic Server for Oracle Cloud InfrastructureDisaster Recovery" (https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf)
+"Oracle WebLogic Server for Oracle Cloud Infrastructure Disaster Recovery" (https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf)
 
