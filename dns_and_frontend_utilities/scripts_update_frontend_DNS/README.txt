@@ -47,22 +47,6 @@ The oci client command to replace a DNS record is the following syntax:
 
 - See the examples "virtual_frontend_DNS_entry_to_SITE1.sh" and "virtual_frontend_DNS_entry_to_SITE2.sh" included in this zip.
 
-##########################################################################
-3) (ONLY WHEN ORACLE SITEGUARD IS USED)  ADD SCRIPTS TO SITEGUARD CONFIGURATION
-##########################################################################
-- You can include the scripts as Pre-Scripts or Post-scripts in the Sites, as your choice:
-  - Option a) Add them as Global PRE-scripts to run at the beginning of the switchover
-    Suitable for cases where the TTL is high.
-    Site1 > Generic System > Site Guard > Configuration. Add here the script to change DNS from Site1 to Site2 as GLOBAL-PRESCRIPT (will be included at the beginning of a switchover/failover operation plans for Site1 > Site2)
-    Site2 > Generic System > Site Guard > Configuration. Add here the script to change DNS from Site2 to Site1 as GLOBAL-PRESCRIPT (will be included at the beginning of a switchover/failover operation plans for Site2 > Site1)
-
-  - Option b) Add them as Global POST-scripts to run at the end of the switchover
-    Recommended for scenarios where TTL is low.
-    Site1 > Generic System > Site Guard > Configuration. Add here the script to change DNS from Site2 to Site1 as GLOBAL-POSTCRIPT (will be included at  the end of switchover/failover operation plans for Site2 > Site1)
-    Site2 > Generic System > Site Guard > Configuration. Add here the script to change DNS from Site1 to Site2 as GLOBAL-POSTCRIPT (will be included at  the end of switchover/failover operation plans for Site1 > Site2)
-
-
-
 References: 
 OCI CLI Command Reference (DNS) https://docs.cloud.oracle.com/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/dns/record/zone/update.html
 "SOA Suite on Oracle Cloud Infrastructure Marketplace Disaster Recovery" (https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf)
