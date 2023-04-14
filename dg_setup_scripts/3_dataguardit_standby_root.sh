@@ -914,16 +914,16 @@ create_dataguard_broker_config(){
 
 	su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/sqlplus -s ${SYS_USERNAME}/${SYS_USER_PASSWORD}@${A_DBNM} as sysdba <<EOF
   alter system set dg_broker_start=FALSE;
-  alter system set dg_broker_config_file1='${A_FILE_DEST}/dr1.dat';
-  alter system set dg_broker_config_file2='${A_RECOVERY_FILE_DEST}/dr2.dat';
+  alter system set dg_broker_config_file1='${A_FILE_DEST}/${A_DBNM}/dr1.dat';
+  alter system set dg_broker_config_file2='${A_RECOVERY_FILE_DEST}/${A_DBNM}/dr2.dat';
   alter system set dg_broker_start=TRUE;
   exit;
 EOF
 "
 	su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/sqlplus -s / as sysdba <<EOF
 alter system set dg_broker_start=FALSE;
-alter system set dg_broker_config_file1='${B_FILE_DEST}/dr1.dat';
-alter system set dg_broker_config_file2='${B_RECOVERY_FILE_DEST}/dr2.dat';
+alter system set dg_broker_config_file1='${B_FILE_DEST}/${B_DBNM}/dr1.dat';
+alter system set dg_broker_config_file2='${B_RECOVERY_FILE_DEST}/${B_DBNM}/dr2.dat';
 alter system set dg_broker_start=TRUE;
 exit;
 EOF
@@ -951,8 +951,8 @@ update_dataguard_broker() {
 
         su ${ORACLE_OSUSER} -c "$ORACLE_HOME/bin/sqlplus -s / as sysdba <<EOF
 alter system set dg_broker_start=FALSE;
-alter system set dg_broker_config_file1='${B_FILE_DEST}/dr1.dat';
-alter system set dg_broker_config_file2='${B_RECOVERY_FILE_DEST}/dr2.dat';
+alter system set dg_broker_config_file1='${B_FILE_DEST}/${B_DBNM}/dr1.dat';
+alter system set dg_broker_config_file2='${B_RECOVERY_FILE_DEST}/${B_DBNM}/dr2.dat';
 alter system set dg_broker_start=TRUE;
 exit;
 EOF
