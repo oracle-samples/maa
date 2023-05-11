@@ -68,12 +68,12 @@
 # The following parmeters are obligatory
 export REMOTE_WLSADMIN_NODE_IP='10.1.1.190'
 export REMOTE_SSH_PRIV_KEYFILE='/u01/soacs/dbfs/share/KeyWithoutPassPhraseSOAMAA.ppk'
-export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2vefxxrokon3f2bxo6z6e2odqxsklgq'
-export USER_OCID='ocid1.user.oc1..aaaaaaaaz76qxwxdekcnwaza5zs3nec3r2y7yow6tualhi7c4cfmvyti63mq'
-export PRIVATE_KEY='/u01/soacs/dbfs/share/oracleidentitycloudservice_fermin.castro-09-08-15-58.pem'
+export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7dkeohv7a..........n3f2bxo6z6e2odqxsklgq'
+export USER_OCID='ocid1.user.oc1..aaaaaaaaz76qxwxdekcn..........ow6tualhi7c4cfmvyti63mq'
+export PRIVATE_KEY='/u01/soacs/dbfs/share/oracleidentitycloudservice_my_private_key.pem'
 export WALLET_DIR='/u01/soacs/dbfs/share/wallets/hyd-stby'
-export ENC_WALLET_PASSWORD='{AES256}UmLUwgvClQSuDCIbT39+tKI6hBIphvu7bMlAI2sYVFosd7naZnr2ri3ujYDRoDE4'
-export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.ap-hyderabad-1.anuhsljrj4y3nwqaqfztmqg3bheh6lltt54qdlewnifmaxuwfipaqbzxzcfa"
+export ENC_WALLET_PASSWORD='{AES256}UmLUwgvClQSuDCIbT39......I2sYVFosd7naZnr2ri3ujYDRoDE4'
+export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.ap-hyderabad-1.anuhsl5555......ltt54qdlewnifmaxuwfipaqbzxzcfa"
 export FSS_MOUNT=/u01/soacs/dbfs/share
 
 ###############################################################################################################
