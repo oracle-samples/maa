@@ -43,14 +43,30 @@ mkdir -p $working_dir
 export backup_dir=${root_dated_dir}/before
 mkdir -p $backup_dir
 export oplog=$root_dated_dir/restore-operations.log
+export images_log_name=images_reguired.log
 
 #echo "Creating a full backup of exiting cluster before restoring..."
 #$basedir/maak8-get-all-artifacts.sh $backup_dir
 cd $working_dir
-echo "***************STARTING RESTORE FOR $artifacts_tar ***************"
+echo "*******************STARTING RESTORE FOR $artifacts_tar *******************"
 tar -xzf $artifacts_tar
 export nonnamespaces=`for i in $(ls *.yaml); do echo ${i%%/}; done`
 echo $nonnamespaces >> $oplog
+echo ""
+echo ""
+echo "*********************************IMPORTANT********************************"
+echo "The restore will create Kubernetes artifacts that will reference the "
+echo "following images":
+echo ""
+echo ""
+cat $working_dir/$images_log_name
+echo ""
+echo ""
+echo "Make sure they are available in the target Kubernetes cluster's worker"
+echo "nodes before starting this operation. Otherwise, restore will fail!!"
+echo "**************************************************************************"
+
+sleep 5
 
 export namespaces=`for i in $(ls -drt */); do echo ${i%%/}; done`
 export exclude_list="kube-flannel kube-public kube-node-lease default"

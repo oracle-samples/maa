@@ -116,6 +116,10 @@ export clean_cluster_name=${cluster_name/:/-}
 export tar_file="/tmp/${dt}.gz"
 echo "All artifacts gathered for ${clean_cluster_name}. Creating tar at $tar_file ." >>$oplog
 cd $results_dir
+find . -name '*.yaml' | xargs grep 'image: ' -sl | xargs cat | grep 'image: ' | awk -F 'image: ' '{print $2}' | sort -u > $results_dir/images_reguired.log
+echo "***************LIST OF IMAGES USED BY THE BACKUP:***************"
+cat  $results_dir/images_reguired.log 
+echo "****************************************************************"
 tar -czf  $tar_file .
 mv $tar_file $results_dir/${clean_cluster_name}.${dt}.gz
 echo "Backup complete!"
