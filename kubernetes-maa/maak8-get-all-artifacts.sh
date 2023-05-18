@@ -20,7 +20,8 @@
 ###	DIRECTORY:
 ###					This is the directory where all the yamls and tar will be stored.
 
-export basedir=$(dirname "$0")
+export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 export exclude_list="kube-system kube-flannel kube-node-lease"
 export grep_exclude=$(echo $exclude_list | sed -e "s/ /\\\|/g")
 

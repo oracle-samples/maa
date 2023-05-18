@@ -35,7 +35,8 @@ else
 	exit 1
 fi
 
-export basedir=$(dirname "$0")
+#export basedir=$(dirname "$0")
+export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 dt=`date +%y-%m-%d-%H-%M-%S`
 export root_dated_dir=${root_dir}/$dt
 export working_dir=${root_dated_dir}/work
