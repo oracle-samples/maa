@@ -132,7 +132,11 @@ for namespace in ${namespaces}; do
 				fi
 				
 			done
-			
+		elif [[ "$artifactkind" == *"Job"* ]]; then
+			job_type=$(grep 'type:' $artifact | awk -F'type: ' '{print $2}')
+			if [[ "$job_type" == *"Complete"* ]]; then
+				 sed  -i 's/suspend: false/suspend: true/g' $artifact
+			fi
 		fi
 		$basedir/apply-artifacts.sh $artifact $oplog
 	done
