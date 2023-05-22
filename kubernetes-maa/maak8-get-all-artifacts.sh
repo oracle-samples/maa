@@ -22,7 +22,9 @@
 ###     NAMESPACE LIST
 ###                     Is an optional parameter that allows specifying a list of namespaces to be replicated
 ### 			If no list is provided, the script will replicate all namespaces except the infrastructure
-###			ones listed in the exclude_list provided in the maak8DR-apply.env file
+###			ones listed in the exclude_list provided in the maak8DR-apply.env file. Notice that if
+###			there are dependencies between namespaces it is required to use an ordered list of namespaces
+###			to restore properly (i.e. list first the namespaces on which others depend)
 
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 

@@ -20,11 +20,15 @@
 ### Example:
 ###	 ./maak8DR-apply.sh "traefik soans opns"
 ###			Copies all artifacts in the traefik, soans and opns namespaces in the origin K8s cluster to
-###			the target cluster (as entereed in the maak8DR-apply.env file)
+###			the target cluster (as entereed in the maak8DR-apply.env file).  Notice that if
+###			there are dependencies between namespaces it is required to use an ordered list of namespaces
+###			to restore properly (i.e. list first the namespaces on which others depend)
 ### 	./maak8DR-apply.sh
 ###                     Copies all artifacts in ALL the namespaces (except the infrastructure ones listed in the 
 ###			./maak8DR-apply.env exclude_list variable) in the source K8s cluster to the target
-###                     cluster (as entereed in the maak8DR-apply.env file)
+###                     cluster (as entereed in the maak8DR-apply.env file). Notice that if
+###			there are dependencies between namespaces it is required to use an ordered list of namespaces
+###			to restore properly (i.e. list first the namespaces on which others depend)
 
 rootdt=`date +%y-%m-%d-%H-%M-%S`
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
