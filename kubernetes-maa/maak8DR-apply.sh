@@ -18,13 +18,13 @@
 ### 			If no list is provided, the script will replicate all namespaces except the infrastructure
 ###			ones listed in exclude_list
 ### Example:
-###	 ./maak8DR-apply.sh "soans traefik opns"
-###			Copies all artifacts in the soans, traefik and opns namespaces in the origin K8s cluster to
+###	 ./maak8DR-apply.sh "traefik soans opns"
+###			Copies all artifacts in the traefik, soans and opns namespaces in the origin K8s cluster to
 ###			the target cluster (as entereed in the maak8DR-apply.env file)
 ### 	./maak8DR-apply.sh
-###                     Copies all artifacts in the ALL the namespaces (except the infrastructure ones listed in ./maak8-get-all-artifacts.sh
-###			exclude list (exclude_list kube-system kube-flannel kube-node-lease)  in the origin K8s cluster to
-###                     the target cluster (as entereed in the maak8DR-apply.env file)
+###                     Copies all artifacts in ALL the namespaces (except the infrastructure ones listed in the 
+###			./maak8DR-apply.env exclude_list variable) in the source K8s cluster to the target
+###                     cluster (as entereed in the maak8DR-apply.env file)
 
 rootdt=`date +%y-%m-%d-%H-%M-%S`
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

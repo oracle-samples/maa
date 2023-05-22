@@ -7,7 +7,7 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
-### This script creates a yaml copy of all the artifact in precise namespaces.It stores all of them in 
+### This script creates a yaml copy of all the artifacts in precise namespaces.It stores all of them in 
 ### separate folders per namespace in the provided directory. It creates also a tar that can be used in a secondary
 ### or test K8s cluster with the equivalent  ./maak8-push-all-artifacts.sh script.
 ### If executed with a single argument assumes that argument to be the backup directory and will backup ALL namespaces
@@ -15,10 +15,14 @@
 ### precise namespaces to be backed up
 ### Usage:
 ###
-###      ./maak8-get-all-artifacts.sh [DIRECTORY]
+###      ./maak8-get-all-artifacts.sh [DIRECTORY] [NAMESPACE LIST (optional)]
 ### Where:
 ###	DIRECTORY:
-###					This is the directory where all the yamls and tar will be stored.
+###			This is the directory where all the yamls and tar snapshot will be stored.
+###     NAMESPACE LIST
+###                     Is an optional parameter that allows specifying a list of namespaces to be replicated
+### 			If no list is provided, the script will replicate all namespaces except the infrastructure
+###			ones listed in the exclude_list provided in the maak8DR-apply.env file
 
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -81,20 +85,15 @@ for namespace_selected in $namespace_list;do
 		echo "Gathering artifacts of type $artifacts_type in namespace $namespace_selected..."
 		export all_artifacts_list=$results_dir/artifacts_list.${artifacts_type}.${namespace_selected}.${dt}.log
 		kubectl get ${artifacts_type} -n $namespace_selected 2>/dev/null | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" | awk -v buf="$namespace_selected" '{print buf,$1}'> $all_artifacts_list
-		#echo "Here goes current list"
-		#kubectl get ${artifacts_type} -n $namespace_selected 2>/dev/null | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" | awk -v buf="$namespace_selected" '{print buf,$1}'
-		#cat $all_artifacts_list
 		declare -A matrix
 		echo "Gathering initial K8 cluster information for artifact of type ${artifacts_type} in namespace $namespace_selected ..." >>$oplog
 		export num_artifacts=`cat $all_artifacts_list | wc -l`
 		for ((j=1;j<=num_artifacts;j++)) do
         		matrix[$j,1]=`cat $all_artifacts_list | awk '{print $1}' | sed ''"$j"'!d'`
-			#matrix[$j,1]=$namespace_selected
         		matrix[$j,2]=`cat $all_artifacts_list | awk '{print $2}' | sed ''"$j"'!d'`
 			echo "Namespace: ${matrix[$j,1]}" >>$oplog
 			echo "Artifact: ${matrix[$j,2]}"  >>$oplog
 			echo "Type of artifact: $artifacts_type"  >>$oplog
-			#mkdir -p $results_dir/${matrix[$j,1]}
 			kubectl get $artifacts_type ${matrix[$j,2]} -n ${matrix[$j,1]} -o yaml > $results_dir/${matrix[$j,1]}/${matrix[$j,2]}.$artifacts_type.yaml
 		done
 	done

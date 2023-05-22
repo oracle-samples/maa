@@ -29,18 +29,17 @@ else
         echo "ERROR: Incorrect number of parameters used: Expected 2, got $#"
 	echo ""
 	echo "Usage:"
-	echo "    $0  TARBALL_FILE DIRECTORY"
+	echo "    $0 [TARBALL_FILE] [WORKING_DIRECTORY]"
 	echo ""
 	echo "Example:  "
 	echo "    $0  /tmp/k8lbr.paasmaaoracle.com-6443.22-12-30-11-21-55.gz /tmp/test1/"
 	exit 1
 fi
 
-echo "**** RESTORE OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
-echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
-. $basedir/maak8DR-apply.env
+#echo "**** RESTORE OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
+#echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
+#. $basedir/maak8DR-apply.env
 
-#export basedir=$(dirname "$0")
 dt=`date +%y-%m-%d-%H-%M-%S`
 export root_dated_dir=${root_dir}/$dt
 export working_dir=${root_dated_dir}/work
@@ -50,13 +49,9 @@ mkdir -p $backup_dir
 export oplog=$root_dated_dir/restore-operations.log
 export images_log_name=images_reguired.log
 
-#echo "Creating a full backup of exiting cluster before restoring..."
-#$basedir/maak8-get-all-artifacts.sh $backup_dir
 cd $working_dir
 echo "*******************STARTING RESTORE FOR $artifacts_tar *******************"
 tar -xzf $artifacts_tar
-export nonnamespaces=`for i in $(ls *.yaml); do echo ${i%%/}; done`
-echo $nonnamespaces >> $oplog
 echo ""
 echo ""
 echo "*********************************IMPORTANT********************************"
@@ -72,18 +67,13 @@ echo "nodes before starting this operation. Otherwise, restore will fail!!"
 echo "**************************************************************************"
 
 sleep 5
-
+export nonnamespaces=`for i in $(ls *.yaml); do echo ${i%%/}; done`
+echo "The non-namespaced artifacts are: $nonnamespaces" >> $oplog
 export namespaces=`for i in $(ls -drt */); do echo ${i%%/}; done`
-for exclude_namespace in ${exclude_list}; do
-        export namespaces=`echo $namespaces| sed -E "s/$exclude_namespace//g"`
-done
-
-export namespaces=$(echo "${namespaces//[$'\t\r\n']}")
+#export namespaces=$(echo "${namespaces//[$'\t\r\n']}")
+export namespaces=$(echo "${namespaces}" | tr '\n' ' ')
 echo "The namespaces that will be restored are: $namespaces"
-echo "Restoring  artifacts definitions..."
 echo "A log of restore operations can be found at $oplog"
-
-
 echo "Restoring first the related non-namespaced artifacts in root..."
 for artifact in ${nonnamespaces}; do
 	for namespace in ${namespaces}; do
@@ -95,7 +85,6 @@ for artifact in ${nonnamespaces}; do
 		fi
 	done
 done
-
 echo "Namespaces to restore are: $namespaces" >> $oplog
 export pv_list=`kubectl get pv -A | grep -vw NAME | awk '{print $1}'  | awk -v RS=  '{$1=$1}1'`
 for namespace in ${namespaces}; do
