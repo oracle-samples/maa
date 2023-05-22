@@ -17,6 +17,7 @@
 ###			The tarball created with maak8-get-all-artifacts.sh that will be applied 
 ###     DIRECTORY:
 ###                  	The working directory where the backup tar will be expanded
+export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 
 if [[ $# -eq 2 ]]; 
@@ -35,8 +36,11 @@ else
 	exit 1
 fi
 
+echo "**** RESTORE OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
+echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
+. $basedir/maak8DR-apply.env
+
 #export basedir=$(dirname "$0")
-export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 dt=`date +%y-%m-%d-%H-%M-%S`
 export root_dated_dir=${root_dir}/$dt
 export working_dir=${root_dated_dir}/work
@@ -70,7 +74,6 @@ echo "**************************************************************************
 sleep 5
 
 export namespaces=`for i in $(ls -drt */); do echo ${i%%/}; done`
-export exclude_list="kube-flannel kube-public kube-node-lease default"
 for exclude_namespace in ${exclude_list}; do
         export namespaces=`echo $namespaces| sed -E "s/$exclude_namespace//g"`
 done
@@ -81,7 +84,7 @@ echo "Restoring  artifacts definitions..."
 echo "A log of restore operations can be found at $oplog"
 
 
-echo "Restoring first related non-namespaced artifacts in root..."
+echo "Restoring first the related non-namespaced artifacts in root..."
 for artifact in ${nonnamespaces}; do
 	for namespace in ${namespaces}; do
 		#Only apply nonnamespace artifacts that reference the selectted namespaces

@@ -22,19 +22,20 @@
 
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-export exclude_list="kube-system kube-flannel kube-node-lease"
-export grep_exclude=$(echo $exclude_list | sed -e "s/ /\\\|/g")
-
-export nons_artifacts_types="crd clusterrole clusterrolebinding"
-
 if [[ $# -eq 1 ]]; then
 	export root_dir=$1
 	export namespace_list="-A"
 	echo "Creating yaml back up of all namespaces except $exclude_list ..."
 elif [[ $# -eq 2 ]]; then
 	export root_dir=$1
-	export namespace_list=$2
-	echo "Creating yaml back up of $namespace_list namespaces ..."
+	if [ -z "$2" ] ; then
+                export namespace_list="-A"
+		echo "Creating yaml back up of all namespaces except $exclude_list ..."
+        else
+                export namespace_list=$2
+		echo "Creating yaml back up of $namespace_list namespaces ..."
+
+        fi
 else
 	echo ""
         echo "ERROR: Incorrect number of parameters used: Expected 1 or 2 got $#"
@@ -50,36 +51,39 @@ else
         echo "Backups namespaces ns1, ns2, ns3 and non-namespaced artifacts $nons_artifacts_types"
 	exit 1
 fi
+
+echo "**** BACKUP OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
+echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
+. $basedir/maak8DR-apply.env
+
 #The list of all artifact types to be backed up explicit or obtained form the cluster as api-resources
 #export ns_artifacts_types="cm cronjob crd daemonset deployment ingress job pod pvc replicaset replicationcontroller role rolebinding secret service sa statefulset"
 export ns_artifacts_types=`kubectl api-resources | grep true | grep -v events | awk '{print $1}' | awk -v RS=  '{$1=$1}1'`
-
 export dt=`date +%y-%m-%d-%H-%M-%S`
 export results_dir=$root_dir/$dt
 mkdir -p $results_dir
 export oplog=$results_dir/backup-operations.log
 echo "Log of backup operations can be found at $oplog"
 
+if [[ "$namespace_list" == "-A" ]]; then
+	append="-e"
+	for exclude_namespace in ${exclude_list}; do
+        	exclude_string+=" $append ${exclude_namespace}"
+	done
+	namespace_list=$(kubectl get ns |awk '{print $1}' | grep -v $exclude_string | grep -v NAME)
+fi
+
 for namespace_selected in $namespace_list;do
 	echo "***************STARTING BACKUP FOR NAMESPACE $namespace_selected***************"
 	mkdir -p $results_dir/${namespace_selected}
 	kubectl get ns $namespace_selected -o yaml > $results_dir/$namespace_selected/$namespace_selected.yaml
 	for artifacts_type in  ${ns_artifacts_types}; do
-		if [[ "$namespace_selected" == "-A" ]]; then
-			echo "Gathering artifacts of type $artifacts_type in all namespaces except $exclude_list..."
-			export all_artifacts_list=$results_dir/artifacts_list.${artifacts_type}.all_namespaces.${dt}.log
-			#Will need to improve to really handle a exclude list
-                        kubectl get ${artifacts_type} -A  2>/dev/null | awk {'print $1,$2'} |grep -wv $grep_exclude | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" > $all_artifacts_list
-                else
-			echo "Gathering artifacts of type $artifacts_type in namespace $namespace_selected..."
-			export all_artifacts_list=$results_dir/artifacts_list.${artifacts_type}.${namespace_selected}.${dt}.log
-			
-			kubectl get ${artifacts_type} -n $namespace_selected 2>/dev/null | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" | awk -v buf="$namespace_selected" '{print buf,$1}'> $all_artifacts_list
-			#echo "Here goes current list"
-			#kubectl get ${artifacts_type} -n $namespace_selected 2>/dev/null | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" | awk -v buf="$namespace_selected" '{print buf,$1}'
-			#cat $all_artifacts_list
-		fi
-
+		echo "Gathering artifacts of type $artifacts_type in namespace $namespace_selected..."
+		export all_artifacts_list=$results_dir/artifacts_list.${artifacts_type}.${namespace_selected}.${dt}.log
+		kubectl get ${artifacts_type} -n $namespace_selected 2>/dev/null | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" | awk -v buf="$namespace_selected" '{print buf,$1}'> $all_artifacts_list
+		#echo "Here goes current list"
+		#kubectl get ${artifacts_type} -n $namespace_selected 2>/dev/null | grep -wv 'NAMESPACE\|NAME' | grep -v  "^[[:blank:]]*$" | awk -v buf="$namespace_selected" '{print buf,$1}'
+		#cat $all_artifacts_list
 		declare -A matrix
 		echo "Gathering initial K8 cluster information for artifact of type ${artifacts_type} in namespace $namespace_selected ..." >>$oplog
 		export num_artifacts=`cat $all_artifacts_list | wc -l`
@@ -117,7 +121,7 @@ export clean_cluster_name=${cluster_name/:/-}
 export tar_file="/tmp/${dt}.gz"
 echo "All artifacts gathered for ${clean_cluster_name}. Creating tar at $tar_file ." >>$oplog
 cd $results_dir
-find . -name '*.yaml' | xargs grep 'image: ' -sl | xargs cat | grep 'image: ' | awk -F 'image: ' '{print $2}' | sort -u > $results_dir/images_reguired.log
+find . -name '*.yaml' | xargs grep ' image: ' -sl | xargs cat | grep ' image: ' | awk -F 'image: ' '{print $2}' | sort -u > $results_dir/images_reguired.log
 echo "***************LIST OF IMAGES USED BY THE BACKUP:***************"
 cat  $results_dir/images_reguired.log 
 echo "****************************************************************"
