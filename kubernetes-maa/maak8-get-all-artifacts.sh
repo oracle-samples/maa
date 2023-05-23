@@ -10,6 +10,8 @@
 ### This script creates a yaml copy of all the artifacts in precise namespaces.It stores all of them in 
 ### separate folders per namespace in the provided directory. It creates also a tar that can be used in a secondary
 ### or test K8s cluster with the equivalent  ./maak8-push-all-artifacts.sh script.
+### It uses variables defined in maak8DR-apply.env but they can be defaulted to the provided values for the individual execution
+### of this script.
 ### If executed with a single argument assumes that argument to be the backup directory and will backup ALL namespaces
 ### If executed with 2 arguments, it assuments the first one to be the backup directory and the following list the 
 ### precise namespaces to be backed up
@@ -103,6 +105,7 @@ done
 
 echo "***************STARTING BACKUP FOR NON-NAMESPACED ARTIFACTS OF TYPE: $nons_artifacts_types *************** "
 for artifacts_type in  ${nons_artifacts_types}; do
+	
         export all_nonns_artifacts_list=$results_dir/artifacts_list.${artifacts_type}.${dt}.log
         declare -A matrix
         echo "Gathering initial K8 cluster information for non-namespaced artifact of type ${artifacts_type}..."
@@ -115,7 +118,24 @@ for artifacts_type in  ${nons_artifacts_types}; do
                 echo "Artifact: ${matrix[$j,2]}">>$oplog
                 echo "Type of artifact: $artifacts_type">>$oplog
                 kubectl get $artifacts_type ${matrix[$j,2]} -o yaml > $results_dir/${matrix[$j,2]}.$artifacts_type.yaml
-        done
+		if [[ "$artifacts_type" == *"pv"* ]]; then
+			pvc_counter=0
+			list_of_pv_ns=$(grep namespace: $results_dir/${matrix[$j,2]}.$artifacts_type.yaml | awk -F'namespace: ' '{print $2}')
+			for namespace_selected in $namespace_list;do
+        	                for pv_ns in $list_of_pv_ns;do
+	                                if [[ "$pv_ns" == *"$namespace_selected"* ]]; then
+                                	        let pvc_counter=pvc_counter+1
+                        	        fi
+                	        done
+        	        done
+	                if [ "$pvc_counter" -lt 1 ]; then
+                	        echo "None of the selected namespaces was used in the PV, hence removing from backup."
+        	                rm $results_dir/${matrix[$j,2]}.$artifacts_type.yaml
+	                else
+                        	echo "Some of the selected namespaces were used in the PV, hence maintaining in backup."
+                	fi
+		fi
+	done
 done
 export cluster_name=`kubectl cluster-info  | awk -F"//" '{print $2;exit}' | tr -d '[:cntrl:]'  | awk -F '[' '{print $1}'`
 export clean_cluster_name=${cluster_name/:/-}

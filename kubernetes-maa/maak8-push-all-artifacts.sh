@@ -36,9 +36,7 @@ else
 	exit 1
 fi
 
-#echo "**** RESTORE OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
-#echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
-#. $basedir/maak8DR-apply.env
+echo "**** RESTORE OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
 
 dt=`date +%y-%m-%d-%H-%M-%S`
 export root_dated_dir=${root_dir}/$dt
