@@ -66,15 +66,15 @@
 ################## BEGIN CUSTOMIZED PARAMETERS SECTION ########################################################
 ###############################################################################################################
 # The following parmeters are obligatory
-export REMOTE_WLSADMIN_NODE_IP='10.2.225.66'
-export REMOTE_SSH_PRIV_KEYFILE='/u01/install/my_keys/KeyWithoutPassPhraseSOAMAA.priv'
-export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2vefxxrokon3f2bxo6z6e2odqxsklgq'
-export USER_OCID='ocid1.user.oc1..aaaaaaaa77pn6uke4zyxeumfxv4tfyveensu5doteepq6d7jqaubes3fsq4q'
-export PRIVATE_KEY='/u01/install/my_keys/oracleidentitycloudservice_iratxe.etxebarria-02-28-08-31.pem'
+export REMOTE_WLSADMIN_NODE_IP='10.1.1.1'
+export REMOTE_SSH_PRIV_KEYFILE='/u01/install/my_keys/my_private_key.priv'
+export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7d...............z6e2odqxsklgq'
+export USER_OCID='ocid1.user.oc1..aaaaaaaa77pn6uke4zyx......................fsq4q'
+export PRIVATE_KEY='/u01/install/my_keys/oracleidentitycloudservice_username.pem'
 export WALLET_DIR='/u01/install/wallets/ADBD1_ashburn'
-export ENC_WALLET_PASSWORD='{AES256}uLDRSaCrg4th+3HeK/aCNbN67Szw7xOxWrKQFcIxGp0UTkV77siabhc3TYrk2rd95c03uTn3XTfvqaXnNuts4Q=='
-export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.iad.anuwcljrj4y3nwqamjjo3epmwjdwsl3bbbjtksn4y5co7vxd7hovdrotirnq"
-export FSS_MOUNT="/u01/share"
+export ENC_WALLET_PASSWORD='{AES256}uLDRSaCrg4th+3.......s4Q=='
+export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.iad.anuwcl.............irnq"
+export FSS_MOUNT="/u01/shared"
 
 ###############################################################################################################
 ################## END OF CUSTOMIZED PARAMATERS SECTION #######################################################
