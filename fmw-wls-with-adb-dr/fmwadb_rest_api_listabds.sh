@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## fmwadbs_rest_api_listabds.sh script version 1.0.
+## fmwadb_rest_api_listabds.sh script version 1.0.
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -12,10 +12,10 @@
 
 ### Usage:
 ###
-###      ./fmwadbs_rest_api_listabds.sh [TENANCY_OCID] [USER_OCID] [PRIVATE_KEY] [ADB_OCID]
+###      ./fmwadb_rest_api_listabds.sh [TENANCY_OCID] [USER_OCID] [PRIVATE_KEY] [ADB_OCID]
 ### Where:
 ###	TENANCY_OCID:
-###			This is the OCID of the tenancy where the ADBS resides. It can be obtained from the OCI UI
+###			This is the OCID of the tenancy where the ADB resides. It can be obtained from the OCI UI
 ###			Refer to https://docs.oracle.com/en-us/iaas/Content/GSG/Tasks/contactingsupport_topic-Finding_Your_Tenancy_OCID_Oracle_Cloud_Identifier.htm
 ###	USER_OCID:		
 ###			This is the OCID of the user owning the ADB instance. It can be obtained from the OCI UI.
@@ -24,10 +24,10 @@
 ### 			Path to the private PEM format key for this user
 ### 			Refer to https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm for details
 ###	ADB_OCID:
-###			This is the OCID of the ADBS being inspected. The ADB OCID can be obtained from the ADB screen in OCI UI
+###			This is the OCID of the ADB being inspected. The ADB OCID can be obtained from the ADB screen in OCI UI
 ### EXAMPLE:
 ###
-###    ./fmwadbs_rest_api_listabds.sh    "ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2ZZZZZZZZZZZZZZZZZZZZZZ" "ocid1.user.oc1..aaaaaaaaz76qxwxdekcnwaza5zXXXXXXXXXXXXXXXXXXXX"  "/share/oracleidentitycloudservice.pem"  ocid1.autonomousdatabase.oc1.ap-hyderabad-1.anuhsljrj4yyyyyyyyyyyyyyyyyyyyyy"
+###    ./fmwadb_rest_api_listabds.sh    "ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2ZZZZZZZZZZZZZZZZZZZZZZ" "ocid1.user.oc1..aaaaaaaaz76qxwxdekcnwaza5zXXXXXXXXXXXXXXXXXXXX"  "/share/oracleidentitycloudservice.pem"  ocid1.autonomousdatabase.oc1.ap-hyderabad-1.anuhsljrj4yyyyyyyyyyyyyyyyyyyyyy"
 
 ###----------------------------------INFORMATION GATHERED---------------------------------
 ### DATABASE NAME .............................: soaadb1
@@ -65,6 +65,14 @@ fi
 # The following fields are dynamically constructed and it is not needed to change them
 
 api_region=$(echo $ADB_OCID  | awk -F'.' '{print $4}')
+if [[ "$api_region" == "iad" ]]; then
+	api_region="us-ashburn-1"
+fi
+if [[ "$api_region" == "phx" ]]; then
+        api_region="us-phoenix-1"
+fi
+
+
 api_host=database.${api_region}.oraclecloud.com
 fingerprint=$(openssl rsa -pubout -outform DER -in "$PRIVATE_KEY"  2>/dev/null | openssl md5 -c | awk -F '= ' '{print $2}')
 rest_api="/20160918/autonomousDatabases/$ADB_OCID"

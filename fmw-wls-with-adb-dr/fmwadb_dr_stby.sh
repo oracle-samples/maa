@@ -1,23 +1,23 @@
 #!/bin/bash
 
-## fmwadbs_dr_stby.sh script version 1.0.
+## fmwadb_dr_stby.sh script version 2.0.
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 ### This script prepares a secondary site for the DR setup
 ### This script should be executed in the SECONDARY Weblogic Administration server node. BEFORE executing this script
-### the fmwadbs_dr_rsync_only_prim.sh script should have been executed in the primary system so that a copy of the primary domain exists in the local
+### the fmwadb_dr_rsync_only_prim.sh script should have been executed in the primary system so that a copy of the primary domain exists in the local
 ##  FSS mount
 ### Usage:
 ###
-###      ./fmwadbs_dr_stby.sh [WALLET_DIR] [WALLET_PASSWORD] [FSS_MOUNT]
+###      ./fmwadb_dr_stby.sh [WALLET_DIR] [WALLET_PASSWORD] [FSS_MOUNT]
 ### Where:
 ###	WALLET_DIR:
-###					This is the directory for an unzipped ADBS wallet.
+###					This is the directory for an unzipped ADB wallet.
 ###					This directory should contain at least a tnsnames.ora, keystore.jks and truststore.jks files. 
 ###	WALLET_PASSWORD:		
-###					This is the password provided when the wallet was downloaded from the ADBS OCI UI.
+###					This is the password provided when the wallet was downloaded from the ADB OCI UI.
 ###					If the wallet is the initial one created by WLS/SOA/FMW during provisioning it can be obtained
 ###					with the following commands:
 ###					SOA	python /opt/scripts/atp_db_util.py generate-atp-wallet-password
@@ -89,9 +89,9 @@ sync_in_secondary_RSYNC(){
 
 }
 
-fmwadbs_switch_db_conn() {
+fmwadb_switch_db_conn() {
 	echo "Switching config to ${WALLET_DIR}"
-	$exec_path/fmwadbs_switch_db_conn.sh  ${WALLET_DIR} ${WALLET_PASSWORD}
+	$exec_path/fmwadb_switch_db_conn.sh  ${WALLET_DIR} ${WALLET_PASSWORD}
 }
 
 export WALLET_DIR=$1
@@ -105,4 +105,4 @@ if [[ $backup == "true" ]]; then
 	create_domain_backup
 fi
 sync_in_secondary_RSYNC
-fmwadbs_switch_db_conn
+fmwadb_switch_db_conn

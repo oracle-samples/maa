@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## fmwadbs_config_replica.sh script version 1.0
+## fmwadb_config_replica.sh script version 2.0
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -8,7 +8,7 @@
 
 ### This script is used to replicate configuration between sites.
 ### This script should be executed in the WLS Administration Node (either primary or standby).
-### Typically it woul dbe croned/scheduled to replicate configuration between a primary and standby FMW-ADBS system.
+### Typically it would be croned/scheduled to replicate configuration between a primary and standby FMW-ADB system.
 ### This script checks the current role of the local database to determine if it is running in primary or standby site.
 ### When it runs in PRIMARY site: 
 ###	it copies the domain config from primary domain to local assistance folder (FSS), 
@@ -19,7 +19,7 @@
 ### Since it is expected to be "croned" all variables need to be customized in the script itself (i.e. not passed as arguments)
 ### Usage:
 ###
-###	./fmwadbs_config_replica.sh 
+###	./fmwadb_config_replica.sh 
 ###	The following varibles (below) need to be edited/added in the script itself before executing the script
 ###
 ###	REMOTE_WLSADMIN_NODE_IP:
@@ -31,7 +31,7 @@
 ###		The private ssh keyfile to connect to remote Weblogic Administration server node.
 ###
 ###	TENANCY_OCID:
-###		This is the OCID of the tenancy where the ADBS resides. It can be obtained from the OCI UI
+###		This is the OCID of the tenancy where the ADB resides. It can be obtained from the OCI UI
 ###		Refer to https://docs.oracle.com/en-us/iaas/Content/GSG/Tasks/contactingsupport_topic-Finding_Your_Tenancy_OCID_Oracle_Cloud_Identifier.htm
 ###
 ###	USER_OCID:		
@@ -43,20 +43,20 @@
 ### 		Refer to https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm for details
 ###
 ###	ADB_OCID:
-###		This is the OCID of the ADBS being inspected. The ADB OCID can be obtained from the ADB screen in OCI UI
+###		This is the OCID of the ADB being inspected. The ADB OCID can be obtained from the ADB screen in OCI UI
 ###
 ###     WALLET_DIR:
-###		This is the directory for the local ADBS' wallet (unzip the wallet downloded from the OCI console)
+###		This is the directory for the local ADB' wallet (unzip the wallet downloded from the OCI console)
 ###		This directory should contain at least a tnsnames.ora, keystore.jks and truststore.jks files.
 ###
 ###    ENC_WALLET_PASSWORD:
-###		This is the WLS ENCRYPTED encarnation of the password provided when the wallet was downloaded from the ADBS OCI UI.
+###		This is the WLS ENCRYPTED encarnation of the password provided when the wallet was downloaded from the ADB OCI UI.
 ###		If the wallet is the initial one created by WLS/SOA/FMW during provisioning WLS, the password can be obtained with the
 ###		following command:
 ###                                     SOA     python /opt/scripts/atp_db_util.py generate-atp-wallet-password
 ###                                     WLS     python3 /opt/scripts/atp_db_util.py generate-atp-wallet-password
 ###		To encyrpt the password (whether the one provided in the OCI console or the one used during provionining) you can use the
-###		fmwadbs_enc_pwd.sh script (./fmwadbs_enc_pwd.sh UNENC_WALLET_PASSWORD) The obtained string is the one to be used bellow for the
+###		fmw_enc_pwd.sh script (./fmw_enc_pwd.sh UNENC_WALLET_PASSWORD) The obtained string is the one to be used bellow for the
 ###		ENC_WALLET_PASSWORD variable
 ###   
 ###   FSS_MOUNT:
@@ -66,15 +66,15 @@
 ################## BEGIN CUSTOMIZED PARAMETERS SECTION ########################################################
 ###############################################################################################################
 # The following parmeters are obligatory
-export REMOTE_WLSADMIN_NODE_IP='10.1.1.190'
-export REMOTE_SSH_PRIV_KEYFILE='/u01/soacs/dbfs/share/KeyWithoutPassPhraseSOAMAA.ppk'
-export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7dkeohv7a..........n3f2bxo6z6e2odqxsklgq'
-export USER_OCID='ocid1.user.oc1..aaaaaaaaz76qxwxdekcn..........ow6tualhi7c4cfmvyti63mq'
-export PRIVATE_KEY='/u01/soacs/dbfs/share/oracleidentitycloudservice_my_private_key.pem'
-export WALLET_DIR='/u01/soacs/dbfs/share/wallets/hyd-stby'
-export ENC_WALLET_PASSWORD='{AES256}UmLUwgvClQSuDCIbT39......I2sYVFosd7naZnr2ri3ujYDRoDE4'
-export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.ap-hyderabad-1.anuhsl5555......ltt54qdlewnifmaxuwfipaqbzxzcfa"
-export FSS_MOUNT=/u01/soacs/dbfs/share
+export REMOTE_WLSADMIN_NODE_IP='10.2.225.66'
+export REMOTE_SSH_PRIV_KEYFILE='/u01/install/my_keys/KeyWithoutPassPhraseSOAMAA.priv'
+export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2vefxxrokon3f2bxo6z6e2odqxsklgq'
+export USER_OCID='ocid1.user.oc1..aaaaaaaa77pn6uke4zyxeumfxv4tfyveensu5doteepq6d7jqaubes3fsq4q'
+export PRIVATE_KEY='/u01/install/my_keys/oracleidentitycloudservice_iratxe.etxebarria-02-28-08-31.pem'
+export WALLET_DIR='/u01/install/wallets/ADBD1_ashburn'
+export ENC_WALLET_PASSWORD='{AES256}uLDRSaCrg4th+3HeK/aCNbN67Szw7xOxWrKQFcIxGp0UTkV77siabhc3TYrk2rd95c03uTn3XTfvqaXnNuts4Q=='
+export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.iad.anuwcljrj4y3nwqamjjo3epmwjdwsl3bbbjtksn4y5co7vxd7hovdrotirnq"
+export FSS_MOUNT="/u01/share"
 
 ###############################################################################################################
 ################## END OF CUSTOMIZED PARAMATERS SECTION #######################################################
@@ -126,17 +126,13 @@ get_variables(){
                 echo "Provide an alternative datasource name"  | tee -a  $log_file
                 exit
         fi
-        #export local_connect_string=$(grep url ${datasource_file} | awk -F ':@' '{print $2}' |awk -F '</url>' '{print $1}')
-	export local_connect_string=$($exec_path/fmwadbs_get_connect_string.sh $datasource_file)
-        # For RAC ONS list update. This will be null for non-rac cases
-        export LOCAL_ONS_ADDRESS=$(grep ons-node-list ${datasource_file} | awk -F '[<>]' '{print $3}')
+
 	if [[ ${VERBOSE} = "true" ]]; then
                 echo "VARIABLES VALUES:"  | tee -a  $log_file
                 echo " PaaS type.........................." ${PaaS}  | tee -a  $log_file
                 echo " Datasource name...................." ${datasource_name}  | tee -a  $log_file
                 echo " WLS Domain Home...................." ${DOMAIN_HOME}  | tee -a  $log_file
                 echo " WLS Domain Name...................." ${WLS_DOMAIN_NAME}  | tee -a  $log_file
-                echo " Local connect string..............." ${local_connect_string}  | tee -a  $log_file
                 echo " FSS mount.........................." ${FSS_MOUNT}  | tee -a  $log_file
                 echo " Stage folder......................." ${copy_folder}  | tee -a  $log_file
                 echo " Remote WLS Admin node's IP........." ${REMOTE_WLSADMIN_NODE_IP}  | tee -a  $log_file
@@ -152,7 +148,7 @@ get_localdb_role(){
 	export count=0;
 	export top=3;
 	while [ $count -lt  $top ]; do
-		export db_role=$($exec_path/fmwadbs_rest_api_listabds.sh $TENANCY_OCID $USER_OCID $PRIVATE_KEY $LOCAL_ADB_OCID | grep ROLE | awk -F: '{print $2}') 
+		export db_role=$($exec_path/fmwadb_rest_api_listabds.sh $TENANCY_OCID $USER_OCID $PRIVATE_KEY $LOCAL_ADB_OCID | grep ROLE | awk -F: '{print $2}') 
 		echo "The role of the database is: ${db_role}"  | tee -a  $log_file
 		if  [[ ${db_role} = *PRIMARY* ]] || [[ ${db_role} = *STANDBY* ]]  || [[ ${db_role} = *null* ]]; then
 			echo "Role check performed. Proceeding..."  | tee -a  $log_file
@@ -164,7 +160,7 @@ get_localdb_role(){
 			if [ $count -eq 3 ]; then
 				echo "Maximum number of attempts exceeded."  | tee -a  $log_file
 				echo "Review the information provided to query the DB status though REST API."  | tee -a  $log_file
-                        	echo "Check the USER's OCID, TENENCY's OCID and ADBS's OCID."  | tee -a  $log_file
+                        	echo "Check the USER's OCID, TENANCY's OCID and ADB's OCID."  | tee -a  $log_file
 			return 1
 			fi
 		fi
@@ -178,7 +174,7 @@ get_localrc_mode(){
         export count=0;
         export top=3;
         while [ $count -lt  $top ]; do
-		export pdb_mode=$($exec_path/fmwadbs_rest_api_listabds.sh $TENANCY_OCID $USER_OCID $PRIVATE_KEY $LOCAL_ADB_OCID | grep refreshableMode| awk -F: '{print $2}')
+		export pdb_mode=$($exec_path/fmwadb_rest_api_listabds.sh $TENANCY_OCID $USER_OCID $PRIVATE_KEY $LOCAL_ADB_OCID | grep refreshableMode| awk -F: '{print $2}')
                 echo "The refreshable mode of the database is: ${pdb_mode}"  | tee -a  $log_file
                 if  [[ ${pdb_mode} = *MANUAL* ]]; then
                 	count=3
@@ -213,22 +209,24 @@ checks_in_primary_RSYNC(){
         fi
 
         # Check local mount is ready
-        echo " Checking local FSS mount folder readiness........"  | tee -a  $log_file
-	echo "     The FSS is expected to be mounted in ${FSS_MOUNT}"  | tee -a  $log_file
-	echo "     The folder for the copy of the domain is expected to be ${copy_folder}"  | tee -a  $log_file
-        if [ -d "${copy_folder}" ];then
-                echo "     Local folder ${copy_folder} exists."  | tee -a  $log_file
+        echo " Checking local FSS ${FSS_MOUNT} folder readiness..."  | tee -a  $log_file
+        if mountpoint -q ${FSS_MOUNT}; then
+                echo "    Mount at ${FSS_MOUNT} is ready!"  | tee -a  $log_file
+                echo "    Will use ${copy_folder} to stage the domain configuration."  | tee -a  $log_file
+                mkdir -p  ${copy_folder}
         else
-                echo "     Error: Local folder ${copy_folder} does not exists."  | tee -a  $log_file
+                echo "    Error: local FSS mount not available at ${FSS_MOUNT}"  | tee -a  $log_file
                 exit 1
         fi
 
         # Check remote mount is ready
         echo " Checking remote FSS mount folder readiness........"  | tee -a  $log_file
-        if ssh -i $REMOTE_SSH_PRIV_KEYFILE opc@${REMOTE_WLSADMIN_NODE_IP} [ -d ${copy_folder} ];then
-                echo "     Remote folder ${REMOTE_WLSADMIN_NODE_IP}:${copy_folder} exists."  | tee -a  $log_file
+	if ssh -i $REMOTE_SSH_PRIV_KEYFILE opc@${REMOTE_WLSADMIN_NODE_IP} "mountpoint -q ${FSS_MOUNT}";then
+		echo "    Remote mount at ${REMOTE_WLSADMIN_NODE_IP}:${FSS_MOUNT} is ready!" | tee -a  $log_file
+		echo "    Will use ${REMOTE_WLSADMIN_NODE_IP}:${copy_folder} to stage the domain configuration in remote site." | tee -a  $log_file
+		ssh -i $REMOTE_SSH_PRIV_KEYFILE opc@${REMOTE_WLSADMIN_NODE_IP} "sudo su - oracle -c \"mkdir -p  ${copy_folder}\" " | tee -a  $log_file
         else
-                echo "     Error: remote folder  ${REMOTE_WLSADMIN_NODE_IP}:${copy_folder} does not exist."  | tee -a  $log_file
+                echo "    Error: remote FSS mount not ready at ${REMOTE_WLSADMIN_NODE_IP}:${FSS_MOUNT}."  | tee -a  $log_file
                 exit 1
         fi
 }
@@ -238,16 +236,22 @@ checks_in_secondary_RSYNC(){
         echo "     The FSS is expected to be mounted in ${FSS_MOUNT}"  | tee -a  $log_file
         echo "     The folder for the copy of the domain is expected to be ${copy_folder}"  | tee -a  $log_file
 
-        if [ -d "${copy_folder}" ];then
-                echo "     Local folder ${copy_folder} exists."  | tee -a  $log_file
+	if mountpoint -q ${FSS_MOUNT}; then
+		echo "Mount at ${FSS_MOUNT} is ready!" | tee -a  $log_file
+		if [ -d "${copy_folder}" ];then
+			echo "Local folder ${copy_folder} exists." | tee -a  $log_file
+		else
+			echo "Error: Local folder ${copy_folder} does not exists."  | tee -a  $log_file
+			exit 1
+		fi
         else
-                echo "     Error: Local folder ${copy_folder} does not exists."  | tee -a  $log_file
-                exit 1
+                echo "Error: local FSS mount not available at ${FSS_MOUNT}" | tee -a  $log_file
+		exit 1
         fi
 }
 
 sync_in_primary(){
-	$exec_path/fmwadbs_dr_prim.sh $REMOTE_WLSADMIN_NODE_IP $REMOTE_SSH_PRIV_KEYFILE $FSS_MOUNT | tee -a  $log_file
+	$exec_path/fmwadb_dr_prim.sh $REMOTE_WLSADMIN_NODE_IP $REMOTE_SSH_PRIV_KEYFILE $FSS_MOUNT | tee -a  $log_file
 }
 
 
@@ -263,7 +267,7 @@ decrypt_wallet_password(){
 sync_in_secondary(){
         decrypt_wallet_password
 	#Now with backup option
-        $exec_path/fmwadbs_dr_stby.sh $WALLET_DIR $dec_wallet_pwd $FSS_MOUNT nobackup | tee -a  $log_file
+        $exec_path/fmwadb_dr_stby.sh $WALLET_DIR $dec_wallet_pwd $FSS_MOUNT nobackup | tee -a  $log_file
 }
 
 
@@ -314,12 +318,12 @@ if [ "$get_localdb_role_result" == 0 ];then
 		fi
 		exit
 	else
-        	echo "Invalid ADBS DATA GUARD ROLE. Check DB status"  | tee -a  $log_file
+        	echo "Invalid ADB DATA GUARD ROLE. Check DB status"  | tee -a  $log_file
         	echo $(date '+%d-%m-%Y-%H-%M-%S') > $DOMAIN_HOME/last_failed_update.log
 		exit
 	fi
 else
-	echo "Unable to identify the ADBS DATA GUARD ROLE."  | tee -a  $log_file
+	echo "Unable to identify the ADB DATA GUARD ROLE."  | tee -a  $log_file
         echo $(date '+%d-%m-%Y-%H-%M-%S') > $DOMAIN_HOME/last_failed_update.log 
         exit
 

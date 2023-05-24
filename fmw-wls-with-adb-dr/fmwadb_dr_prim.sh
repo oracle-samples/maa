@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## fmwadbs_dr_prim.sh script version 1.0.
+## fmwadb_dr_prim.sh script version 2.0.
 ##
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -9,7 +9,7 @@
 ### This script should be executed in the PRIMARY Weblogic Administration server node
 ### Usage:
 ###
-###      ./fmwadbs_dr_prim.sh [REMOTE_ADMIN_NODE_IP] [REMOTE_SSH_PRIV_KEYFILE] [FSS_MOUNT]
+###      ./fmwadb_dr_prim.sh [REMOTE_ADMIN_NODE_IP] [REMOTE_SSH_PRIV_KEYFILE] [FSS_MOUNT]
 ### Where:
 ###	REMOTE_ADMIN_NODE_IP:
 ###					This is the IP address of the secondary Weblogic Administration server node.
@@ -57,21 +57,23 @@ checks_in_primary_rsync(){
 	
 	# Check local mount  directory
         echo "Checking local FSS ${FSS_MOUNT} folder readiness..."
-        if [ -d "${FSS_MOUNT}" ];then
-                echo "${FSS_MOUNT} exists."
+	if mountpoint -q ${FSS_MOUNT}; then
+		echo "Mount at ${FSS_MOUNT} is ready!"
 		echo "Will use ${copy_folder} to stage the domain configuration."
 		mkdir -p  ${copy_folder} 
         else
-                echo "Error: local FSS mount ${FSS_MOUNT} does not exists."
+                echo "Error: local FSS mount not available at ${FSS_MOUNT}"
                 exit 1
         fi
 
         # Check remote mount is ready
         echo "Checking remote FSS mount folder readiness..,"
-        if ssh -i $REMOTE_SSH_PRIV_KEYFILE opc@${REMOTE_ADMIN_NODE_IP} [ -d ${copy_folder} ];then
-                echo "Remote folder ${REMOTE_ADMIN_NODE_IP}:${copy_folder} exists."
+	if ssh -i $REMOTE_SSH_PRIV_KEYFILE opc@${REMOTE_ADMIN_NODE_IP} "mountpoint -q ${FSS_MOUNT}";then
+		echo "Remote mount at ${REMOTE_ADMIN_NODE_IP}:${FSS_MOUNT} is ready!"
+		echo "Will use ${REMOTE_ADMIN_NODE_IP}:${copy_folder} to stage the domain configuration in remote site."
+		ssh -i $REMOTE_SSH_PRIV_KEYFILE opc@${REMOTE_ADMIN_NODE_IP} "sudo su - oracle -c \"mkdir -p  ${copy_folder}\" "
         else
-                echo "Error: remote folder  ${REMOTE_ADMIN_NODE_IP}:${copy_folder} does not exist."
+                echo "Error: remote FSS mount not ready at ${REMOTE_ADMIN_NODE_IP}:${FSS_MOUNT}."
                 exit 1
         fi
 	export tns_admin=$( grep tns_admin -A1 $datasource_file | grep value | awk -F '<value>' '{print $2}' | awk -F '</value>' '{print $1}')
