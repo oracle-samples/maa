@@ -23,4 +23,4 @@ Usage
 | [fmwadb_dr_prim.sh](./fmwadb_dr_prim.sh) | Prepares a primary site for the DR setup. |
 | [fmwadb_dr_stby.sh](./fmwadb_dr_stby.sh) | Prepares a secondary site for the DR setup. |
 | [fmwadb_rest_api_listabds.sh](./fmwadb_rest_api_listabds.sh) | This script is used to obtain the Autonomous Database role base on the ADB ID and tenancy information. |
-| [fmwadb_switch_db_conn.sh](./fmwadb_switch_db_conn.sh) | This script replaces the existing connect information with a new ADBS WALLET. |
+| [fmwadb_switch_db_conn.sh](./fmwadb_switch_db_conn.sh) | This script replaces the existing connect information with a new ADB WALLET. |
