@@ -28,7 +28,7 @@ export datasource_name=opss-datasource-jdbc.xml
 export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
 export jps_file="$DOMAIN_HOME/config/fmwconfig/jps-config.xml"
 export jps_jse_file="$DOMAIN_HOME/config/fmwconfig/jps-config-jse.xml"
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 if [[ $# -eq 1 ]]; then
 	export tns_alias=$1
