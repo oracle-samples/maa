@@ -67,7 +67,7 @@
 ###		[ONLY WHEN DR_METHOD IS RSYNC]
 ###		This is the path to the mount point where the OCI File Storage file system is mounted. 
 ###		This OCI File Storage file system will be used to stage the WLS domain configuration.
-###		Example:  /u01/share
+###		Example:  /u01/shared
 
 
 ###############################################################################################################
@@ -80,7 +80,7 @@ ENCRYPTED_SYS_USER_PASSWORD="{AES256}18aFY7QOoGi9gWmBX3Fqm2VizvENr52bqF58qUliuB/
 # ONLY when using RSYNC METHOD:
 REMOTE_ADMIN_NODE_IP=10.2.1.1
 REMOTE_KEYFILE=/home/oracle/my_keys/my_private_key.priv
-FSS_MOUNT=/u01/share
+FSS_MOUNT=/u01/shared
 
 
 ###############################################################################################################
@@ -91,7 +91,7 @@ FSS_MOUNT=/u01/share
 
 #export verbose=true
 export date_label=$(date '+%Y-%m-%d-%H_%M_%S')
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export log_path=${exec_path}/log
 mkdir -p ${log_path}
 export log_file=${log_path}/config_replica_log_${date_label}.log

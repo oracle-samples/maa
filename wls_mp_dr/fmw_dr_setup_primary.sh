@@ -168,7 +168,7 @@ fi
 
 export verbose=true
 export date_label=$(date '+%Y-%m-%d-%H_%M_%S')
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Check dependencies
 if [[ ! -x "${exec_path}/fmw_get_ds_property.sh" ]]; then
