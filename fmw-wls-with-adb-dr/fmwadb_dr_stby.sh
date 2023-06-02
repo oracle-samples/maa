@@ -32,7 +32,7 @@ export datasource_name=opss-datasource-jdbc.xml
 export date_label=$(date +%H_%M_%S-%d-%m-%y)
 export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
 export remote_datasource_file="${copy_folder}/$wls_domain_name/config/jdbc/${datasource_name}"
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 #For internal use, we allow speficying a backup option
 if [[ $# -eq 3 ]]; then

@@ -65,7 +65,7 @@
 ###############################################################################################################
 ################## BEGIN CUSTOMIZED PARAMETERS SECTION ########################################################
 ###############################################################################################################
-# The following parmeters are obligatory
+# The following parameters are obligatory
 export REMOTE_WLSADMIN_NODE_IP='10.1.1.1'
 export REMOTE_SSH_PRIV_KEYFILE='/u01/install/my_keys/my_private_key.priv'
 export TENANCY_OCID='ocid1.tenancy.oc1..aaaaaaaa7d...............z6e2odqxsklgq'
@@ -85,7 +85,7 @@ export copy_folder=${FSS_MOUNT}/domain_config_copy
 export datasource_name=opss-datasource-jdbc.xml
 export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
 export remote_datasource_file="${copy_folder}/$WLS_DOMAIN_NAME/config/jdbc/${datasource_name}"
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export log_file=$FSS_MOUNT/config_replica_log_${date_label}.log
 export dec_wallet_pwd=null
 

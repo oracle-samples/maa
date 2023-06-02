@@ -22,7 +22,7 @@
 export datasource_name=opss-datasource-jdbc.xml
 export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
 export date_label=$(date +%H_%M_%S-%d-%m-%y)
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 if [[ $# -eq 2 ]]; then
 	export WALLET_DIR=$1
