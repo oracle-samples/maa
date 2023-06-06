@@ -40,6 +40,12 @@ fi
 ########################################################################
 export dt=$(date +%Y-%m-%d-%H_%M_%S)
 . $HOME/.bashrc
+
+# For multidb envs
+if [ ! -z "${A_CUSTOM_ENV_FILE}" ] || [ -f ${A_CUSTOM_ENV_FILE} ]; then
+        . ${A_CUSTOM_ENV_FILE}
+fi
+
 if [ -z "$ORACLE_HOME" ]; then
 	echo "Error: the ORACLE_HOME variable is not defined"
 	exit 1

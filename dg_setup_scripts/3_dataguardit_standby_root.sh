@@ -32,12 +32,18 @@ else
 fi
 
 
+
 ########################################################################################
 # Variables with fixed or dynamically obtained values
 #########################################################################################
 
 export dt=$(date +%Y-%m-%d-%H_%M_%S)
 . /home/${ORACLE_OSUSER}/.bashrc
+
+# For multidb envs
+if [ ! -z "${B_CUSTOM_ENV_FILE}" ] || [ -f ${B_CUSTOM_ENV_FILE} ]; then
+        . ${B_CUSTOM_ENV_FILE}
+fi
 
 if [ -z "$ORACLE_HOME" ]; then
         echo "Error: the ORACLE_HOME variable is not defined in oracle user's env"
