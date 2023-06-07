@@ -51,6 +51,8 @@ DR based on etcd restore scripts
 
   | Script name  | Description |
 | ------------- | ------------- |
-| [maak8backup.sh](./maak8backup.sh) | This script creates a backup of a control plane inculding keys, contorl plane pods config (kubeadm) and creates an etcd snapshot of the primary clsuter |
-| [maak8DRrestore.sh](./maak8DRrestore.sh) | This script restores a backup from maak8backup.sh in another system this target system MUST USE THE SAME HOSTNAME ALIASES for control plane nodes and kube api access point |. 
+| [maak8s.env](./maak8s.env) | This script needs to be cusotomized in each region with the IP of the bastion node (running kubectl against primary and secondary K8s clusters) as well as ssh information for control plane operations and the ssh user and ssh key to access those nodes (need to be the same). |
+| [maak8-etcd-backup.sh](./maak8-etcd-backup.sh) | This script creates a backup of a control plane inculding keys, control plane pods config (kubeadm) and creates an etcd snapshot of the primary cluster |
+| [maak8-etcd-restore.sh](./maak8-etcd-restore.sh) | This script restores a backup from maak8backup.sh in another system this target system MUST USE THE SAME HOSTNAME ALIASES for control plane nodes and kube api access point |. 
+| [maak8s-force-stop-cp.sh](./maak8s-force-stop-cp.sh) | This script forcefully stops the control plabe process in the different control plane nodes (list provided as command line argument) |. 
 
