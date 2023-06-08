@@ -80,6 +80,8 @@ for artifact in ${nonnamespaces}; do
 			$basedir/apply-artifacts.sh $artifact $oplog
 		elif grep -q  "group: $namespace" $artifact; then
 			$basedir/apply-artifacts.sh $artifact $oplog
+		elif grep -q  "maak8sapply: $namespace" $artifact; then
+                        $basedir/apply-artifacts.sh $artifact $oplog
 		fi
 	done
 done
