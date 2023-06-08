@@ -46,7 +46,7 @@ The following table provides a summary of the utilities
 
 DR based on etcd restore scripts 
 --------------
-  Each script provides automation for different parts of the DR setup and lifecycle of a disaster protection system. 
+  The approach and scripts work only in kubeadm K8s clusters. Each script provides automation for different parts of the DR setup and lifecycle of a disaster protection system. 
   The following table provides a summary of the utilities
 
   | Script name  | Description |
