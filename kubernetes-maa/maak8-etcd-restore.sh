@@ -128,42 +128,28 @@ fi
 
 if ($backups_exist == "true" ); then
 	echo "Found all the required artifacts in the backup. Proceeding with restore..."
-	export old_manifests_dir=${backup_dir}/restore_attempted_${dt}/manifests/old_manifests
-	mkdir -p $old_manifests_dir
-	export new_manifests_dir=${backup_dir}/restore_attempted_${dt}/manifests/new_manifests
-	mkdir -p $new_manifests_dir
+	export current_etc_kubernetes=${backup_dir}/restore_attempted_${dt}/current_etc_kubernetes
+	mkdir -p $current_etc_kubernetes
 	restore_log=${backup_dir}/restore_attempted_${dt}/restore.log
 	echo "A log from this restore can be found at $restore_log"
 	etcd_op_log=${backup_dir}/restore_attempted_${dt}/etcd_op.log
 	echo "Restore operation started at $dt" > $restore_log
 	for host in ${MNODE_LIST}; do
-		ssh -i $ssh_key $user@$host "mkdir -p $old_manifests_dir/$host" >> $restore_log
-		ssh -i $ssh_key $user@$host "mkdir -p $new_manifests_dir/$host" >> $restore_log
-		ssh -i $ssh_key $user@$host "sudo cp /etc/kubernetes/manifests/*.yaml $old_manifests_dir/$host/" >> $restore_log
-		ssh -i $ssh_key $user@$host "cd $new_manifests_dir/$host; sudo tar -xzf ${backup_dir}/${host}/${host}-etc-kubernetes.gz etc/kubernetes/manifests --strip-components=2" >> $restore_log
+		ssh -i $ssh_key $user@$host "mkdir -p $current_etc_kubernetes/$host" >> $restore_log
+		ssh -i $ssh_key $user@$host "sudo cp -R /etc/kubernetes $current_etc_kubernetes/$host/" >> $restore_log
 	done
-	#WE will support later moving etcd from the locaiton in current cluster to a different one
-	#This is scenario is unlikely to happen 
-	#$basedir/maak8s-stop-cp.sh  /tmp
 	$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
+	echo "Restoring etcd in control plane nodes..."
 	for host in ${MNODE_LIST}; do
-		export etcdlocation=$(ssh -i $ssh_key $user@$host "sudo cat $old_manifests_dir/$host/etcd.yaml" | grep volumes -A20 | grep etcd-data -B3 | grep "path:"  | awk -F'path: ' '{print $2}')
+		export etcdlocation=$(ssh -i $ssh_key $user@$host "sudo cat $current_etc_kubernetes/$host/kubernetes/manifests/etcd.yaml" | grep volumes -A20 | grep etcd-data -B3 | grep "path:"  | awk -F'path: ' '{print $2}')
 		echo "Node $host is hosting etcd under $etcdlocation" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo systemctl stop kubelet">> $restore_log
 		ssh -i $ssh_key $user@$host "mkdir -p ${backup_dir}/restore_attempted_${dt}/$host/etcd$dt" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo mv $etcdlocation ${backup_dir}/restore_attempted_${dt}/$host/etcd$dt" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo mkdir -p $etcdlocation" >> $restore_log
-		ssh -i $ssh_key $user@$host "sudo tar -czf  ${backup_dir}/restore_attempted_${dt}/$host/pki.gz /etc/kubernetes/pki " > /dev/null 2>&1
-		ssh -i $ssh_key $user@$host "cd /; sudo tar -xzf ${backup_dir}/${host}/${host}-etc-kubernetes.gz etc/kubernetes/pki/sa.key" >> $restore_log
-		ssh -i $ssh_key $user@$host "cd /; sudo tar -xzf ${backup_dir}/${host}/${host}-etc-kubernetes.gz etc/kubernetes/pki/sa.pub" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo rm -rf ${backup_dir}/restore_attempted_${dt}/$host/$host.etcd">> $restore_log
 		ssh -i $ssh_key $user@$host "cd ${backup_dir}/restore_attempted_${dt}/$host && $etcdctlhome/etcdctl snapshot restore ${backup_dir}/${ETCDMASTERNODE}/etcd-snapshot-${ETCDMASTERNODE}.db --name $host  --initial-cluster $INIT_URL  --initial-cluster-token etcd-cluster-1  --initial-advertise-peer-urls https://$host:$init_port --cacert /etc/kubernetes/pki/etcd/ca.crt --key /etc/kubernetes/pki/etcd/server.key --cert /etc/kubernetes/pki/etcd/server.crt" > $etcd_op_log 2>&1
 	        ssh -i $ssh_key $user@$host "sudo cp -R ${backup_dir}/restore_attempted_${dt}/$host/$host.etcd/member $etcdlocation" >> $restore_log
-		#Need to implement replacement of old etcd host part with new one
-		ssh -i $ssh_key $user@$host "sudo cp -R /${backup_dir}/restore_attempted_${dt}/manifests/new_manifests/$host/manifests /etc/kubernetes/" >> $restore_log
-		#Restore manifests to bring back kube-api, etcd and sheduler
-		#ssh -i $ssh_key $user@$host "sudo cp -R ${backup_dir}/restore_attempted_${dt}/$host/manifests /etc/kubernetes/"
-		#ssh -i $ssh_key $user@$host "cd /; sudo tar -xzvf ${backup_dir}/${host}/${host}-etc-kubernetes.gz etc/kubernetes/manifests"
 		ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet" >> $restore_log
 	done
 	while [ $stillnotup == "true" ];do
@@ -202,13 +188,10 @@ if ($backups_exist == "true" ); then
 	                        ssh -i $ssh_key $user@$bastion_node $deletecommand >> $restore_log
         	                sleep 5
                 	done
+
 			#App specific restarts
 			echo "App specific ops for restore..."
-			#ssh -i $ssh_key $user@$bastion_node "kubectl delete serviceaccount op-sa -n opns"
-			#ssh -i $ssh_key $user@$bastion_node "kubectl create serviceaccount op-sa -n opns"
-			#export command="kubectl get pods -n opns --template '{{range .items}}{{.metadata.name}}{{\"\n\"}}{{end}}'"
-                        #operator_pod_name=`ssh -i $ssh_key $user@$bastion_node "$command"`
-                        #ssh -i $ssh_key $user@$mnode1 "kubectl delete pod $operator_pod_name -n opns"
+			#Include here any app or service specific clean up and restore operations required
 			echo "Restore completed, check pods' status and logs"
 			ssh -i $ssh_key $user@$bastion_node "kubectl get pods -A" | tee -a ${backup_dir}/restore_attempted_${dt}/restore.log
 			ssh -i $ssh_key $user@$bastion_node "sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL --cacert /etc/kubernetes/pki/etcd/ca.crt --key /etc/kubernetes/pki/etcd/server.key --cert /etc/kubernetes/pki/etcd/server.crt" | tee -a ${backup_dir}/restore_attempted_${dt}/restore.log
