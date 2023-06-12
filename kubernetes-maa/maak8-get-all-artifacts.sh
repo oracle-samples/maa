@@ -8,12 +8,12 @@
 ##
 
 ### This script creates a yaml copy of all the artifacts in precise namespaces.It stores all of them in 
-### separate folders per namespace in the provided directory. It creates also a tar that can be used in a secondary
-### or test K8s cluster with the equivalent  ./maak8-push-all-artifacts.sh script.
+### separate folders per namespace in the provided directory. It creates also a tar that can be restored in a secondary
+### or test K8s cluster with the ./maak8-push-all-artifacts.sh script.
 ### It uses variables defined in maak8DR-apply.env but they can be defaulted to the provided values for the individual execution
-### of this script.
+### of this precise script.
 ### If executed with a single argument assumes that argument to be the backup directory and will backup ALL namespaces
-### If executed with 2 arguments, it assuments the first one to be the backup directory and the following list the 
+### If executed with 2 arguments, it assuments the first argument to be the backup directory and the second argument to be the 
 ### precise namespaces to be backed up
 ### Usage:
 ###
