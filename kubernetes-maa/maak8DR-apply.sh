@@ -7,8 +7,18 @@
 ##
 
 ### This script will creat a ta backup of artifacts in an origin K8s cluster, shipt to a remote K8s cluster
-### and apply/create all of them in that target cluster. Origin, target and ssh user for the operations are
-### specified in the  ./maak8DR-apply.env file
+### and apply/create all of them in that target cluster. 
+### It uses variables defined in maak8s.env. For this script the following variables need to be edited 
+### maak8DR-apply.env:
+###	sechost
+###		This is the node that will be used to access the secondary K8s cluster. It needs to be configured
+###		to run kubectl operations
+###	user_sec
+###		This is the OS user that will be used to ssh into the bastion node
+###	ssh_key
+###		This is the ssh key to be used to log into the bastion node
+###     
+###     The rest of the variables can be defaulted or altered if the application requires other resources
 ### Usage:
 ###
 ###      ./maak8DR-apply.sh [NAMESPACE LIST (optional)]
