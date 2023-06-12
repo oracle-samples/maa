@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-## maak8s-etcd-backup.sh script version 1.0.
+## maak8-etcd-backup.sh script version 1.0.
 ##
 ## Copyright (c) 2023 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -9,23 +9,34 @@
 
 ### This script creates an etcd snapshot of a K8s control plane.
 ### This snapshot can be "applied/restored" using the maak8-etcd-restore.sh script.
-### It uses variables defined in maak8s.env
-### It requires installation of etcdctl https://etcd.io/
+### It requires/uses etcdctl, downloadable from https://etcd.io/
+### It uses variables defined in maak8s.env. For this script the following variables need to be entered in 
+### maak8s.env:
+###	bastion_node
+###		This is the node that will be use to access the K8s cluster. It needs to be configured
+###		to run kubectl operations
+###	user
+###		This is the OS user that will be used to ssh into the bastion node
+###	ssh_key
+###		This is the ssh key to be used to log into the bastion node
+### 	etcdctlhome
+###		This is the directory where etcdct is installed
+### The restof the variables can be defaulted unless etcd uses different pors from the default ones 
 ### Usage:
 ###
 ###      ./maak8s-etcd-backup.sh [BACKUP_DIRECTORY] [LABEL]
 ### Where:
 ###	BACKUP_DIRECTORY:
-###			This is the directory where the ectd snapshot will be stored.
+###			This is the directory where the etcd snapshot will be stored.
 ###     LABEL:
 ###                     This is the user-provided text (inside quotes) that charaterizes the snapshot
 ###			It is stored as text file in the backup directory
+###
 
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
 echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
-echo "The Kubernetes cluster must be UP for taking the backup"
-
+echo "Also, your Kubernetes cluster must be UP for taking the backup."
 
 . $basedir/maak8s.env
 
