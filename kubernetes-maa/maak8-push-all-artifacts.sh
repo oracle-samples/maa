@@ -132,6 +132,10 @@ for namespace in ${namespaces}; do
 				fi
 				
 			done
+		elif [[ "$artifactkind" == *"Secret"* ]]; then
+			echo "Cleaning up token and ca for artifact $artifact ..."  >> $oplog
+			sed -i '/token: /d' $artifact
+			sed -i '/ca.crt: /d' $artifact
 		elif [[ "$artifactkind" == *"Job"* ]]; then
 			job_type=$(grep 'type:' $artifact | awk -F'type: ' '{print $2}')
 			if [[ "$job_type" == *"Complete"* ]]; then
