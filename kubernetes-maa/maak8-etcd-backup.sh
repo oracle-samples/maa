@@ -36,6 +36,7 @@
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
 echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
+echo "ectdctl needs to be installed and available at the path specified in $basedir/maak8s.env"
 echo "Also, your Kubernetes cluster must be UP for taking the backup."
 
 . $basedir/maak8s.env
