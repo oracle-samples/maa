@@ -30,6 +30,10 @@
 
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+echo "********** BACKUP OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY **********"
+echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
+. $basedir/maak8DR-apply.env
+
 if [[ $# -eq 1 ]]; then
 	export root_dir=$1
 	export namespace_list="-A"
@@ -59,10 +63,6 @@ else
         echo "Backups namespaces ns1, ns2, ns3 and non-namespaced artifacts $nons_artifacts_types"
 	exit 1
 fi
-
-echo "**** BACKUP OF K8s CLUSTER BASED ON YAML EXTRACTION AND APPLY ****"
-echo "Make sure you have provided the required information in the env file $basedir/maak8DR-apply.env"
-. $basedir/maak8DR-apply.env
 
 #The list of all artifact types to be backed up explicit or obtained form the cluster as api-resources
 #export ns_artifacts_types="cm cronjob crd daemonset deployment ingress job pod pvc replicaset replicationcontroller role rolebinding secret service sa statefulset"
