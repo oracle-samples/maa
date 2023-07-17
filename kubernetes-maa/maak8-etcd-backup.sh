@@ -70,9 +70,9 @@ export dt=`date "+%F_%H-%M-%S"`
 export backup_dir=$backup_root_dir/etcd_snapshot_$dt
 mkdir -p $backup_dir
 
-export MNODE_LIST=$(ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" | grep master | grep -v NAME | awk '{print $1}')
+export MNODE_LIST=$(ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" | grep 'master\|control' | grep -v NAME | awk '{print $1}')
 echo "$MNODE_LIST" > $backup_dir/mnode.log
-export WNODE_LIST=$(ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" | grep -v master | grep -v NAME | awk '{print $1}')
+export WNODE_LIST=$(ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" | grep -v 'master\|control' | grep -v NAME | awk '{print $1}')
 echo "$MNODE_LIST" > $backup_dir/wnode.log
 
 #Contruction of etcd URLS
