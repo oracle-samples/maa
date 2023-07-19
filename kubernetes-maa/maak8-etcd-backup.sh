@@ -12,48 +12,46 @@
 ### It requires/uses etcdctl, downloadable from https://etcd.io/
 ### It uses variables defined in maak8s.env. For this script the following variables need to be entered in 
 ### maak8s.env:
-###	bastion_node
-###		This is the node that will be use to access the K8s cluster. It needs to be configured
-###		to run kubectl operations
 ###	user
-###		This is the OS user that will be used to ssh into the bastion node
+###		This is the OS user that will be used to ssh into the K8s controls plane nodes
 ###	ssh_key
-###		This is the ssh key to be used to log into the bastion node
+###		This is the ssh key to be used to log into the ba
 ### 	etcdctlhome
 ###		This is the directory where etcdct is installed
-### The restof the variables can be defaulted unless etcd uses different pors from the default ones 
+### The rest of the variables can be defaulted unless etcd uses different pors from the default ones 
 ### Usage:
 ###
-###      ./maak8s-etcd-backup.sh [BACKUP_DIRECTORY] [LABEL]
+###      ./maak8s-etcd-backup.sh [BACKUP_DIRECTORY] [LABEL] [KUBECONFIG]
 ### Where:
 ###	BACKUP_DIRECTORY:
 ###			This is the directory where the etcd snapshot will be stored.
 ###     LABEL:
 ###                     This is the user-provided text (inside quotes) that charaterizes the snapshot
 ###			It is stored as text file in the backup directory
-###
+###	KUBECONFIG:
+###			This is the complete path to the kubeconfig file used to execute kubectl commands
 
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
 echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
-echo "ectdctl needs to be installed and available at the path specified in $basedir/maak8s.env"
 echo "Also, your Kubernetes cluster must be UP for taking the backup."
 
 . $basedir/maak8s.env
 
-if [[ $# -eq 2 ]]; 
+if [[ $# -eq 3 ]]; 
 then
 	export backup_root_dir=$1
 	export label=$2
+	export kcfg=$3
 else
 	echo ""
-        echo "ERROR: Incorrect number of parameters used: Expected 2, got $#"
+        echo "ERROR: Incorrect number of parameters used: Expected 3, got $#"
 	echo ""
 	echo "Usage:"
-	echo "    $0 [BACKUP_DIRECTORY] [LABEL]"
+	echo "    $0 [BACKUP_DIRECTORY] [LABEL] [KUBECONFIG]"
 	echo ""
 	echo "Example:  "
-	echo "    $0  /backups/ \"ETCD Snapshot after first configuration \" "
+	echo "    $0  /backups/ \"ETCD Snapshot after first configuration \" /home/opc/.kubenew/config "
 	exit 1
 fi
 
@@ -70,10 +68,10 @@ export dt=`date "+%F_%H-%M-%S"`
 export backup_dir=$backup_root_dir/etcd_snapshot_$dt
 mkdir -p $backup_dir
 
-export MNODE_LIST=$(ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" | grep 'master\|control' | grep -v NAME | awk '{print $1}')
+export MNODE_LIST=$(kubectl --kubeconfig=$kcfg get nodes | grep 'master\|control' | grep -v NAME | awk '{print $1}')
 echo "$MNODE_LIST" > $backup_dir/mnode.log
-export WNODE_LIST=$(ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" | grep -v 'master\|control' | grep -v NAME | awk '{print $1}')
-echo "$MNODE_LIST" > $backup_dir/wnode.log
+export WNODE_LIST=$(kubectl --kubeconfig=$kcfg get nodes | grep -v 'master\|control' | grep -v NAME | awk '{print $1}')
+echo "$WNODE_LIST" > $backup_dir/wnode.log
 
 #Contruction of etcd URLS
 INIT_URL=""
@@ -94,7 +92,20 @@ done
 ADVERTISE_URL=${ADVERTISE_URL:0:-1}
 echo "$ADVERTISE_URL" > $backup_dir/advertise_url.log
 
-export ETCDMASTERNODE=$(ssh -i $ssh_key $user@$bastion_node "sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL --cacert /etc/kubernetes/pki/etcd/ca.crt --key /etc/kubernetes/pki/etcd/server.key --cert /etc/kubernetes/pki/etcd/server.crt" | awk -F'|' '{print $2,$6}' | grep true | awk -F':' '{print $1}')
+export first_node=$(echo $MNODE_LIST  | awk '{print $1;}')
+mkdir -p /tmp/$dt
+ssh -i $ssh_key $user@$first_node "sudo mkdir -p /tmp/$dt/"
+ssh -i $ssh_key $user@$first_node "sudo cp /etc/kubernetes/pki/etcd/* /tmp/$dt/"
+ssh -i $ssh_key $user@$first_node "sudo chmod +r /tmp/$dt/*"
+scp -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
+sleep 5
+ssh -i $ssh_key $user@$first_node "sudo rm /tmp/$dt/*"
+
+export etcdcacert=/tmp/$dt/ca.crt 
+export etcdkey=/tmp/$dt/server.key
+export etcdcert=/tmp/$dt/server.crt
+
+export ETCDMASTERNODE=$(sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL --cacert $etcdcacert --key $etcdkey --cert $etcdcert | awk -F'|' '{print $2,$6}' | grep true | awk -F':' '{print $1}')
 export ETCDMASTERNODE=$(echo ${ETCDMASTERNODE//[[:blank:]]/})
 
 echo "$ETCDMASTERNODE"> $backup_dir/etcd_master.log
@@ -103,28 +114,34 @@ for host in ${MNODE_LIST}; do
 	export host_dir=$backup_dir/$host
 	mkdir -p $host_dir
 	#Take backup of etcd
-	sudo $etcdctlhome/etcdctl --endpoints $host:$advert_port --cacert /etc/kubernetes/pki/etcd/ca.crt --key /etc/kubernetes/pki/etcd/server.key --cert /etc/kubernetes/pki/etcd/server.crt snapshot save $host_dir/etcd-snapshot-$host.db | tee -a $backup_dir/backup.log
-	#take backup of manifests, pki and kubelet conf
-	ssh -i $ssh_key $user@$host "sudo tar -czvf $host_dir/$host-etc-kubernetes.gz /etc/kubernetes" | tee -a $backup_dir/backup.log
+	sudo $etcdctlhome/etcdctl --endpoints $host:$advert_port --cacert $etcdcacert --key $etcdkey --cert $etcdcert snapshot save $host_dir/etcd-snapshot-$host.db | tee -a $backup_dir/backup.log
+	#Take backup of manifests, pki and kubelet conf
+	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-etc-kubernetes.gz /etc/kubernetes" | tee -a $backup_dir/backup.log
+	scp -i $ssh_key $user@$host:/tmp/${host}-etc-kubernetes.gz $host_dir/
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-etc-kubernetes.gz"
 	#Take backup of cni
-	ssh -i $ssh_key $user@$host "sudo tar -czvf $host_dir/$host-cni.gz /var/lib/cni" | tee -a $backup_dir/backup.log
+	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-cni.gz /var/lib/cni" | tee -a $backup_dir/backup.log
+	scp -i $ssh_key $user@$host:/tmp/${host}-cni.gz $host_dir/
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-cni.gz"
 	#Take backup of kubelet metadata
-	ssh -i $ssh_key $user@$host "sudo tar -czvf $host_dir/$host-kubelet.gz /var/lib/kubelet --exclude='/var/lib/kubelet/device-plugins' --exclude='/var/lib/kubelet/pods' --exclude='/var/lib/kubelet/pod-resources' " | tee -a $backup_dir/backup.log
+	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-kubelet.gz  --exclude='/var/lib/kubelet/device-plugins' --exclude='/var/lib/kubelet/pods' --exclude='/var/lib/kubelet/pod-resources' /tmp/${host}-kubelet.gz /var/lib/kubelet" | tee -a $backup_dir/backup.log
+	scp -i $ssh_key $user@$host:/tmp/${host}-kubelet.gz $host_dir/
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-kubelet.gz"
 done
 
 #Take a backup of etcd info
-sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL --cacert /etc/kubernetes/pki/etcd/ca.crt --key /etc/kubernetes/pki/etcd/server.key --cert /etc/kubernetes/pki/etcd/server.crt > $backup_dir/etcd_info.log
-sudo $etcdctlhome/etcdctl -w table member list --endpoints $ADVERTISE_URL --cacert /etc/kubernetes/pki/etcd/ca.crt --key /etc/kubernetes/pki/etcd/server.key --cert /etc/kubernetes/pki/etcd/server.crt  >>  $backup_dir/etcd_info.log
+sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL  --cacert $etcdcacert --key $etcdkey --cert $etcdcert > $backup_dir/etcd_info.log
+sudo $etcdctlhome/etcdctl -w table member list --endpoints $ADVERTISE_URL  --cacert $etcdcacert --key $etcdkey --cert $etcdcert  >>  $backup_dir/etcd_info.log
 
+sudo rm /tmp/$dt/*
 #Take an informational log of the kubernetes sytem: pods, nodes, services
 
-ssh -i $ssh_key $user@$bastion_node "kubectl get pods -A -o wide" > $backup_dir/kubectl-pods.log
-ssh -i $ssh_key $user@$bastion_node "kubectl get nodes" >> $backup_dir/kubectl-nodes.log
-ssh -i $ssh_key $user@$bastion_node "kubectl get svc -A" >> $backup_dir/kubectl-services.log
-
+kubectl --kubeconfig=$kcfg get pods -A -o wide > $backup_dir/kubectl-pods.log
+kubectl --kubeconfig=$kcfg get nodes >> $backup_dir/kubectl-nodes.log
+kubectl --kubeconfig=$kcfg get svc -A >> $backup_dir/kubectl-services.log
 
 #For other users to be able to restore we allow read on all snapshots etc
-ssh -i $ssh_key $user@$bastion_node "sudo chmod +r -R $backup_dir"
+sudo chmod +r -R $backup_dir
 
 echo $label  > $backup_dir/backup_label.txt
 
