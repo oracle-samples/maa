@@ -36,6 +36,7 @@ echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
 echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
 echo "Also, your Kubernetes cluster must be UP for taking the backup."
 
+echo "Backing up... this may take some time..."
 . $basedir/maak8s.env
 
 if [[ $# -eq 3 ]]; 
@@ -94,12 +95,11 @@ echo "$ADVERTISE_URL" > $backup_dir/advertise_url.log
 
 export first_node=$(echo $MNODE_LIST  | awk '{print $1;}')
 mkdir -p /tmp/$dt
-ssh -i $ssh_key $user@$first_node "sudo mkdir -p /tmp/$dt/"
-ssh -i $ssh_key $user@$first_node "sudo cp /etc/kubernetes/pki/etcd/* /tmp/$dt/"
-ssh -i $ssh_key $user@$first_node "sudo chmod +r /tmp/$dt/*"
-scp -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
+ssh -q -i $ssh_key $user@$first_node "sudo mkdir -p /tmp/$dt/"
+ssh -q -i $ssh_key $user@$first_node "sudo cp /etc/kubernetes/pki/etcd/* /tmp/$dt/"
+ssh -q -i $ssh_key $user@$first_node "sudo chmod a+rw /tmp/$dt/*"
+scp -q -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
 sleep 5
-ssh -i $ssh_key $user@$first_node "sudo rm /tmp/$dt/*"
 
 export etcdcacert=/tmp/$dt/ca.crt 
 export etcdkey=/tmp/$dt/server.key
@@ -116,34 +116,41 @@ for host in ${MNODE_LIST}; do
 	#Take backup of etcd
 	sudo $etcdctlhome/etcdctl --endpoints $host:$advert_port --cacert $etcdcacert --key $etcdkey --cert $etcdcert snapshot save $host_dir/etcd-snapshot-$host.db | tee -a $backup_dir/backup.log
 	#Take backup of manifests, pki and kubelet conf
-	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-etc-kubernetes.gz /etc/kubernetes" | tee -a $backup_dir/backup.log
-	scp -i $ssh_key $user@$host:/tmp/${host}-etc-kubernetes.gz $host_dir/
-	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-etc-kubernetes.gz"
+	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-etc-kubernetes.gz /etc/kubernetes" >/dev/null 2>&1 | tee -a $backup_dir/backup.log
+	scp -q -i $ssh_key $user@$host:/tmp/${host}-etc-kubernetes.gz $host_dir/
 	#Take backup of cni
-	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-cni.gz /var/lib/cni" | tee -a $backup_dir/backup.log
-	scp -i $ssh_key $user@$host:/tmp/${host}-cni.gz $host_dir/
-	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-cni.gz"
+	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-cni.gz /var/lib/cni" >/dev/null 2>&1 | tee -a $backup_dir/backup.log
+	scp -q -i $ssh_key $user@$host:/tmp/${host}-cni.gz $host_dir/
 	#Take backup of kubelet metadata
-	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-kubelet.gz  --exclude='/var/lib/kubelet/device-plugins' --exclude='/var/lib/kubelet/pods' --exclude='/var/lib/kubelet/pod-resources' /tmp/${host}-kubelet.gz /var/lib/kubelet" | tee -a $backup_dir/backup.log
-	scp -i $ssh_key $user@$host:/tmp/${host}-kubelet.gz $host_dir/
-	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-kubelet.gz"
+	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-kubelet.gz --exclude='/var/lib/kubelet/device-plugins' --exclude='/var/lib/kubelet/pods' --exclude='/var/lib/kubelet/pod-resources'  /var/lib/kubelet" >/dev/null 2>&1 | tee -a $backup_dir/backup.log
+	scp -q -i $ssh_key $user@$host:/tmp/${host}-kubelet.gz $host_dir/
 done
 
 #Take a backup of etcd info
 sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL  --cacert $etcdcacert --key $etcdkey --cert $etcdcert > $backup_dir/etcd_info.log
 sudo $etcdctlhome/etcdctl -w table member list --endpoints $ADVERTISE_URL  --cacert $etcdcacert --key $etcdkey --cert $etcdcert  >>  $backup_dir/etcd_info.log
 
-sudo rm /tmp/$dt/*
 #Take an informational log of the kubernetes sytem: pods, nodes, services
 
 kubectl --kubeconfig=$kcfg get pods -A -o wide > $backup_dir/kubectl-pods.log
 kubectl --kubeconfig=$kcfg get nodes >> $backup_dir/kubectl-nodes.log
 kubectl --kubeconfig=$kcfg get svc -A >> $backup_dir/kubectl-services.log
-
+kubectl --kubeconfig=$kcfg get cm kubeadm-config -n kube-system -o yaml  >> $backup_dir/kubectl-kubadm-cm.yaml
 #For other users to be able to restore we allow read on all snapshots etc
 sudo chmod +r -R $backup_dir
 
 echo $label  > $backup_dir/backup_label.txt
+
+#Cleanup
+
+for host in ${MNODE_LIST}; do
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-etc-kubernetes.gz"
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-cni.gz"
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-kubelet.gz"
+done
+ssh -i $ssh_key $user@$first_node "sudo rm /tmp/$dt/*"
+sudo rm -rf /tmp/$dt/*
+
 
 echo "************************************************************************************"
 echo "BACKUP CREATED AT $backup_dir "

@@ -110,9 +110,8 @@ mkdir -p /tmp/$dt
 ssh -i $ssh_key $user@$first_node "sudo mkdir -p /tmp/$dt/"
 ssh -i $ssh_key $user@$first_node "sudo cp /etc/kubernetes/pki/etcd/* /tmp/$dt/"
 ssh -i $ssh_key $user@$first_node "sudo chmod -R +r /tmp/$dt/*"
-scp -q -i$ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
+scp -q -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
 sleep 5
-ssh -i $ssh_key $user@$first_node "sudo rm /tmp/$dt/*"
 export etcdcacert=/tmp/$dt/ca.crt
 export etcdkey=/tmp/$dt/server.key
 export etcdcert=/tmp/$dt/server.crt
@@ -153,7 +152,6 @@ if ($backups_exist == "true" ); then
 		mkdir -p $current_etc_kubernetes/$host >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo tar -czf /tmp/${host}-kubernetes.gz /etc/kubernetes >/dev/null 2>&1 && sudo chmod +r /tmp/${host}-kubernetes.gz" >> $restore_log
 		scp -q -i$ssh_key $user@$host:/tmp/${host}-kubernetes.gz $current_etc_kubernetes/$host  >> $restore_log 
-		ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-kubernetes.gz" >> $restore_log
 		cd  $current_etc_kubernetes/$host
 		sudo tar -xzvf $current_etc_kubernetes/$host/${host}-kubernetes.gz  >> $restore_log
 	done
@@ -163,6 +161,7 @@ if ($backups_exist == "true" ); then
 	$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
 	echo "Restoring etcd in control plane nodes..."
 	for host in ${MNODE_LIST}; do
+		# Need to check the existence of manifests in each node or this could fail if user had stoped control plane before by moving manifetss
 		export etcdlocation=$(sudo cat $current_etc_kubernetes/$host/etc/kubernetes/manifests/etcd.yaml | grep volumes -A20 | grep etcd-data -B3 | grep "path:"  | awk -F'path: ' '{print $2}')
 		echo "Node $host is hosting etcd under $etcdlocation" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo systemctl stop kubelet" >> $restore_log
@@ -175,11 +174,9 @@ if ($backups_exist == "true" ); then
 		cd ${backup_dir}/restore_attempted_${dt}/$host/new-etcd
 		$etcdctlhome/etcdctl snapshot restore ${backup_dir}/${ETCDMASTERNODE}/etcd-snapshot-${ETCDMASTERNODE}.db --name $host  --initial-cluster $INIT_URL  --initial-cluster-token etcd-cluster-1  --initial-advertise-peer-urls https://$host:$init_port --cacert $etcdcacert --key $etcdkey --cert $etcdcert > $etcd_op_log 2>&1
 		cd ${backup_dir}/restore_attempted_${dt}/$host/new-etcd/$host.etcd
-		tar -czf /tmp/new-etcd-$host.gz . >/dev/null 2>&1
-		scp -q -i$ssh_key /tmp/new-etcd-$host.gz $user@$host:/tmp
-		rm -rf /tmp/new-etcd-$host.gz
-		ssh -i $ssh_key $user@$host "cd /tmp && sudo tar -xzf /tmp/new-etcd-$host.gz >/dev/null 2>&1 && sudo cp -R member $etcdlocation" >> $restore_log
-		ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/new-etcd-$host.gz && sudo rm -rf /tmp/member" 
+		tar -czf /tmp/new-etcd-${host}-${dt}.gz . >/dev/null 2>&1
+		scp -q -i$ssh_key /tmp/new-etcd-$host-${dt}.gz $user@$host:/tmp
+		ssh -i $ssh_key $user@$host "cd /tmp && sudo tar -xzf /tmp/new-etcd-${host}-${dt}.gz >/dev/null 2>&1 && sudo cp -R member $etcdlocation" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet" >> $restore_log
 	done
 	while [ $stillnotup == "true" ];do
@@ -225,11 +222,19 @@ if ($backups_exist == "true" ); then
 			kubectl --kubeconfig=$kcfg get pods -A | tee -a ${backup_dir}/restore_attempted_${dt}/restore.log
 			sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL --cacert $etcdcacert --key $etcdkey --cert $etcdcert | tee -a ${backup_dir}/restore_attempted_${dt}/restore.log
 			sudo $etcdctlhome/etcdctl -w table member list --endpoints $ADVERTISE_URL --cacert $etcdcacert --key $etcdkey --cert $etcdcert | tee -a ${backup_dir}/restore_attempted_${dt}/restore.log
-			rm -rf  $etcdcacert $etcdkey $etcdcert
                	fi
         done
 fi
 
+#Clean up
+ssh -i $ssh_key $user@$first_node "sudo rm /tmp/$dt/*"
+rm -rf  $etcdcacert $etcdkey $etcdcert
+
+for host in ${MNODE_LIST}; do
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-kubernetes.gz" >> $restore_log
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/new-etcd-$host-${dt}.gz && sudo rm -rf /tmp/member"
+	rm -rf /tmp/new-etcd-$host.gz
+done
 
 export enddt=`date "+%F_%H-%M-%S"`
 echo "Restore completed at $enddt" | tee -a ${backup_dir}/restore_attempted_${dt}/restore.log
