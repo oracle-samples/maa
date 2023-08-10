@@ -27,6 +27,7 @@ sed -i '/creationTimestamp: /d' $artifact
 sed -i '/resourceVersion: /d' $artifact
 sed -i '/uid: /d' $artifact
 sed -i '/clusterIP: /,+2d' $artifact
+sed -i '/nodeName: /d' $artifact
 $basedir/removeyamlblock.sh $artifact metadata ownerReferences
 #In preparation for avoiding secrets to be copied
 #sed -i '/secrets:/,+2d' $artifact
