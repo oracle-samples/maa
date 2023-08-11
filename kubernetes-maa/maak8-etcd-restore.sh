@@ -26,14 +26,6 @@
 ###     KUBECONFIG:
 ###                     This is the complete path to the kubeconfig file used to execute kubectl commands
 
-export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
-. $basedir/maak8s.env
-
-
-export dt=`date "+%F_%H-%M-%S"`
 if [[ $# -eq 3 ]];
 then
  	#ROOT DIRECTORY HOSTING EXISTING BACKUPS
@@ -52,6 +44,15 @@ else
         echo "    $0  /backups/ 2023-06-02_10-12-39 /home/opc/.kubenew/config "
         exit 1
 fi
+
+export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
+echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
+. $basedir/maak8s.env
+
+
+export dt=`date "+%F_%H-%M-%S"`
 
 # Check dependencies
 if [[ ! -x "${etcdctlhome}/etcdctl" ]]; then

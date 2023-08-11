@@ -31,13 +31,6 @@
 ###	KUBECONFIG:
 ###			This is the complete path to the kubeconfig file used to execute kubectl commands
 
-export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
-echo "Also, your Kubernetes cluster must be UP for taking the backup."
-echo ""
-echo "Creating backup... this may take some time..."
-. $basedir/maak8s.env
 
 if [[ $# -eq 3 ]]; 
 then
@@ -55,6 +48,15 @@ else
 	echo "    $0  /backups/ \"ETCD Snapshot after first configuration \" /home/opc/.kubenew/config "
 	exit 1
 fi
+
+export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
+echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
+echo "Also, your Kubernetes cluster must be UP for taking the backup."
+echo ""
+echo "Creating backup... this may take some time..."
+. $basedir/maak8s.env
+
 
 # Check dependencies
 if [[ ! -x "${etcdctlhome}/etcdctl" ]]; then
