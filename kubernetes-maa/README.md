@@ -31,7 +31,7 @@ The excution is pretty simple: Enter values for source and target bastions/contr
 
 [opc@olk8-m1 ~]$ ./maak8DR-apply.sh "opns soans test default"
 
-This will extract-from-source-k8s and apply-to-target-k8s all the required artifacts in the "opns soans test default" namespaces 
+This will extract-from-source-k8s and apply-to-target-k8s all the required artifacts in the "opns soans test default" namespaces. Refer to this Oracle Architecture Center Playbook for details about the replication operations: https://docs.oracle.com/en/solutions/kubernetes-artifact-snapshot-dr/index.html 
 
 The following table provides a summary of the utilities
 
