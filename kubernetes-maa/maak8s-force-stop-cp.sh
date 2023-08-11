@@ -25,6 +25,6 @@ for host in ${MNODE_LIST}; do
 	export proc_list=$(ssh -i $ssh_key $user@$host "ps -ef | grep 'etcd\|kube-apiserver\|kube-scheduler\|kube-controller-manager'" | grep -v grep |grep -v maak8 | awk '{print $2}')	
 	ssh -i $ssh_key $user@$host sudo kill -9 $proc_list
 done
-echo "All K8s control plane services stopped in $MNODE_LIST"
+echo "All K8s control plane services stopped!"
 
 

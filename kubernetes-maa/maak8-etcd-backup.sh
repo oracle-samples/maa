@@ -35,8 +35,8 @@ export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "********* BACKUP OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
 echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
 echo "Also, your Kubernetes cluster must be UP for taking the backup."
-
-echo "Backing up... this may take some time..."
+echo ""
+echo "Creating backup... this may take some time..."
 . $basedir/maak8s.env
 
 if [[ $# -eq 3 ]]; 
@@ -113,10 +113,14 @@ echo "$ETCDMASTERNODE"> $backup_dir/etcd_master.log
 for host in ${MNODE_LIST}; do
 	export host_dir=$backup_dir/$host
 	mkdir -p $host_dir
+	echo "***************************************** Creating etcd snapshot from $host *****************************************"
 	#Take backup of etcd
 	sudo $etcdctlhome/etcdctl --endpoints $host:$advert_port --cacert $etcdcacert --key $etcdkey --cert $etcdcert snapshot save $host_dir/etcd-snapshot-$host.db | tee -a $backup_dir/backup.log
 	#Take backup of manifests, pki and kubelet conf
+	echo "Creating backup of kubernetes configuration in $host ..."
 	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-etc-kubernetes.gz /etc/kubernetes" >/dev/null 2>&1 | tee -a $backup_dir/backup.log
+	ssh -i $ssh_key $user@$host "sudo cp /var/lib/kubelet/kubeadm-flags.env /tmp/${host}-kubeadm-flags.env"
+	scp -q -i $ssh_key $user@$host:/tmp/${host}-kubeadm-flags.env $host_dir/
 	scp -q -i $ssh_key $user@$host:/tmp/${host}-etc-kubernetes.gz $host_dir/
 	#Take backup of cni
 	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-cni.gz /var/lib/cni" >/dev/null 2>&1 | tee -a $backup_dir/backup.log
@@ -124,7 +128,13 @@ for host in ${MNODE_LIST}; do
 	#Take backup of kubelet metadata
 	ssh -i $ssh_key $user@$host "sudo tar -czvf /tmp/${host}-kubelet.gz --exclude='/var/lib/kubelet/device-plugins' --exclude='/var/lib/kubelet/pods' --exclude='/var/lib/kubelet/pod-resources'  /var/lib/kubelet" >/dev/null 2>&1 | tee -a $backup_dir/backup.log
 	scp -q -i $ssh_key $user@$host:/tmp/${host}-kubelet.gz $host_dir/
+	echo "Backup for $host completed!"
+	echo ""
 done
+
+#Copy api server key
+ssh -i $ssh_key $user@$ETCDMASTERNODE "sudo mkdir -p /tmp/sa_${dt} && sudo cp /etc/kubernetes/pki/sa.* /tmp/sa_${dt}/ && sudo chmod +r /tmp/sa_${dt}/sa.*"
+scp -q -i $ssh_key $user@$ETCDMASTERNODE:/tmp/sa_${dt}/sa.* $backup_dir/
 
 #Take a backup of etcd info
 sudo $etcdctlhome/etcdctl -w table endpoint status --endpoints $ADVERTISE_URL  --cacert $etcdcacert --key $etcdkey --cert $etcdcert > $backup_dir/etcd_info.log
@@ -133,9 +143,11 @@ sudo $etcdctlhome/etcdctl -w table member list --endpoints $ADVERTISE_URL  --cac
 #Take an informational log of the kubernetes sytem: pods, nodes, services
 
 kubectl --kubeconfig=$kcfg get pods -A -o wide > $backup_dir/kubectl-pods.log
-kubectl --kubeconfig=$kcfg get nodes >> $backup_dir/kubectl-nodes.log
+kubectl --kubeconfig=$kcfg get nodes -o wide >> $backup_dir/kubectl-nodes.log
 kubectl --kubeconfig=$kcfg get svc -A >> $backup_dir/kubectl-services.log
 kubectl --kubeconfig=$kcfg get cm kubeadm-config -n kube-system -o yaml  >> $backup_dir/kubectl-kubadm-cm.yaml
+kubectl --kubeconfig=$kcfg get cm -A  >> $backup_dir/all-cm.log
+kubectl --kubeconfig=$kcfg cluster-info dump  >> $backup_dir/cluster-info.log
 #For other users to be able to restore we allow read on all snapshots etc
 sudo chmod +r -R $backup_dir
 
@@ -150,8 +162,8 @@ for host in ${MNODE_LIST}; do
 done
 ssh -i $ssh_key $user@$first_node "sudo rm /tmp/$dt/*"
 sudo rm -rf /tmp/$dt/*
-
-
+sudo rm -rf /tmp/sa
+ssh -i $ssh_key $user@$ETCDMASTERNODE "sudo rm -rf /tmp/sa_${dt}/"
 echo "************************************************************************************"
 echo "BACKUP CREATED AT $backup_dir "
 echo "************************************************************************************"

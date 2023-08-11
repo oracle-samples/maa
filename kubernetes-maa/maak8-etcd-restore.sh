@@ -155,7 +155,8 @@ if ($backups_exist == "true" ); then
 		cd  $current_etc_kubernetes/$host
 		sudo tar -xzvf $current_etc_kubernetes/$host/${host}-kubernetes.gz  >> $restore_log
 	done
-	echo "***** WARNING: Restore will first stop all control plane services/pods ******"
+	echo ""
+	echo "***** WARNING: Restore will first FORCEFULLY stop all control plane services/pods ******"
 	echo "Break here if you want to stop the control plane separately..."
 	sleep 5
 	$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
@@ -177,6 +178,9 @@ if ($backups_exist == "true" ); then
 		tar -czf /tmp/new-etcd-${host}-${dt}.gz . >/dev/null 2>&1
 		scp -q -i$ssh_key /tmp/new-etcd-$host-${dt}.gz $user@$host:/tmp
 		ssh -i $ssh_key $user@$host "cd /tmp && sudo tar -xzf /tmp/new-etcd-${host}-${dt}.gz >/dev/null 2>&1 && sudo cp -R member $etcdlocation" >> $restore_log
+		ssh -i $ssh_key $user@$host "mkdir -p /tmp/sa_${dt}"
+		scp -q -i $ssh_key ${backup_dir}/sa.* $user@$host:/tmp/sa_${dt}/
+		ssh -i $ssh_key $user@$host "sudo cp /tmp/sa_${dt}/sa.* /etc/kubernetes/pki/"
 		ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet" >> $restore_log
 	done
 	while [ $stillnotup == "true" ];do
@@ -211,7 +215,7 @@ if ($backups_exist == "true" ); then
         	        	podlist=`kubectl --kubeconfig=$kcfg get pods -A | grep $infra_pod | awk '{print $2}'`
                 	        echo "Restarting $infra_pod pods..."
                         	echo "$podlist">> $restore_log
-				kubectl --kubeconfig=$kcfg delete pod $podlist -n kube-system --wait=false
+				kubectl --kubeconfig=$kcfg delete pod $podlist -n kube-system --wait=false >> $restore_log
         	                sleep 5
                 	done
 
@@ -233,6 +237,7 @@ rm -rf  $etcdcacert $etcdkey $etcdcert
 for host in ${MNODE_LIST}; do
 	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/${host}-kubernetes.gz" >> $restore_log
 	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/new-etcd-$host-${dt}.gz && sudo rm -rf /tmp/member"
+	ssh -i $ssh_key $user@$host "sudo rm -rf /tmp/sa_${dt}/"
 	rm -rf /tmp/new-etcd-$host.gz
 done
 
