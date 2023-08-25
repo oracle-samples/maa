@@ -1,25 +1,19 @@
 # maa samples
 
-<!-- Describe your project's features, functionality and target audience -->
-
 Oracle’s Maximum Availability Architecture (Oracle MAA) is the best practices blueprint for data protection and availability of Oracle products (Database, Fusion Middleware, Applications) deployed on on-premises, private, public or hybrid clouds. Implementing Oracle Maximum Availability Architecture best practices is one of the key requirements for any Oracle deployment. Oracle Fusion Middleware and Oracle Databases include an extensive set of high availability features which can protect application deployments from unplanned downtime and minimize planned downtime. These features include: process death detection and restart, clustering, server migration, clusterware integration, GridLink datasources, load balancing, failover, backup and recovery, rolling upgrades, and rolling configuration changes.
 
 The maa samples repository contains a set of downloadable and installable demonstrations for creating different High Availability and Disaster Protection solutions for Oracle products. Each sample can be installed independently of any of the other demonstrations and may address different tiers and components of the Oracle stack. Most examples are intended to be used in Oracle Cloud Infrastructure (OCI) but may apply also to on-prem systems. Each demonstration has it's own folder within the maa repository. 
 
 ## Installation
 
-<!-- Provide detailed step-by-step installation instructions -->
 Refer to each demonstration for the detailed steps to set up the MAA/DR topologies
 
 ## Documentation
 
-<!-- Developer-oriented documentation can be published on GitHub, but all product
-     documentation must be published on <https://docs.oracle.com>. -->
 For details on MAA Best practices, pelase refer to https://www.oracle.com/database/technologies/maximum-availability-architecture/
 
 ## Examples
 
-<!-- Describe any included examples or provide a link to a demo/tutorial -->
 This repository stores a variety of examples demonstrating how to configure MAA/DR for different Oracle products. 
 
 | Repo/Folder name  | Description |
@@ -37,9 +31,6 @@ This repository stores a variety of examples demonstrating how to configure MAA/
 
 ## Contributing
 
-<!-- If your project has specific contribution requirements, update the
-    CONTRIBUTING.md file to ensure those requirements are clearly explained. -->
-
 This project welcomes contributions from the community. Before submitting a pull
 request, please [review our contribution guide](./CONTRIBUTING.md).
 
@@ -50,14 +41,7 @@ vulnerability disclosure process.
 
 ## License
 
-<!-- The correct copyright notice format for both documentation and software
-    is "Copyright (c) [year,] year Oracle and/or its affiliates."
-    You must include the year the content was first released (on any platform) and
-    the most recent year in which it was revised. -->
-
-Copyright (c) 2022 Oracle and/or its affiliates.
-
-<!-- Replace this statement if your project is not licensed under the UPL -->
+Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 
 Released under the Universal Permissive License v1.0 as shown at
 <https://oss.oracle.com/licenses/upl/>.
