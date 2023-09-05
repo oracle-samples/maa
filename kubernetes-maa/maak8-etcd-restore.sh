@@ -20,7 +20,7 @@
 ###			this needs to be either shared storage accessible by all control plane
 ###			nodes or a consistent directory present in all of them with the same backups.
 ###     DATE:
-###                     This is the date identifying the snapsot inside the backup directory.
+###                     This is the date identifying the snapshot inside the backup directory.
 ###                     It should be provided in the format YYYY-MM-DD_HH-mm-SS (+%F_%H-%M-%S)
 ###			For example:  2023-06-02_10-12-30
 ###     KUBECONFIG:
@@ -48,7 +48,7 @@ fi
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
+echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
 . $basedir/maak8s.env
 
 
