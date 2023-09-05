@@ -27,7 +27,7 @@
 ###			This is the directory where the etcd snapshot will be stored.
 ###     LABEL:
 ###                     This is the user-provided text (inside quotes) that charaterizes the snapshot
-###			It is stored as text file in the backup directory
+###			It is stored as text file in the backup directory.
 ###	KUBECONFIG:
 ###			This is the complete path to the kubeconfig file used to execute kubectl commands
 
