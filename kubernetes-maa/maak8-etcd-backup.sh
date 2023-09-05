@@ -15,7 +15,7 @@
 ###	user
 ###		This is the OS user that will be used to ssh into the K8s controls plane nodes
 ###	ssh_key
-###		This is the ssh key to be used to log into the ba
+###		This is the ssh key to be used to log into the the K8s controls plane nodes
 ### 	etcdctlhome
 ###		This is the directory where etcdct is installed
 ### The rest of the variables can be defaulted unless etcd uses different pors from the default ones 
@@ -27,7 +27,7 @@
 ###			This is the directory where the etcd snapshot will be stored.
 ###     LABEL:
 ###                     This is the user-provided text (inside quotes) that charaterizes the snapshot
-###			It is stored as text file in the backup directory
+###			It is stored as text file in the backup directory.
 ###	KUBECONFIG:
 ###			This is the complete path to the kubeconfig file used to execute kubectl commands
 
