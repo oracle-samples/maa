@@ -17,12 +17,12 @@
 ### Where:
 ###     BACKUP_DIRECTORY:
 ###                     This is the directory where the etcd snapshot to be restored resides.
-###			this needs to be either shared storage accessible by all control plane
-###			nodes or a consistent directory present in all of them with the same backups.
+###						This needs to be either a shared storage location accessible by all control plane
+###						nodes or a consistent directory present in all of them with the same backups.
 ###     DATE:
 ###                     This is the date identifying the snapshot inside the backup directory.
 ###                     It should be provided in the format YYYY-MM-DD_HH-mm-SS (+%F_%H-%M-%S)
-###			For example:  2023-06-02_10-12-30
+###						For example:  2023-06-02_10-12-30
 ###     KUBECONFIG:
 ###                     This is the complete path to the kubeconfig file used to execute kubectl commands
 
