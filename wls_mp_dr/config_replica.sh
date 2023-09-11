@@ -132,21 +132,20 @@ get_DR_method(){
 }
 
 get_PAAS_type(){
-	echo "" | tee -a  $log_file
-	echo "GET PAAS TYPE" | tee -a  $log_file
-	# Determining if WLSMP or SOAMP using the hostname naming (not valid for SOACS)
-	hostnm=$(hostname)
-	if [ -d /u01/app/oracle/suite ]; then
-		export PAAS=SOAMP
-	elif [[ $hostnm == *"-wls-"* ]]; then
-		export PAAS=WLSMP
-	else
-		echo "Error. PAAS service unknown" | tee -a  $log_file
-		exit 1
-	fi
-
-	echo "This PAAS service is ................." $PAAS | tee -a  $log_file
+    echo ""
+    echo "GET PAAS TYPE"
+    # Determining if WLSMP or SOAMP
+    config_file=$DOMAIN_HOME/config/config.xml
+    topology_soa=$(grep "soa-infra" $config_file | wc -l)
+    topology_mft=$(grep "mft-app"  $config_file | wc -l)
+    if [[ $topology_soa != 0 || $topology_mft != 0 ]];then
+        export PAAS=SOAMP
+    else
+        export PAAS=WLSMP
+    fi
+    echo "This PAAS service is ................" $PAAS
 }
+
 
 get_variables(){
 	echo "" | tee -a  $log_file
