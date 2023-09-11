@@ -6,7 +6,7 @@ Licensed under the Universal Permissive License v 1.0 as shown at https://oss.or
 Using the Oracle WebLogic for OCI Disaster Protection scripts  
 ==============================================
 
-Please refer to the following whitepaper for details about the topology and set up automated by these scripts:
+Please refer to the following document for details about the topology and set up automated by these scripts:
 https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf
 
 IMPORTANT: Verify that you have completed all the pre-requisites listed in paper above before using this scripts. 
