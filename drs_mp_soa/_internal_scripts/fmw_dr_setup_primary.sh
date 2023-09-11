@@ -2,7 +2,7 @@
 
 ## fmw_dr_setup_primary.sh script version 2.0.
 ##
-## Copyright (c) 2022 Oracle and/or its affiliates
+## Copyright (c) 2023 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
@@ -168,7 +168,7 @@ fi
 
 export verbose=true
 export date_label=$(date '+%Y-%m-%d-%H_%M_%S')
-export exec_path=$(dirname "$0")
+export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Check dependencies
 if [[ ! -x "${exec_path}/fmw_get_ds_property.sh" ]]; then
@@ -209,21 +209,19 @@ get_DR_method(){
 }
 
 get_PAAS_type(){
-	echo "" 
-	echo "GET PAAS TYPE"
-	# Determining if WLSMP or SOAMP
-	hostnm=$(hostname)
-	if [ -d /u01/app/oracle/suite ]; then
-		export PAAS=SOAMP
-	elif [[ $hostnm == *"-wls-"* ]]; then
-		export PAAS=WLSMP
-	else
-		echo "Error. PAAS service unknown"
-		exit 1
-	fi
-	echo "This PAAS service is ................" $PAAS
+    echo ""
+    echo "GET PAAS TYPE"
+    # Determining if WLSMP or SOAMP
+    config_file=$DOMAIN_HOME/config/config.xml
+    topology_soa=$(grep "soa-infra" $config_file | wc -l)
+    topology_mft=$(grep "mft-app"  $config_file | wc -l)
+    if [[ $topology_soa != 0 || $topology_mft != 0 ]];then
+        export PAAS=SOAMP
+    else
+        export PAAS=WLSMP
+    fi
+    echo "This PAAS service is ................" $PAAS
 }
-
 
 get_variables(){
 	echo ""
