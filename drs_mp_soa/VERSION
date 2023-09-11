@@ -36,3 +36,6 @@ V19 Updates:
 - Improved exit message when using "--do_not_start" flag
 - Reduced the number of user/password requested as input (because primary and standby have the same user/passwords)
 - The modification of the /etc/hosts is now optional
+
+V20 Updates:
+- Modified the function get_PAAS_type. Due to SOAMP oracle soa home change, the check to determine if SOAMP was not longer valid.
