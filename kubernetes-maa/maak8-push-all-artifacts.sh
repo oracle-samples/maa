@@ -7,7 +7,7 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
-### This script will apply all resources in a tar as created by the maak8-get-all-artifacts.sh script 
+### This script will apply all yaml artifacts/resources in a tar as created by the maak8-get-all-artifacts.sh script 
 ### The namespaces list is obtained from the directoy structure in the TAR
 ### Usage:
 ###
