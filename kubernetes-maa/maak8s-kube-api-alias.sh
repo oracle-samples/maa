@@ -65,7 +65,7 @@ done
 
 echo "Restarting control plane..."
 $basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
-sleep 5
+sleep 15
 for host in ${MNODE_LIST}; do
 	ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet"
 	ssh -i $ssh_key $user@$host "sudo kubeadm init phase upload-config kubeadm --config $kubeadmyaml"
