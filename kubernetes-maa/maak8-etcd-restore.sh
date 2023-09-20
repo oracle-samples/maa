@@ -87,7 +87,7 @@ else
 fi
 
 
-#Contruction of etcd URLS
+#Construction of etcd URLS
 INIT_URL=""
 
 for I in $MNODE_LIST;do
@@ -163,7 +163,7 @@ if ($backups_exist == "true" ); then
 	$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
 	echo "Restoring etcd in control plane nodes..."
 	for host in ${MNODE_LIST}; do
-		# Need to check the existence of manifests in each node or this could fail if user had stoped control plane before by moving manifetss
+		# Need to check the existence of manifests in each node or this could fail if user had stoped control plane before by moving manifests
 		export etcdlocation=$(sudo cat $current_etc_kubernetes/$host/etc/kubernetes/manifests/etcd.yaml | grep volumes -A20 | grep etcd-data -B3 | grep "path:"  | awk -F'path: ' '{print $2}')
 		echo "Node $host is hosting etcd under $etcdlocation" >> $restore_log
 		ssh -i $ssh_key $user@$host "sudo systemctl stop kubelet" >> $restore_log

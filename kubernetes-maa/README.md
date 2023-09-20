@@ -38,9 +38,9 @@ The following table provides a summary of the utilities
   | Script name  | Description |
 | ------------- | ------------- |
 | [maak8DR-apply.env](./maak8DR-apply.env) | This script needs to be updated with the IP of the primary and secondary nodes (running kubectl against primary and secondary K8s clusters) and the ssh user and ssh key to access those nodes (need to be the same). |
-| [maak8DR-apply.sh](./maak8DR-apply.sh) | This is the main script which calls tot he other ones to extract, ship, clenaup and apply K8s cluster artifacts |
+| [maak8DR-apply.sh](./maak8DR-apply.sh) | This is the main script which calls to the other ones to extract, ship, cleanup and apply K8s cluster artifacts |
 | [maak8-get-all-artifacts.sh](./maak8-get-all-artifacts.sh) | This script is used to extract the yaml files from the primary cluster. |
-| [maak8-push-all-artifacts.sh](./maak8-push-all-artifacts.sh) | This script is used to apply all the yamls files extracted from primary in the pertaininn namespaces |
+| [maak8-push-all-artifacts.sh](./maak8-push-all-artifacts.sh) | This script is used to apply all the yamls files extracted from primary in the pertaining namespaces |
 | [removeyamlblock.sh](./removeyamlblock.sh) | This script cleans up information that cannot be applied directly to the target cluster. |
 | [apply-artifacts.sh](./apply-artifacts.sh) | This script cleans up information that cannot be applied directly to the target cluster. |
 
@@ -54,5 +54,5 @@ DR based on etcd restore scripts
 | [maak8s.env](./maak8s.env) | This script needs to be cusotomized in each region with the IP of the bastion node (running kubectl against primary and secondary K8s clusters) as well as ssh information for control plane operations and the ssh user and ssh key to access those nodes (need to be the same). |
 | [maak8-etcd-backup.sh](./maak8-etcd-backup.sh) | This script creates a backup of a control plane inculding keys, control plane pods config (kubeadm) and creates an etcd snapshot of the primary cluster |
 | [maak8-etcd-restore.sh](./maak8-etcd-restore.sh) | This script restores a backup from maak8backup.sh in another system this target system MUST USE THE SAME HOSTNAME ALIASES for control plane nodes and kube api access point |. 
-| [maak8s-force-stop-cp.sh](./maak8s-force-stop-cp.sh) | This script forcefully stops the control plabe process in the different control plane nodes (list provided as command line argument) |. 
+| [maak8s-force-stop-cp.sh](./maak8s-force-stop-cp.sh) | This script forcefully stops the control plane processes in the different control plane nodes (list provided as command line argument) |. 
 

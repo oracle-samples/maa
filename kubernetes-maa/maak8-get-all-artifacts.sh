@@ -7,12 +7,12 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
-### This script creates a yaml copy of all the artifacts in precise namespaces.It stores all of them in 
+### This script creates a yaml copy of all the artifacts in precise namespaces. It stores all of them in 
 ### separate folders per namespace in the provided directory. It creates also a tar that can be restored in a secondary
 ### or test K8s cluster with the ./maak8-push-all-artifacts.sh script.
 ### It uses variables defined in maak8DR-apply.env but they can be defaulted to the provided values for the individual execution
 ### of this precise script.
-### If executed with a single argument assumes that argument to be the backup directory and will backup ALL namespaces
+### If executed with a single argument, it assumes that argument to be the backup directory and will backup ALL namespaces
 ### If executed with 2 arguments, it assuments the first argument to be the backup directory and the second argument to be the 
 ### precise namespaces to be backed up
 ### Usage:
@@ -64,7 +64,7 @@ else
 	exit 1
 fi
 
-#The list of all artifact types to be backed up explicit or obtained form the cluster as api-resources
+#The list of all artifact types to be backed up explicit or obtained from the cluster as api-resources
 #export ns_artifacts_types="cm cronjob crd daemonset deployment ingress job pod pvc replicaset replicationcontroller role rolebinding secret service sa statefulset"
 export ns_artifacts_types=`kubectl api-resources | grep true | grep -v events | awk '{print $1}' | awk -v RS=  '{$1=$1}1'`
 export dt=`date +%y-%m-%d-%H-%M-%S`
