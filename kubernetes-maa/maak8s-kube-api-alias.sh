@@ -54,12 +54,12 @@ if grep -q certSANs "$kubeadmyaml"; then
 	sed -i "s/  certSANs:/  certSANs:\n  - \"$hnalias\"/g" $kubeadmyaml
 else 
 	echo "No previous alias found, adding certSANS section..."
-	sed -i "s/  extraArgs:/  certSANs:\n  - \"$hnalias\"\n extraArgs:/g" $kubeadmyaml
+	sed -i "s/  extraArgs:/  certSANs:\n  - \"$hnalias\"\n  extraArgs:/g" $kubeadmyaml
 fi
 
 for host in ${MNODE_LIST}; do
 	ssh -i $ssh_key $user@$host "sudo mv /etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/apiserver-$dt.crt && sudo mv /etc/kubernetes/pki/apiserver.key /etc/kubernetes/pki/apiserver-$dt.key" 
-	scp -q -i  $ssh_key $kubeadmyaml $ssh_key $user@$host:/tmp
+	scp -q -i  $ssh_key $kubeadmyaml $user@$host:$kubeadmyaml
 	ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $kubeadmyaml"
 done
 
