@@ -68,12 +68,8 @@ sed "s|apiServer:|kind: InitConfiguration\n$apiver\nnodeRegistration:\n  criSock
 for host in ${MNODE_LIST}; do
 	ssh -i $ssh_key $user@$host "sudo mv /etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/apiserver-$dt.crt && sudo mv /etc/kubernetes/pki/apiserver.key /etc/kubernetes/pki/apiserver-$dt.key" 
 	scp -q -i  $ssh_key $kubeadmyaml $user@$host:$kubeadmyaml
-<<<<<<< Updated upstream
-	ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $kubeadmyaml"
-=======
 	scp -q -i  $ssh_key $noderegyaml $user@$host:$noderegyaml
 	ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $noderegyaml"
->>>>>>> Stashed changes
 done
 
 ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $noderegyaml"
