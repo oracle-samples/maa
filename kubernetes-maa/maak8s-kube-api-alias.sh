@@ -45,7 +45,10 @@ echo ""
 . $basedir/maak8s.env
 
 export MNODE_LIST=$(kubectl --kubeconfig=$kcfg get nodes | grep 'master\|control' | grep -v NAME | awk '{print $1}')
+export first_node=$(echo $MNODE_LIST  | awk '{print $1;}')
+
 export kubeadmyaml=/tmp/kubeadm-$dt.yaml
+export noderegyaml=$kubeadmyaml.nodereg.yaml
 #export kubeadmyaml=/scratch/docker/kubeadm.yaml.test
 kubectl --kubeconfig=$kcfg -n kube-system get configmap kubeadm-config -o jsonpath='{.data.ClusterConfiguration}' > $kubeadmyaml
 
@@ -57,19 +60,35 @@ else
 	sed -i "s/  extraArgs:/  certSANs:\n  - \"$hnalias\"\n  extraArgs:/g" $kubeadmyaml
 fi
 
+#Workaround for cert modificatoin detecting endpoints
+export endpoint=$(tr \\0 ' ' < /proc/"$(pgrep kubelet)"/cmdline | awk -F'--container-runtime-endpoint=' '{print $2}' |awk '{print $1}')
+export apiver=$(grep apiVersion $kubeadmyaml)
+sed "s|apiServer:|kind: InitConfiguration\n$apiver\nnodeRegistration:\n  criSocket: \"$endpoint\"\n---\napiServer:|g" $kubeadmyaml > $noderegyaml
+
 for host in ${MNODE_LIST}; do
 	ssh -i $ssh_key $user@$host "sudo mv /etc/kubernetes/pki/apiserver.crt /etc/kubernetes/pki/apiserver-$dt.crt && sudo mv /etc/kubernetes/pki/apiserver.key /etc/kubernetes/pki/apiserver-$dt.key" 
 	scp -q -i  $ssh_key $kubeadmyaml $user@$host:$kubeadmyaml
+<<<<<<< Updated upstream
 	ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $kubeadmyaml"
+=======
+	scp -q -i  $ssh_key $noderegyaml $user@$host:$noderegyaml
+	ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $noderegyaml"
+>>>>>>> Stashed changes
 done
 
+ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $noderegyaml"
 echo "Restarting control plane..."
 $basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
 sleep 5
 for host in ${MNODE_LIST}; do
+	echo "Restarting kubelet in $host"
 	ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet"
-	ssh -i $ssh_key $user@$host "sudo kubeadm init phase upload-config kubeadm --config $kubeadmyaml"
+	sleep 5
 done
+
+echo "Refreshing information in kubeadm config map form first node..."
+ssh -i $ssh_key $user@$first_node "sudo kubeadm init phase upload-config kubeadm --config $noderegyaml"
+
 echo "Done!"
 echo "To verify the corect behavior with the new alias, you can replace the server entry in your kubeconfig"
 export current_server=`grep server $kcfg |awk -F'//' '{print $2}' |awk -F':' '{print $1}'`
