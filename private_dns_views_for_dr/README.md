@@ -1,5 +1,5 @@
 private_dns_views_for_dr scripts version 1.0.  
-Copyright (c) 2022 Oracle and/or its affiliates  
+Copyright (c) 2023 Oracle and/or its affiliates  
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/  
 
 ## DESCRIPTION
@@ -54,13 +54,11 @@ Also, the **secondary hostnames** are added to the **DNS resolver** of the prima
     - Any new host (e.g. when scaling-out) is able to resolve the names properly, hence the scale-out procedures are simplified. 
 - Disadvantages:  
     - This mode is **valid only** when **separated DNS servers** are used in primary and secondary sites. Otherwise, it can cause conflicts in naming resolution. The server of each site should resolve these names with their own IPs.
-    - This approach is **NOT valid** when **non-fully qualified hostnames**  are used as listener addresses (e.g. "soahost1") instead of using the fully qualified names (e.g. "soahost1.example.com), AND they are not the same in primary and secondary. For example, if the WLS server uses "soahost1" instead of "soahost1.example.com" as listener address, and "soahost1" is not a non-fully qualified name of any of the secondary hosts. In this case, the hosts in secondary will not ne able to resolve "soahost1" into the private view for the domain "example.com".  
-    However:  
+    - When the **non-fully qualified hostnames** are **not the same** in primary and secondary, you need to add the private view’s domain name (e.g., "example.com") to the "search" list in the /etc/resolv.conf file on each secondary host. This way, the secondary hosts will be able to resolve the non-fully qualified names. For example, the WLS server uses "soahost1" instead of "soahost1.example.com" as listener address, and "soahost1" is not a non-fully qualified name of any of the secondary hosts. The secondary hosts will not be able to resolve "soahost1" into the private view unless you add the domain "example.com" to the search list on each host. 
+This scenario: 
         - This is not a common practice: normally fqdn hostnames are used as listener addresses.
-        - This limitation does NOT apply to SOAMP DR and WLS for OCI DR scenarios. Because the values configured as the listen addresses for the WLS servers are the fully qualified names. Besides this, the non-fully qualified hostnames of primary and standby nodes are the same, as described in their respective DR setup documents. 
-         
-        NOTE: in case this limitation applies, you can add the required domain name (e.g. "example.com") to the "search" list in /etc/resolv.conf file on each host. It is a manual operation that needs to be performed in the all the hosts involved. Note that the changes on /etc/resolv.conf may be not persisted across reboots in the OCI compute instances due to dhcp client. Alternatively, you can also add an additional DHCP Option to the VNC configuration, to add the domain to the Search list. See documentation https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Tasks/managingDHCP.htm for additional DHCP options in OCI.  
-
+        - Does NOT apply to SOAMP DR and WLS for OCI DR scenarios. Because the values configured as the listen addresses for the WLS servers are the fully qualified names. Besides this, the non-fully qualified hostnames of primary and standby nodes are the same, as described in their respective DR setup documents.  
+      **NOTE**:  In OCI compute instances, manual changes made to the /etc/resolv.conf file are not persisted across reboots due to DHCP client. To make the change persistent, add an additional DHCP Option to the VNC configuration, with the private view’s domain in the Search list. Then, use this DHCP option in the subnet. See documentation https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Tasks/managingDHCP.htm for additional DHCP options in OCI and “OCI: /etc/resolv.conf Customizations Are Lost Periodically Or When Instance Is Rebooted (Doc ID 2705361.1)”
 
 ## HOW TO USE THESE TERRAFORM SCRIPTS
 
