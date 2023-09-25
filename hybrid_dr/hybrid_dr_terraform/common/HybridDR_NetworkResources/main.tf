@@ -195,8 +195,22 @@ resource "oci_core_security_list" "web_tier_security_list" {
       min = ingress_security_rules.value
       max = ingress_security_rules.value
     }
-    }
+   } 
   }
+
+  # Stateful egress to allow ALL within this subnet
+  egress_security_rules {
+    #Required
+    destination = var.webtier_CIDR
+    protocol    = "all"
+
+    #Optional
+    description      = "Allow outgoing access for ALL within this subnet"
+    destination_type = "CIDR_BLOCK"
+    stateless        = "false"
+    }
+  
+
   # Egresss rules from web-tier to mid-tier
   dynamic egress_security_rules {
     for_each = flatten([var.adminserver_port, var.wlsservers_ports])
@@ -323,6 +337,20 @@ resource "oci_core_security_list" "mid_tier_security_list" {
       }
     }
   }
+
+  # Stateful egress to allow ALL within this subnet
+  egress_security_rules {
+    #Required
+    destination = var.midtier_CIDR
+    protocol    = "all" 
+
+    #Optional
+    description      = "Allow outgoing access for ALL within this subnet"
+    destination_type = "CIDR_BLOCK"
+    stateless        = "false"
+  }
+
+
   # Stateful egress from ALL ports to destination mount target CIDR block TCP ports 111, 2048, 2049, and 2050.
   # Stateful egress from ALL ports to destination mount target CIDR block UDP ports 111 and 2048.
   egress_security_rules {
@@ -493,6 +521,18 @@ resource "oci_core_security_list" "db_tier_security_list" {
     }
   }
 
+  # Stateful egress to allow ALL within this subnet
+  egress_security_rules {
+    #Required
+    destination = var.dbtier_CIDR
+    protocol    = "all"
+
+    #Optional
+    description      = "Allow outgoing access for ALL within this subnet"
+    destination_type = "CIDR_BLOCK"
+    stateless        = "false"
+    }
+
   # Egress rules from db-tier to on-prem
   egress_security_rules {
     #Required
@@ -587,6 +627,20 @@ resource "oci_core_security_list" "fss_tier_security_list" {
       max = "2048"
     }
   }
+
+  # Stateful egress to allow ALL within this subnet
+  egress_security_rules {
+    #Required
+    destination = var.fsstier_CIDR
+    protocol    = "all"
+
+    #Optional
+    description      = "Allow outgoing access for ALL within this subnet"
+    destination_type = "CIDR_BLOCK"
+    stateless        = "false"
+  }
+  
+
   # Stateful egress from TCP ports 111, 2048, 2049, and 2050 to ALL ports in the destination instance CIDR block
   # Stateful egress from UDP port 111 ALL ports in the destination instance CIDR block.
   egress_security_rules {
