@@ -60,7 +60,8 @@ else
 	sed -i "s/  extraArgs:/  certSANs:\n  - \"$hnalias\"\n  extraArgs:/g" $kubeadmyaml
 fi
 
-#Workaround for cert modificatoin detecting endpoints
+#Workaround for cert modification detecting endpoints
+#TBD if we need also to update controlplaneendpoint
 export endpoint=$(tr \\0 ' ' < /proc/"$(pgrep kubelet)"/cmdline | awk -F'--container-runtime-endpoint=' '{print $2}' |awk '{print $1}')
 export apiver=$(grep apiVersion $kubeadmyaml)
 sed "s|apiServer:|kind: InitConfiguration\n$apiver\nnodeRegistration:\n  criSocket: \"$endpoint\"\n---\napiServer:|g" $kubeadmyaml > $noderegyaml
