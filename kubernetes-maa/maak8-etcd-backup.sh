@@ -18,7 +18,7 @@
 ###		This is the ssh key to be used to log into the the K8s controls plane nodes
 ### 	etcdctlhome
 ###		This is the directory where etcdct is installed
-### The rest of the variables can be defaulted unless etcd uses different pors from the default ones 
+### The rest of the variables can be defaulted unless etcd uses different ports from the default ones 
 ### Usage:
 ###
 ###      ./maak8s-etcd-backup.sh [BACKUP_DIRECTORY] [LABEL] [KUBECONFIG]
@@ -26,7 +26,7 @@
 ###	BACKUP_DIRECTORY:
 ###			This is the directory where the etcd snapshot will be stored.
 ###     LABEL:
-###                     This is the user-provided text (inside quotes) that charaterizes the snapshot
+###                     This is the user-provided text (inside quotes) that characterizes the snapshot
 ###			It is stored as text file in the backup directory.
 ###	KUBECONFIG:
 ###			This is the complete path to the kubeconfig file used to execute kubectl commands

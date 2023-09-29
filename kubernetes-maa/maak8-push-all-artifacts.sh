@@ -6,7 +6,6 @@
 ## Copyright (c) 2022 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
-
 ### This script will apply all yaml artifacts/resources in a tar as created by the maak8-get-all-artifacts.sh script 
 ### The namespaces list is obtained from the directoy structure in the TAR
 ### Usage:
@@ -75,7 +74,7 @@ echo "A log of restore operations can be found at $oplog"
 echo "Restoring first the related non-namespaced artifacts in root..."
 for artifact in ${nonnamespaces}; do
 	for namespace in ${namespaces}; do
-		#Only apply nonnamespace artifacts that reference the selectted namespaces
+		#Only apply non-namespace artifacts that reference the selected namespaces
 		if grep -q  "namespace: $namespace" $artifact; then
 			$basedir/apply-artifacts.sh $artifact $oplog
 		elif grep -q  "group: $namespace" $artifact; then

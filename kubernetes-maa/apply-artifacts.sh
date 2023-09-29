@@ -8,7 +8,7 @@
 ##
 
 ### This script will "clean-up" and apply a yaml to a K8s cluster checking first if it already exisit
-### The namespaces list is obtained from the directoy structure in the TAR
+### The namespaces list is obtained from the directory structure in the TAR
 ### Usage:
 ###
 ###      ./apply-artifact.sh [YAML FILE] [LOG FILE]
@@ -16,7 +16,7 @@
 ###     YAML FILE
 ###                     The YAML that will be applied
 ###	LOG FILE
-###			The log firl to store result and info
+###			The log file to store result and info
 
 artifact=$1
 oplog=$2
