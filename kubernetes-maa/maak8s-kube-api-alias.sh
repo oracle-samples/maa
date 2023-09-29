@@ -76,7 +76,7 @@ done
 ssh -i $ssh_key $user@$host "sudo kubeadm init phase certs apiserver --config $noderegyaml"
 echo "Restarting control plane..."
 $basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
-sleep 5
+sleep 15
 for host in ${MNODE_LIST}; do
 	echo "Restarting kubelet in $host"
 	ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet"
