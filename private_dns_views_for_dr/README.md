@@ -14,19 +14,19 @@ These scripts are applicable when the DNS Type used in the VCN is "Internet and 
 
 In most of the Active-Pasive Disaster Recovery solutions, the secondary midtier is a mirror copy of the primary midtier.
 
-The **PRIMARY**  midtier components listen in the hostnames configured as the listener addreses in the WebLogic configuration. For example:
+The **PRIMARY**  midtier components listen in the hostnames configured as the listen addreses in the WebLogic configuration. For example:
 - WLS managed server 1 in primary listens on apphost1.example.com address, which corresponds with the IP 111.111.111.111
 - WLS managed server 2 in primary listens on apphost2.example.com address, which corresponds with the IP 111.111.111.112 
 - WLS managed server 3 in primary listens on apphost3.example.com address, which corresponds with the IP 111.111.111.113
 
-The **SECONDARY** midtier configuration is a copy of the primary configuration, so the listener addresses are the same.  
-However, it is expected that the IPs of the secondary systems are different than the primary IPs. Secondary hosts must be able to resolve the hostnames used as listener addresses, but with the IPs of the equivalent secondary nodes.  
+The **SECONDARY** midtier configuration is a copy of the primary configuration, so the listen addresses are the same.  
+However, it is expected that the IPs of the secondary systems are different than the primary IPs. Secondary hosts must be able to resolve the hostnames used as listen addresses, but with the IPs of the equivalent secondary nodes.  
 For example, the components in secondary:
 - WLS managed server 1 in secondary listens on apphost1.example.com address, which corresponds with the IP 222.222.222.111
 - WLS managed server 2 in secondary listens on apphost2.example.com address, which corresponds with the IP 222.222.222.112 
 - WLS managed server 3 in secondary listens on apphost3.example.com address, which corresponds with the IP 222.222.222.113
 
-The hostnames that the WLS components use as listener addresses can be:
+The hostnames that the WLS components use as listen addresses can be:
 - **Virtual names**.  
 The names are different than the physical hostnames. This is normally the case of Disaster Recovery environments based on the **Enterprise Deployment Guide** systems. See:  
 FMW Disaster Recovery Guide - https://docs.oracle.com/en/middleware/fusion-middleware/12.2.1.4/asdrg/index.html  
@@ -38,27 +38,37 @@ SOA Marketplace Disaster Recovery - https://www.oracle.com/a/tech/docs/maa-soamp
 Wls for OCI Disaster Recovery - https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf  
 
 
-In any of these cases, the midtier hosts in each site must be able to resolv the hostnames used as listener addresses with their own IPs.
+In any of these cases, the midtier hosts in each site must be able to resolve the hostnames used as listen addresses with their own IPs.
 
-This can be implemented by adding the hostnames to the /etc/hosts files of the WLS hosts: in primary hosts, the names point to the IP addresses of the primary WLS hosts; in secondary hosts, the names point to the IP addresses of the secondary WLS hosts. But this requires to manually add the entries to all the WLS hosts. And when you are adding new nodes to the cluster (e.g. in scale-out), the new node is not able to resolve the names until you modify its /etc/hosts.  
+This can be implemented by adding the listen address hostnames to the /etc/hosts files of the WLS hosts: in primary hosts, the names point to the IP addresses of the primary WLS hosts; in secondary hosts, the names point to the IP addresses of the secondary WLS hosts. But this requires to manually add the entries to all the WLS hosts. And when you are adding new nodes to the cluster (e.g. in scale-out), the new node is not able to resolve the names until you modify its /etc/hosts.  
 
-A better approach is to add the hostnames to private views of the DNS resolver of each site. The terraform scripts provided here help to configure this approach.
+A better approach is to add these hostnames to private views of the DNS resolver of each site. The terraform scripts provided here help to configure this approach.
 
 ## USING PRIVATE DNS VIEWS FOR DR
 
-The approach implemented by these terraform scripts, the hostnames used as listener addresses by WebLogic servers are added to the DNS server of each site, pointing to the local IPs.  
-More specifically: the **primary hostnames** are added to the **DNS resolver** of the secondary VCN, pointing to the **IP addresses of the secondary** WebLogic hosts.  
+In this approach, implemented by the terraform scripts in this folder, the hostnames used as listen addresses by WebLogic servers are added to the DNS server of each site and they resolve to the secondary's IPs.  
+More specifically: the provided **primary hostnames** (listen addresses) are added to the **DNS resolver** of the secondary VCN, pointing to the **IP addresses of the secondary** WebLogic hosts.  
 Also, the **secondary hostnames** are added to the **DNS resolver** of the primary VNC, pointing to the **IP addresses of the primary** WebLogic hosts. (Note that this is not essential, because it is expected that the WebLogic configuration don't use this names. But is done to avoid errors in primary, in case that any reference to secondary names was added to the config while the secondary site takes the primary role).
 - Advantages:  
     - You can add all the entries in a unique place in each site, instead of adding them to all the /etc/hosts of all the WebLogic server hosts.
     - Any new host (e.g. when scaling-out) is able to resolve the names properly, hence the scale-out procedures are simplified. 
 - Disadvantages:  
     - This mode is **valid only** when **separated DNS servers** are used in primary and secondary sites. Otherwise, it can cause conflicts in naming resolution. The server of each site should resolve these names with their own IPs.
-    - When the **non-fully qualified hostnames** are **not the same** in primary and secondary, you need to add the private view’s domain name (e.g., "example.com") to the "search" list in the /etc/resolv.conf file on each secondary host. This way, the secondary hosts will be able to resolve the non-fully qualified names. For example, the WLS server uses "soahost1" instead of "soahost1.example.com" as listener address, and "soahost1" is not a non-fully qualified name of any of the secondary hosts. The secondary hosts will not be able to resolve "soahost1" into the private view unless you add the domain "example.com" to the search list on each host. 
+    - When the **non-fully qualified hostnames** (e.g. “soahost1”) of the primary **listen addresses** do not exist in secondary, you need to add the domain name used by them to the "search" list in the /etc/resolv.conf file on each secondary host. This way, the secondary hosts will be able to search the non-fully qualified names of the listen addresses in the private DNS view. 
 This scenario: 
-        - This is not a common practice: normally fqdn hostnames are used as listener addresses.
-        - Does NOT apply to SOAMP DR and WLS for OCI DR scenarios. Because the values configured as the listen addresses for the WLS servers are the fully qualified names. Besides this, the non-fully qualified hostnames of primary and standby nodes are the same, as described in their respective DR setup documents.  
-      **NOTE**:  In OCI compute instances, manual changes made to the /etc/resolv.conf file are not persisted across reboots due to DHCP client. To make the change persistent, add an additional DHCP Option to the VNC configuration, with the private view’s domain in the Search list. Then, use this DHCP option in the subnet. See documentation https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Tasks/managingDHCP.htm for additional DHCP options in OCI and “OCI: /etc/resolv.conf Customizations Are Lost Periodically Or When Instance Is Rebooted (Doc ID 2705361.1)”
+        - is not a common practice: normally fully qualified hostnames are used as listen addresses, so you don't need to resolve the non-fully qualified hostnames used by primary.
+        - does NOT apply to SOAMP DR and WLS for OCI DR scenarios. Because the values configured as the listen addresses for the WLS servers are the fully qualified names. Besides this, the non-fully qualified hostnames of primary and standby nodes are the same if you use the procedures described in their respective DR setup documents.  
+> **NOTE**:  In OCI compute instances, manual changes made to the /etc/resolv.conf file are not persisted across reboots. To preserve these changes across reboots, you need to create an additional DHCP Option in the VNC's configuration. To do this: 
+> In secondary region, navigate to "Networking" > "Virtual Cloud Networks" >  select the secondary VCN  
+> Navigate to "DHCP Options" and click on "Create DHCP Options". Use:  
+> - DNS Type:  "Internet and VCN Resolver"  
+> - DNS Search Domain Type:    "Custom Search Domain"  
+> - Search Domain:  \<the domain of the primary listen addresses\>  
+>
+> Then, navigate to the secondary midtier subnet. Edit the subnet and select the new created DHCP Option in "DHCP options".  
+> This way, the domain name used by primary listen addresses will be added to the /etc/resolv.conf of the subnet's hosts when they start, along with the local subnet domain.  
+> See https://docs.cloud.oracle.com/en-us/iaas/Content/Network/Tasks/managingDHCP.htm  and “OCI: /etc/resolv.conf Customizations Are Lost Periodically Or When Instance Is Rebooted (Doc ID 2705361.1)” for additional details.  
+
 
 ## HOW TO USE THESE TERRAFORM SCRIPTS
 
@@ -80,7 +90,7 @@ This information must be provided in the **terraform.tfvars** file:
 - Primary and secondary compartments ocids.
 - Primary and secondary VCNs ocids.
 - The dns domain names of the primary and secondary subnets.
-- The list of primary nodes hostnames and their IPs. These names must be the listener addresses used by the WLS components.
+- The list of primary nodes hostnames and their IPs. These names must be the listen addresses used by the WLS components.
 - The list of secondary nodes hostnames and their IPs.
 
 <details><summary>Help to get the input parameter values</summary>
