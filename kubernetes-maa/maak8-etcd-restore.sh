@@ -206,6 +206,11 @@ if ($backups_exist == "true" ); then
         	        done
 			listofns=$(kubectl --kubeconfig=$kcfg get ns | grep -v NAME | awk '{print $1}')
 			for ns in ${listofns}; do
+				listofdaemonsets=$(kubectl --kubeconfig=$kcfg get ds -n $ns | grep -v NAME | awk '{print $1}')
+                                for daemonset in ${listofdaemonsets}; do
+                                        echo "Restarting daemonset $daemonset"
+                                        kubectl --kubeconfig=$kcfg rollout restart -n $ns  ds/$daemonset
+                                done
 				listofdeploy=$(kubectl --kubeconfig=$kcfg get deployments -n $ns | grep -v NAME | awk '{print $1}')
 	        		for deploy in ${listofdeploy}; do
 					echo "Restarting deployment $deploy"
