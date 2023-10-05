@@ -87,8 +87,61 @@ echo "Refreshing information in kubeadm config map form first node..."
 ssh -i $ssh_key $user@$first_node "sudo kubeadm init phase upload-config kubeadm --config $noderegyaml"
 
 echo "Done!"
-echo "To verify the corect behavior with the new alias, you can replace the server entry in your kubeconfig"
 export current_server=`grep server $kcfg |awk -F'//' '{print $2}' |awk -F':' '{print $1}'`
-echo "Your current API front end is: $current_server" 
-echo "You can replace it executing sed -i 's/$current_server/$hnalias/g' $kcfg"
+export current_port=`grep server $kcfg|awk -F':' '{print $4}'`
 
+echo "*****************************************************************************************************"
+echo "**********************************************IMPORTANT**********************************************"
+echo "To verify the corect behavior with the new alias, you can replace the server entry in your kubeconfig"
+echo "Your current API front end is: $current_server" 
+echo "You can replace it manually executing:"
+echo "	sed -i 's/$current_server/$hnalias/g' $kcfg"
+echo "Optionally, you can use this script to make replacements in the rest of the Kubernetes configuration"
+echo "Some of these changes will require the restart of the control plane and kubelet in the required nodes"
+echo "*****************************************************************************************************"
+echo "*****************************************************************************************************"
+echo " "
+while true; do
+        read -p "Do you want this script to replace also the kube/config file, cluster-info, kube-proxy and kubeadm-config config maps? (y/n) " yn
+        case $yn in
+                [yY] ) echo "Replacing entries...";break;;
+                [nN] ) echo "Exiting...";exit;;
+                *) echo "Invalid response. Please provide a valid value (y/n)";;
+        esac
+done
+echo "Reconfiguring config maps and restarting control plane..."
+export ndt=`date "+%F_%H-%M-%S"`
+export kubeconfig=/tmp/$ndt/kubeconfig-$ndt
+export clusterinfo=/tmp/$ndt/clusterinfo-$ndt.yaml
+export kubeproxy=/tmp/$ndt/kubeproxy-$ndt.yaml
+export kubeadmconfig=/tmp/$ndt/kubeadmconfig-$ndt.yaml
+mkdir -p /tmp/$ndt/
+cp $kcfg $kubeconfig
+kubectl --kubeconfig=$kcfg -n kube-public get configmap cluster-info -o yaml > $clusterinfo
+kubectl --kubeconfig=$kcfg -n kube-system get configmap kube-proxy -o yaml > $kubeproxy
+kubectl --kubeconfig=$kcfg -n kube-system get configmap kubeadm-config -o yaml > $kubeadmconfig
+
+cp $kcfg $kcfg-$ndt-backup
+cp $clusterinfo $clusterinfo-$ndt-backup
+cp $kubeproxy $kubeproxy-$ndt-backup
+cp $kubeadmconfig $kubeadmconfig-$ndt-backup
+
+sed -i "/server: https/c\    server: https:\/\/$hnalias:$current_port" $clusterinfo
+sed -i "/server: https/c\    server: https:\/\/$hnalias:$current_port" $kubeproxy
+sed -i "/server: https/c\    server: https:\/\/$hnalias:$current_port" $kcfg
+sed -i "/controlPlaneEndpoint: /c\    controlPlaneEndpoint: $hnalias:$current_port" $kubeadmconfig
+
+$basedir/apply-artifacts.sh $clusterinfo $clusterinfo-apply-$ndt.log
+$basedir/apply-artifacts.sh $kubeproxy  $kubeproxy-apply-$ndt.log
+$basedir/apply-artifacts.sh $kubeadmconfig $kubeadmconfig-apply-$ndt.log
+echo "Config maps and $kcfg replaced"
+$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
+for host in ${MNODE_LIST}; do
+	echo "Modifying local admin.conf and restarting kubelet in $host"
+	ssh -i $ssh_key $user@$host "sudo cp /etc/kubernetes/admin.conf /etc/kubernetes/admin.conf-$ndt"
+	ssh -i $ssh_key $user@$host "sudo sed -i \"/server: https/c\    server: https:\/\/$hnalias:$current_port\" /etc/kubernetes/admin.conf"
+        ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet"
+        sleep 5
+done
+echo "Done!"
+echo "Make sure that the new hostname alias $hnalias is resolvable in all the worker and control plane nodes!"
