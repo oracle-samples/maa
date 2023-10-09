@@ -111,7 +111,7 @@ mkdir -p /tmp/$dt
 ssh -i $ssh_key $user@$first_node "sudo mkdir -p /tmp/$dt/"
 ssh -i $ssh_key $user@$first_node "sudo cp /etc/kubernetes/pki/etcd/* /tmp/$dt/"
 ssh -i $ssh_key $user@$first_node "sudo chmod -R +r /tmp/$dt/*"
-scp -q -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
+scp -q -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/ >/dev/null 2>&1
 sleep 5
 export etcdcacert=/tmp/$dt/ca.crt
 export etcdkey=/tmp/$dt/server.key
