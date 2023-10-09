@@ -127,7 +127,7 @@ cp $kubeproxy $kubeproxy-$ndt-backup
 cp $kubeadmconfig $kubeadmconfig-$ndt-backup
 
 sed -i "/server: https/c\    server: https:\/\/$hnalias:$current_port" $clusterinfo
-sed -i "/server: https/c\    server: https:\/\/$hnalias:$current_port" $kubeproxy
+sed -i "/server: https/c\        server: https:\/\/$hnalias:$current_port" $kubeproxy
 sed -i "/server: https/c\    server: https:\/\/$hnalias:$current_port" $kcfg
 sed -i "/controlPlaneEndpoint: /c\    controlPlaneEndpoint: $hnalias:$current_port" $kubeadmconfig
 
