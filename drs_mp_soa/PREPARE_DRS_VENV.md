@@ -12,6 +12,8 @@ The following steps explain how to configure that folder as the virtualenv for p
 
 NOTE: Perform the steps with a user different than root. Recommended is to use the user opc.
 
+NOTE: To run these steps, the host requires connectivity to Internet, to download the python packages required by DRS.
+
 1- Verify that python3 is available in the system by executing the following:
 
 	$ python3 -m pip --version
