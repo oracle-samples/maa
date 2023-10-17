@@ -1,4 +1,4 @@
-version=mp-v19
+version=mp-v21
 
 V12 Updates:
 - Added DR method option (RSYNC or DBFS)
@@ -39,3 +39,6 @@ V19 Updates:
 
 V20 Updates:
 - Modified the function get_PAAS_type. Due to SOAMP oracle soa home change, the check to determine if SOAMP was not longer valid.
+
+V21 Updates:
+- Added a note about internet connectivity to PREPARE_DRS_VENV.md
