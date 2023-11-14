@@ -48,7 +48,7 @@ fi
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
+echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
 . $basedir/maak8s.env
 
 
