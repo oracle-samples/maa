@@ -5,4 +5,4 @@
 ##
 
 # OCI client script that updates the frontend  dns entry (example "soacsdroci.domainexample.com") to Site2 LBR's public IP (example: 222.222.222.123
-oci dns record rrset update --config-file /home/opc/scripts/.oci_soacsdr/config --zone-name-or-id "domainexample.com" --domain  "soacsdroci.domainexample.com" --rtype "A" --items '[{"domain":"soacsdroci.domainexample.com","rdata":"222.222.222.123","rtype":"A","ttl":60}]' --force
+oci dns record rrset update --config-file /home/opc/scripts/.oci_soacsdr/config --force --zone-name-or-id "domainexample.com" --domain  "soacsdroci.domainexample.com" --rtype "A" --items '[{"domain":"soacsdroci.domainexample.com","rdata":"222.222.222.123","rtype":"A","ttl":60}]' 
