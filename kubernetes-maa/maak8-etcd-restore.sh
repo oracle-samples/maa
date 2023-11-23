@@ -194,7 +194,7 @@ if ($backups_exist == "true" ); then
 		result=`kubectl --kubeconfig=$kcfg get nodes  2>/dev/null | grep 'Ready' |wc -l`
                 if [ $result -le 0 ]; then
                 	stillnotup="true"
-			echo "Kube-api not ready, retrying... (try $trycount)"
+			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
         	        ((trycount=trycount+1))
                 	sleep $sleeplapse
                         if [ "$trycount" -eq "$max_trycount" ];then
