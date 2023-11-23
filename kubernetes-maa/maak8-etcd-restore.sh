@@ -48,7 +48,7 @@ fi
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
+echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
 . $basedir/maak8s.env
 
 
@@ -119,9 +119,9 @@ export etcdcert=/tmp/$dt/server.crt
 
 #TIMEOUT SETTINGS FOR RETRIES ON K8 CONTROL PLANE START
 export stillnotup=true
-export max_trycount=5
+export max_trycount=20
 export trycount=0
-export sleeplapse=10
+export sleeplapse=20
 
 for host in ${MNODE_LIST}; do
 	if test -f "${backup_dir}/${host}/${host}-etc-kubernetes.gz" ; then
@@ -157,9 +157,15 @@ if ($backups_exist == "true" ); then
 		sudo tar -xzvf $current_etc_kubernetes/$host/${host}-kubernetes.gz  >> $restore_log
 	done
 	echo ""
-	echo "***** WARNING: Restore will first FORCEFULLY stop all control plane services/pods ******"
-	echo "Break here if you want to stop the control plane separately..."
-	sleep 5
+	echo "***** WARNING: Restore will first FORCEFULLY stop all control plane services/pods (if running) in the current cluster ******"
+	while true; do
+        	read -p "Do you want to stop all control plane services and pods? (y/n) " yn
+        	case $yn in
+                	[yY] ) echo "Proceeding...";break;;
+                	[nN] ) echo "Exiting...";exit;;
+                	*) echo "Invalid response. Please provide a valid value (y/n)";;
+        	esac
+	done
 	$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
 	echo "Restoring etcd in control plane nodes..."
 	for host in ${MNODE_LIST}; do
@@ -185,10 +191,10 @@ if ($backups_exist == "true" ); then
 		ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet" >> $restore_log
 	done
 	while [ $stillnotup == "true" ];do
-		result=`kubectl --kubeconfig=$kcfg get nodes| grep 'Ready' |wc -l`
+		result=`kubectl --kubeconfig=$kcfg get nodes  2>/dev/null | grep 'Ready' |wc -l`
                 if [ $result -le 0 ]; then
                 	stillnotup="true"
-	        	echo "Kube-api not ready, retrying..."
+			echo "Kube-api not ready, retrying... (try $trycount)"
         	        ((trycount=trycount+1))
                 	sleep $sleeplapse
                         if [ "$trycount" -eq "$max_trycount" ];then
