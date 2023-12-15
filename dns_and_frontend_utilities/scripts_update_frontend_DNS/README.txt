@@ -7,8 +7,7 @@
 Example for updating the front-end virtual hostname in the Oracle Cloud DNS service
 ####################################################################################
 
-It is assumed a PaaS DR setup based on one of the following whitepapers:
-"SOA Cloud Service Disaster Recovery on OCI"    (https://www.oracle.com/a/tech/docs/maa-soacs-dr-oci.pdf)
+It is assumed a PaaS DR setup based on one of the following documents:
 "SOA Suite on Oracle Cloud Infrastructure Marketplace Disaster Recovery" (https://www.oracle.com/a/tech/docs/maa-soamp-dr.pdf)
 "Oracle WebLogic Server for Oracle Cloud Infrastructure Disaster Recovery" (https://www.oracle.com/a/otn/docs/middleware/maa-wls-mp-dr.pdf)
 
@@ -46,6 +45,8 @@ The oci client command to replace a DNS record is the following syntax:
     --force
 
 - See the examples "virtual_frontend_DNS_entry_to_SITE1.sh" and "virtual_frontend_DNS_entry_to_SITE2.sh" included in this zip.
+
+
 
 References: 
 OCI CLI Command Reference (DNS) https://docs.cloud.oracle.com/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/dns/record/zone/update.html

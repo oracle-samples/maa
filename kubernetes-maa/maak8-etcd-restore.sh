@@ -48,7 +48,7 @@ fi
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
+echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
 . $basedir/maak8s.env
 
 
@@ -194,6 +194,8 @@ if ($backups_exist == "true" ); then
 		result=`kubectl --kubeconfig=$kcfg get nodes  2>/dev/null | grep 'Ready' |wc -l`
                 if [ $result -le 0 ]; then
                 	stillnotup="true"
+			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
+
         	        ((trycount=trycount+1))
 			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
                 	sleep $sleeplapse
