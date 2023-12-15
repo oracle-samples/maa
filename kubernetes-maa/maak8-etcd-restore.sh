@@ -195,7 +195,9 @@ if ($backups_exist == "true" ); then
                 if [ $result -le 0 ]; then
                 	stillnotup="true"
 			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
+
         	        ((trycount=trycount+1))
+			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
                 	sleep $sleeplapse
                         if [ "$trycount" -eq "$max_trycount" ];then
                                	echo "Maximum number of retries reached! Control plane not ready"
