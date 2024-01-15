@@ -163,7 +163,7 @@ install_required_packages(){
 	yum install libaio-devel -y >> $LOGFILE
 	yum install psmisc -y >> $LOGFILE
 	yum install compat-libcap1 -y >> $LOGFILE
-	echo "Ignore the Error: \"Unable to find a match: compat-libcap1\" in OEL 8 operating systems. Package no longer exists in OEL8." >> $LOGFILE
+	echo "You can ignore the Error: \"Unable to find a match: compat-libcap1\" in OEL 8 operating systems since this package no longer exists in this OEL version." >> $LOGFILE
 }
 
 prepare_response_file(){
