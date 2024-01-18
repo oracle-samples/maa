@@ -92,6 +92,13 @@ export LOGFILE=/tmp/dbfssetup$dt.log
 export CONNECT_TIMEOUT=10
 export RETRY_COUNT=10
 export RETRY_DELAY=10
+
+#Check that this is running by oracle root
+if [ "$(whoami)" != "root" ]; then
+        echo "Script must be run as user: root"
+        exit 1
+fi
+
 #For "WLS for OCI" DR, the dbfs config folder is hardcoded to DOMAIN_HOME/dbfs
 if [ -z "$DBFS_CONFIG_DIR" ]; then
 	export DOMAIN_HOME=$(sudo -Hiu ${ORACLE_OS_USER} env | grep DOMAIN_HOME | awk -F '=' '{print $2}')
@@ -105,14 +112,6 @@ if [ -z "$DBFS_CONFIG_DIR" ]; then
 fi
 export DBFSMOUNTSCR=${DBFS_CONFIG_DIR}/dbfsMount.sh
 ########################################################################
-
-
-#Check that this is running by oracle root
-if [ "$(whoami)" != "root" ]; then
-        echo "Script must be run as user: root"
-        exit 1
-fi
-
 
 create_backup(){
 	if test -f $1; then
@@ -163,7 +162,7 @@ install_required_packages(){
 	yum install libaio-devel -y >> $LOGFILE
 	yum install psmisc -y >> $LOGFILE
 	yum install compat-libcap1 -y >> $LOGFILE
-	echo "You can ignore the Error: \"Unable to find a match: compat-libcap1\" in OEL 8 operating systems since this package no longer exists in this OEL version." >> $LOGFILE
+	echo "You can ignore the Error: \"Unable to find a match: compat-libcap1\" in OEL 8 operating systems since this package no longer exists in this OEL version." | tee $LOGFILE
 }
 
 prepare_response_file(){
