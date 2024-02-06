@@ -1,4 +1,4 @@
-version=mp-v21
+version=mp-v22
 
 V12 Updates:
 - Added DR method option (RSYNC or DBFS)
@@ -42,3 +42,6 @@ V20 Updates:
 
 V21 Updates:
 - Added a note about internet connectivity to PREPARE_DRS_VENV.md
+
+V22 Updates:
+- Simiplified scripts fmw_dr_setup_primary.sh, fmw_sync_in_primary.sh fmw_sync_in_standby.sh. No need to gather the tns admin folder in most of them.

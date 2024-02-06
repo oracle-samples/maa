@@ -1,8 +1,8 @@
 #!/bin/bash
 
-## fmw_dr_setup_primary.sh script version 2.0.
+## fmw_dr_setup_primary.sh script version 202401
 ##
-## Copyright (c) 2023 Oracle and/or its affiliates
+## Copyright (c) 2024 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
@@ -228,33 +228,15 @@ get_variables(){
 	echo ""
 	echo "GET AND CHECK VARIABLES"
 	# COMMON VARIABLES
-	export datasource_name=opss-datasource-jdbc.xml
-	export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
-	export tns_admin=$($exec_path/fmw_get_ds_property.sh $datasource_file 'oracle.net.tns_admin')
-
 	if [ -z "${DOMAIN_HOME}" ];then
 		echo "\$DOMAIN_HOME is empty. This variable is predefined in the oracle user's .bashrc."
 		echo "Example: export DOMAIN_HOME=/u01/data/domains/my_domain"
 		exit 1
 	fi
 
-	if [ -f "${datasource_file}" ]; then
-		echo "The datasource ${datasource_file} exists"
-	else
-		echo "The datasource ${datasource_file} does not exist"
-		echo "Provide an alternative datasource name"
-		exit 1
-	fi
-
-	if [ -z "${tns_admin}" ];then
-		echo "\$tns_admin property not set in the datasource. Cannot proceed"
-	fi
-
 	if [[ ${verbose} = "true" ]]; then
 		echo "Variable values (common):"
-		echo " datasource_name......................" ${datasource_name}
 		echo " DOMAIN_HOME.........................." ${DOMAIN_HOME}
-		echo " tns_admin for datasources............" ${tns_admin}
 	fi
 
 	# OTHER VARIABLES THAT DEPEND ON THE METHOD
@@ -281,6 +263,18 @@ get_variables_in_primary_RSYNC(){
 
 get_variables_in_primary_DBFS(){
 	export sys_username=sys
+	# only used for SOAMP
+	export datasource_name=opss-datasource-jdbc.xml
+	# only used for SOAMP
+	export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
+	if [ -f "${datasource_file}" ]; then
+		echo "The datasource ${datasource_file} exists"
+	else
+		echo "The datasource ${datasource_file} does not exist"
+		echo "Provide an alternative datasource name"
+		exit 1
+	fi
+	# only used for SOAMP
 	export local_pdb_connect_string=$(grep url ${datasource_file} | awk -F ':@' '{print $2}' |awk -F '</url>' '{print $1}')
 	export dbfs_mount_script=${DOMAIN_HOME}/dbfs/dbfsMount.sh
 	export dbfs_mount=$(cat $dbfs_mount_script | grep "MOUNT_PATH=" | head -n 1 | awk -F "=" '{print $2}')
@@ -296,6 +290,8 @@ get_variables_in_primary_DBFS(){
 	if [[ ${verbose} = "true" ]]; then
 		echo "Variable values (for DBFS method):"
 		echo " sys_username........................." ${sys_username}
+		echo " datasource_name........................." ${datasource_name}
+		echo " datasource_file........................." ${datasource_file}
 		echo " local_pdb_connect_string............." ${local_pdb_connect_string}
 		echo " dbfs_mount_script...................." ${dbfs_mount_script}
 		echo " dbfs_mount..........................." ${dbfs_mount}
@@ -418,6 +414,12 @@ get_dbfs_info(){
 # Only needed for SOAMP with DBFS
 save_dbfs_info(){
 	# Saving info in the PDB. This info will be used in standby to recreate dbfs mount wallet and mount DBFS
+	# We still need to gather this in this case (SOAMP with DBFS method only) in order to connect to the pdb with the gathered connect string
+	export tns_admin=$($exec_path/fmw_get_ds_property.sh $datasource_file 'oracle.net.tns_admin')
+	if [ -z "${tns_admin}" ];then
+		echo "Error: \$tns_admin property not set in the datasource. Cannot proceed with method DBFS in SOAMP"
+		exit 1
+	fi
 	export TNS_ADMIN=${tns_admin}
 	export dbfs_schema_password_encrypted=$(
 	echo  "set feed off
@@ -454,9 +456,9 @@ sync_in_primary(){
 	echo ""
 	echo "SYNC IN PRIMARY"
 	if  [[ ${DR_METHOD} = "RSYNC" ]]; then
-		${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} ${tns_admin} ${REMOTE_ADMIN_NODE_IP} ${REMOTE_KEYFILE}
+		${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} ${REMOTE_ADMIN_NODE_IP} ${REMOTE_KEYFILE}
 	elif [[ ${DR_METHOD} = "DBFS" ]];then
-		${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} ${tns_admin}
+		${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} 
 	else
 		echo "Error. DR topology unknown"
 		exit 1
