@@ -1,8 +1,8 @@
 #!/bin/bash
 
-## config_replica.sh script version 2.0
+## config_replica.sh script version 202401
 ##
-## Copyright (c) 2023 Oracle and/or its affiliates
+## Copyright (c) 2024 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
@@ -12,7 +12,9 @@
 ### This script checks the current role of the database to determine if it is running in primary or standby site.
 ### When it runs in PRIMARY site: 
 ###	it copies the domain config from primary domain to local assistance folder (DBFS or FSS), 
-##	and then to the secondary site assistance folder (via FSS/rsync or DBFS/DG replica).
+###	and then to the secondary site assistance folder (via FSS/rsync or DBFS/DG replica).
+### Some folders and files are explicitly excluded from the copy because they don't need to be copied or they must be different in each site.
+### For example, note that all the tnsnames.ora files are excluded from the copy. They must point to the appropriate database in each site.
 ### When it runs in STANDBY site: 
 ###	it copies the domain config from the secondary assistance folder (DBFS or FSS) to the secondary domain, skipping the appropiate folders
 ###
@@ -73,14 +75,14 @@
 ###############################################################################################################
 ################# BEGIN OF CUSTOMIZED PARAMATERS SECTION ######################################################
 ###############################################################################################################
-DR_METHOD=RSYNC
-LOCAL_CDB_CONNECT_STRING=mydb-scan.dbsubnet.vcndomain.oraclevcn.com:1521/ORCL_iad2zb.dbsubnet.vcndomain.oraclevcn.com
+DR_METHOD=
+LOCAL_CDB_CONNECT_STRING=
 LOCAL_STANDBY_CDB_CONNECT_STRING=
-ENCRYPTED_SYS_USER_PASSWORD="{AES256}18aFY7QOoGi9gWmBX3Fqm2VizvENr52bqF58qUliuB/Mo0zjx2/CWJYzSlCJgMPo"
+ENCRYPTED_SYS_USER_PASSWORD=""
 # ONLY when using RSYNC METHOD:
-REMOTE_ADMIN_NODE_IP=10.2.1.1
-REMOTE_KEYFILE=/home/oracle/my_keys/my_private_key.priv
-FSS_MOUNT=/u01/shared
+REMOTE_ADMIN_NODE_IP=
+REMOTE_KEYFILE=
+FSS_MOUNT=
 
 
 ###############################################################################################################
@@ -151,9 +153,6 @@ get_variables(){
 	echo "" | tee -a  $log_file
 	echo "GET AND CHECK VARIABLES" | tee -a  $log_file
 	# COMMON VARIABLES
-	export datasource_name=opss-datasource-jdbc.xml
-	export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
-	export tns_admin=$( grep tns_admin -A1 $datasource_file | grep value | awk -F '<value>' '{print $2}' | awk -F '</value>' '{print $1}')
 	export sys_username=sys
 	export sys_user_password=$(${exec_path}/fmw_dec_pwd.sh $ENCRYPTED_SYS_USER_PASSWORD)
 	
@@ -163,25 +162,9 @@ get_variables(){
 		exit 1
 	fi
 
-        if [ -f "${datasource_file}" ]; then
-                echo "The datasource ${datasource_name} exists" | tee -a  $log_file
-        else
-                echo "The datasource ${datasource_name} does not exist" | tee -a  $log_file
-                echo "Provide an alternative datasource name" | tee -a  $log_file
-                exit 1
-        fi
-
-	if [ -z "${tns_admin}" ];then
-		echo "\$tns_admin property not set in the datasource. Cannot proceed" | tee -a  $log_file
-		exit 1
-	fi
-
-
 	if [[ ${verbose} = "true" ]]; then
 		echo "Variable values (common):" | tee -a  $log_file
-		echo " datasource_name......................" ${datasource_name} | tee -a  $log_file
 		echo " DOMAIN_HOME.........................." ${DOMAIN_HOME} | tee -a  $log_file
-		echo " tns_admin for datasources............" ${tns_admin} | tee -a  $log_file
 		echo " sys_username........................." ${sys_username} | tee -a  $log_file
 	fi
 
@@ -513,9 +496,9 @@ sync_in_primary(){
     echo "" | tee -a  $log_file
     echo "SYNC IN PRIMARY" | tee -a  $log_file
     if  [[ ${DR_METHOD} = "RSYNC" ]]; then
-        ${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} ${tns_admin} ${REMOTE_ADMIN_NODE_IP} ${REMOTE_KEYFILE} | tee -a  $log_file
+        ${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} ${REMOTE_ADMIN_NODE_IP} ${REMOTE_KEYFILE} | tee -a  $log_file
     elif [[ ${DR_METHOD} = "DBFS" ]];then
-        ${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} ${tns_admin} | tee -a  $log_file
+        ${exec_path}/fmw_sync_in_primary.sh ${DR_METHOD} ${DOMAIN_HOME} ${copy_folder} | tee -a  $log_file
     else
         echo "Error. DR topology unknown" | tee -a  $log_file
         exit 1
