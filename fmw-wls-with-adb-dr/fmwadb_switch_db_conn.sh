@@ -64,12 +64,11 @@ gather_ds_info() {
 }
 
 create_config_backup() {
-	#Imprtant: we only backup DS
-    echo "Backing up the current datasource configuration..."
+    echo "Backing up the current datasource and jps configuration..."
 	mkdir -p  ${DOMAIN_HOME}/config/DS_backup_$date_label
     cp -R ${DOMAIN_HOME}/config/jdbc ${DOMAIN_HOME}/config/DS_backup_$date_label/
 	cp -R ${DOMAIN_HOME}/config/fmwconfig ${DOMAIN_HOME}/config/DS_backup_$date_label/
-    echo "Datasource backup created at  ${DOMAIN_HOME}/DS_backup_$date_label"
+    echo "Datasource backup created at ${DOMAIN_HOME}/config/DS_backup_$date_label"
 
 }
 
