@@ -1,6 +1,8 @@
 """
-Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2024 Oracle and/or its affiliates  
+Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """
+
 import os
 import sys
 import socket
@@ -17,4 +19,4 @@ try:
 except Exception, e:
   dumpStack()
   disconnect()
-  raise Exception('Failed to start weblogic cluster')
+  raise Exception('Failed to stop weblogic cluster')
