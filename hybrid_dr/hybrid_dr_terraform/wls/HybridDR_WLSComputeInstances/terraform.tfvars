@@ -5,15 +5,15 @@
 ###
 
 ## OCI Provider details
-tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2vefxxrokon3f2bxo6z6e2odqxsklgq"
-user_ocid        = "ocid1.user.oc1..aaaaaaaa77pn6uke4zyxeumfxv4tfyveensu5doteepq6d7jqaubes3fsq4q"
+tenancy_ocid     = "ocid1.tenancy.oc1................kon3f2bxo6z6e2odqxsklgq"
+user_ocid        = "ocid1.user.oc1..................eepq6d7jqaubes3fsq4q"
 fingerprint      = "5c:44:53:.....98:28:e6:ba"
-private_key_path = "/home/opc/TERRAFORM_TESTS/my_keys/oracleidentitycloudservice_user.name-02-28-08-31.pem"
+private_key_path = "/home/opc/my_keys/oracleidentitycloudservice_user.name-02-28-08-31.pem"
 region           = "us-ashburn-1"
 
 # Compartment and subnet
-compartment_id = "ocid1.compartment.oc1..aaaaaaaa6zlezuvycwpmaiyuunyfqrunkcutyl3faqfhi6x6qdtd2vathgya"
-subnet_id      = "ocid1.subnet.oc1.iad.aaaaaaaah4q46tiim76r5eidac2z6qqv3zaoz67hwb5iereqryqfbiafguba"
+compartment_id = "ocid1.compartment....................fhi6x6qdtd2vathgya"
+subnet_id      = "ocid1.subnet.oc1.iad...........................wb5iereqryqfbiafguba"
 
 # Availability Domain list, where the midtiers compute will be provisioned. You can provide 1 AD or more.
 AD_names = ["efXT:US-ASHBURN-AD-1", "efXT:US-ASHBURN-AD-2"]
@@ -32,5 +32,5 @@ os_version = "8.5"
 midtier_hostnames = ["hywlsnode1", "hywlsnode2"]
 
 # Public ssh key file path
-ssh_public_key_path = "/home/opc/TERRAFORM_TESTS/my_keys/KeyWithoutPassPhraseSOAMAA.pub"
+ssh_public_key_path = "/home/opc/TERRAFORM_TESTS/my_keys/my_ssh_key.pub"
 

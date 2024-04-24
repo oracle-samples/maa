@@ -48,7 +48,7 @@ fi
 export basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "********* RESTORE OF K8s CLUSTERS BASED ON ETCD SNAPSHOT *********"
-echo "Make sure you have provided the required information in the env file $basedir/maak8-etcd-backup.env"
+echo "Make sure you have provided the required information in the env file $basedir/maak8s.env"
 . $basedir/maak8s.env
 
 
@@ -111,7 +111,7 @@ mkdir -p /tmp/$dt
 ssh -i $ssh_key $user@$first_node "sudo mkdir -p /tmp/$dt/"
 ssh -i $ssh_key $user@$first_node "sudo cp /etc/kubernetes/pki/etcd/* /tmp/$dt/"
 ssh -i $ssh_key $user@$first_node "sudo chmod -R +r /tmp/$dt/*"
-scp -q -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/
+scp -q -i $ssh_key $user@$first_node:/tmp/$dt/* /tmp/$dt/ >/dev/null 2>&1
 sleep 5
 export etcdcacert=/tmp/$dt/ca.crt
 export etcdkey=/tmp/$dt/server.key
@@ -119,9 +119,9 @@ export etcdcert=/tmp/$dt/server.crt
 
 #TIMEOUT SETTINGS FOR RETRIES ON K8 CONTROL PLANE START
 export stillnotup=true
-export max_trycount=5
+export max_trycount=20
 export trycount=0
-export sleeplapse=10
+export sleeplapse=20
 
 for host in ${MNODE_LIST}; do
 	if test -f "${backup_dir}/${host}/${host}-etc-kubernetes.gz" ; then
@@ -157,9 +157,15 @@ if ($backups_exist == "true" ); then
 		sudo tar -xzvf $current_etc_kubernetes/$host/${host}-kubernetes.gz  >> $restore_log
 	done
 	echo ""
-	echo "***** WARNING: Restore will first FORCEFULLY stop all control plane services/pods ******"
-	echo "Break here if you want to stop the control plane separately..."
-	sleep 5
+	echo "***** WARNING: Restore will first FORCEFULLY stop all control plane services/pods (if running) in the current cluster ******"
+	while true; do
+        	read -p "Do you want to stop all control plane services and pods? (y/n) " yn
+        	case $yn in
+                	[yY] ) echo "Proceeding...";break;;
+                	[nN] ) echo "Exiting...";exit;;
+                	*) echo "Invalid response. Please provide a valid value (y/n)";;
+        	esac
+	done
 	$basedir/maak8s-force-stop-cp.sh "$MNODE_LIST"
 	echo "Restoring etcd in control plane nodes..."
 	for host in ${MNODE_LIST}; do
@@ -185,11 +191,13 @@ if ($backups_exist == "true" ); then
 		ssh -i $ssh_key $user@$host "sudo systemctl restart kubelet" >> $restore_log
 	done
 	while [ $stillnotup == "true" ];do
-		result=`kubectl --kubeconfig=$kcfg get nodes| grep 'Ready' |wc -l`
+		result=`kubectl --kubeconfig=$kcfg get nodes  2>/dev/null | grep 'Ready' |wc -l`
                 if [ $result -le 0 ]; then
                 	stillnotup="true"
-	        	echo "Kube-api not ready, retrying..."
+			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
+
         	        ((trycount=trycount+1))
+			echo "Kube-api not ready, retrying... (try $trycount out of $max_trycount)"
                 	sleep $sleeplapse
                         if [ "$trycount" -eq "$max_trycount" ];then
                                	echo "Maximum number of retries reached! Control plane not ready"
@@ -206,6 +214,11 @@ if ($backups_exist == "true" ); then
         	        done
 			listofns=$(kubectl --kubeconfig=$kcfg get ns | grep -v NAME | awk '{print $1}')
 			for ns in ${listofns}; do
+				listofdaemonsets=$(kubectl --kubeconfig=$kcfg get ds -n $ns | grep -v NAME | awk '{print $1}')
+                                for daemonset in ${listofdaemonsets}; do
+                                        echo "Restarting daemonset $daemonset"
+                                        kubectl --kubeconfig=$kcfg rollout restart -n $ns  ds/$daemonset
+                                done
 				listofdeploy=$(kubectl --kubeconfig=$kcfg get deployments -n $ns | grep -v NAME | awk '{print $1}')
 	        		for deploy in ${listofdeploy}; do
 					echo "Restarting deployment $deploy"

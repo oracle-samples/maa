@@ -1,14 +1,16 @@
 #!/bin/bash
 
-## fmw_sync_in_primary.sh script version 1.0.
+## fmw_sync_in_primary.sh script version 202401
 ##
-## Copyright (c) 2023 Oracle and/or its affiliates
+## Copyright (c) 2024 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-## This script returns the oracle.net.tnsadmin directory that a WLS/SOA/FMW datasource is using if any
+## This script copies the domain content from primary to stage, excluding certain folders and files,
+## when they don't need to be copied or they must be different in each site.
+## For example, all the tnsnames.ora files are excluded from the copy.
 ##
 ## Usage:
-##         ./fmw_sync_in_primary.sh DR_METHOD DOMAIN_HOME STAGE_FOLDER TNS_ADMIN [REMOTE_ADMIN_NODE_IP] [REMOTE_KEYFILE]
+##         ./fmw_sync_in_primary.sh DR_METHOD DOMAIN_HOME STAGE_FOLDER [REMOTE_ADMIN_NODE_IP] [REMOTE_KEYFILE]
 ##
 ## Where:
 ##	DR_METHOD 	The DR method used in the environment (DBFS / RSYNC)
@@ -18,8 +20,6 @@
 ##	STAGE_FOLDER    The path of the folder that is used for the copy. The folder can be in DBFS or in FSS. 
 ##			Example: '/u01/shared/domain_copy_folder'
 ##	
-##	TNS_ADMIN       The path to the TNS admin folder. This folder will no be included in the copy.
-##	                Example: '/u01/data/domains/mydomain_domain/config/tnsadmin'
 ##
 ##     REMOTE_ADMIN_NODE_IP    [ONLY WHEN DR_METHOD IS RSYNC] 
 ##				This is the IP address of the secondary Weblogic Administration server node.
@@ -36,35 +36,33 @@
 if [[ $# -ne 0 ]]; then
         export DR_METHOD=$1
         if  [[ $DR_METHOD = "DBFS" ]]; then
-                if [[ $# -eq 4 ]]; then
+                if [[ $# -eq 3 ]]; then
                         export DOMAIN_HOME=$2
 			export STAGE_FOLDER=$3
-			export TNS_ADMIN=$4
                 else
                         echo ""
-                        echo "ERROR: Incorrect number of parameters used for DR_METHOD $1. Expected 2, got $#"
+                        echo "ERROR: Incorrect number of parameters used for DR_METHOD $1. Expected 3, got $#"
                         echo "Usage for DR_METHOD=DBFS:"
-                        echo "      $0  DR_METHOD DOMAIN_HOME STAGE_FOLDER TNS_ADMIN"
+                        echo "      $0  DR_METHOD DOMAIN_HOME STAGE_FOLDER"
                         echo "Example: "
-                        echo "      $0 'DBFS' '/u01/data/domains/soampdr_domain'  '/u01/shared/domain_copy_folder' '/u01/data/domains/soampdr_domain/config/tnsadmin'"
+                        echo "      $0 'DBFS' '/u01/data/domains/soampdr_domain'  '/u01/shared/domain_copy_folder' "
                         echo ""
                         exit 1
                 fi
 
         elif [[ $DR_METHOD = "RSYNC" ]]; then
-                if [[ $# -eq 6 ]]; then
+                if [[ $# -eq 5 ]]; then
 			export DOMAIN_HOME=$2
                         export STAGE_FOLDER=$3
-			export TNS_ADMIN=$4
-                        export REMOTE_ADMIN_NODE_IP=$5
-                        export REMOTE_KEYFILE=$6
+                        export REMOTE_ADMIN_NODE_IP=$4
+                        export REMOTE_KEYFILE=$5
                 else
                         echo ""
                         echo "ERROR: Incorrect number of parameters used for DR_METHOD $1. Expected 5, got $#"
                         echo "Usage for DR_METHOD=RSYNC:"
-                        echo "    $0  DR_METHOD DOMAIN_HOME STAGE_FOLDER TNS_ADMIN [REMOTE_ADMIN_NODE_IP] [REMOTE_KEYFILE]"
+                        echo "    $0  DR_METHOD DOMAIN_HOME STAGE_FOLDER  [REMOTE_ADMIN_NODE_IP] [REMOTE_KEYFILE]"
                         echo "Example:  "
-                        echo "    $0  'RSYNC' '/u01/data/domains/soampdr_domain' '/u01/share/domain_copy_folder' '/u01/data/domains/soampdr_domain/config/tnsadmin' '10.1.2.43' '/u01/install/KeyWithoutPassPhraseSOAMAA.ppk'"
+                        echo "    $0  'RSYNC' '/u01/data/domains/soampdr_domain' '/u01/share/domain_copy_folder' '10.1.2.43' '/u01/install/KeyWithoutPassPhraseSOAMAA.ppk'"
                         echo ""
                         exit 1
                 fi
@@ -72,7 +70,7 @@ if [[ $# -ne 0 ]]; then
                 echo ""
                 echo "ERROR: Incorrect value for input variable DR_METHOD passed to $0. Expected DBFS or RSYNC, got $1"
                 echo "Usage: "
-                echo "  $0 DR_METHOD STAGE_FOLDER TNS_ADMIN [REMOTE_ADMIN_NODE_IP] [REMOTE_KEYFILE] "
+                echo "  $0 DR_METHOD STAGE_FOLDER [REMOTE_ADMIN_NODE_IP] [REMOTE_KEYFILE] "
                 echo ""
                 exit 1
         fi
@@ -87,28 +85,19 @@ fi
 sync_in_primary_to_local_folder(){
 	export date_label=$(date '+%Y-%m-%d-%H_%M_%S')
 	export wls_domain_name=$(basename ${DOMAIN_HOME})
-	export rel_tns_admin=$(echo $TNS_ADMIN | awk -F"$DOMAIN_HOME/" '{print $2}')
 
-	# To prevent errors in case that TNS_ADMIN folder is out from the domain
-	if [[ ! -z "${rel_tns_admin}" ]];then
-	        export exclude_list="--exclude $rel_tns_admin"
-	fi
-	# If WLSMP, in RSYNC method there is no dbfs folder
-	# If SOAMP, in RSYNC method there is dbfs folder and but it is not modified during DR setup.We can replicate it except the tnsnames.ora (which is and must be
-	# different in each site)
-	if  [[ ${DR_METHOD} = "RSYNC" ]]; then
-	        export exclude_list="$exclude_list --exclude 'dbfs/tnsnames.ora'"
-	elif [[ ${DR_METHOD} = "DBFS" ]];then
+	# In RSYNC method, in WLSMP, there is no dbfs folder.
+	# In RSYNC method, in SOAMP, there is dbfs folder. It is not modified during setup. So we need to replicate it (except tnsnames.ora) to copy the wallet to secondary.
+	# If DBFS method, either SOAMP or WLSMP, we exclude the complete folder dbfs from the copy because wallet is iexplicitelt created/re-created in each site.
+	if [[ ${DR_METHOD} = "DBFS" ]];then
 		export exclude_list="$exclude_list --exclude 'dbfs'"
-	else
-		echo "Error. DR topology unknown"
-		exit 1
 	fi
-
+	# Common excludes
+	export exclude_list="$exclude_list --exclude 'tnsnames.ora' "
 	export exclude_list="$exclude_list --exclude 'soampRebootEnv.sh' "
         export exclude_list="$exclude_list --exclude 'servers/*/data/nodemanager/*.lck' --exclude 'servers/*/data/nodemanager/*.pid' "
         export exclude_list="$exclude_list --exclude 'servers/*/data/nodemanager/*.state' --exclude 'servers/*/tmp' "
-        export exclude_list="$exclude_list --exclude 'servers/*/adr/diag/ofm/*/*/lck/*.lck' --exclude 'servers/*/adr/oracle-dfw-*/sampling/jvm_threads*' "
+	export exclude_list="$exclude_list --exclude 'servers/*/adr/'" 
         export exclude_list="$exclude_list --exclude 'tmp'"
         export exclude_list="$exclude_list --exclude '/nodemanager'"
 
