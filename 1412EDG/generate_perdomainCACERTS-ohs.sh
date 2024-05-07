@@ -98,4 +98,3 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 done
 
 rm -rf /tmp/config-nons.xml
-

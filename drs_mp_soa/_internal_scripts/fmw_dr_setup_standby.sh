@@ -1,8 +1,8 @@
 #!/bin/bash
 
-##  fmw_dr_setup_standby.sh script version 2.0.
+##  fmw_dr_setup_standby.sh script version 202401
 ##
-## Copyright (c) 2023 Oracle and/or its affiliates
+## Copyright (c) 2024 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
@@ -248,27 +248,16 @@ get_variables(){
 	echo "GET AND CHECK VARIABLES"
 
 	# COMMON VARIABLES
-	export datasource_name=opss-datasource-jdbc.xml
-	export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
-	
+		
 	if [ -z "${DOMAIN_HOME}" ];then
 		echo "\$DOMAIN_HOME is empty. This variable is predefined in the oracle user's .bashrc."
 		echo "Example: export DOMAIN_HOME=/u01/data/domains/my_domain"
 		exit 1
 	fi
-
-	if [ -f "${datasource_file}" ]; then
-		echo "The datasource ${datasource_file} exists"
-	else
-		echo "The datasource ${datasource_file} does not exist"
-		echo "Provide an alternative datasource name"
-		exit 1
-        fi
 	
 	if [[ ${verbose} = "true" ]]; then	
 		echo "Variable values (common):"
 		echo " DOMAIN_HOME............................." $DOMAIN_HOME
-		echo " datasource_name........................." $datasource_name
 	fi
 	
 	# OTHER VARIABLES THAT DEPEND ON THE DR METHOD

@@ -1,15 +1,19 @@
 #!/bin/bash
 
-## dbfs_dr_setup_root.sh version 1.0.
+## dbfs_dr_setup_root.sh version 2.0.
 ##
-## Copyright (c) 2022 Oracle and/or its affiliates
+## Copyright (c) 2024 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
 ### Description: Script to configure DBFS in a middle tier node (typically for DR configuration)
 ### It installs Oracle Database Client, installs fuse, creates DBFS DB schemas, configures wallet and mounts DBFS file system
-### NOTE: this script use yum commands to install fuse and the packages required by db client. Make sure that yum is correctly configured in this host
-###       with the appropriate yum repository.
+### NOTE: This script use yum commands to install fuse and the OS packages required by DB client. Make sure that yum is correctly 
+###       configured in this host with the appropriate yum repository.
+### NOTE: This script installs the OS packages required by DB Client that are not included in WLS for OCI stack images out-of-the-box.
+###       If any additional OS package is missing, install it manually with yum. Check DB client package requirements in:
+###       For DB Client 19c: https://docs.oracle.com/en/database/oracle/oracle-database/19/lacli/operating-system-requirements-for-x86-64-linux-platforms.html#GUID-3F647617-7FF5-4EE4-BBA8-9A5E3EEC888F
+###       For DB Client 21c: https://docs.oracle.com/en/database/oracle/oracle-database/21/lacli/operating-system-requirements-for-x86-64-linux-platforms.html#GUID-3F647617-7FF5-4EE4-BBA8-9A5E3EEC888F
 
 #### This script can run in interactive as well as non-interactive mode.  In the interactive
 #### mode, the user simply runs the script using the script name and the script prompts for all
@@ -88,6 +92,13 @@ export LOGFILE=/tmp/dbfssetup$dt.log
 export CONNECT_TIMEOUT=10
 export RETRY_COUNT=10
 export RETRY_DELAY=10
+
+#Check that this is running by oracle root
+if [ "$(whoami)" != "root" ]; then
+        echo "Script must be run as user: root"
+        exit 1
+fi
+
 #For "WLS for OCI" DR, the dbfs config folder is hardcoded to DOMAIN_HOME/dbfs
 if [ -z "$DBFS_CONFIG_DIR" ]; then
 	export DOMAIN_HOME=$(sudo -Hiu ${ORACLE_OS_USER} env | grep DOMAIN_HOME | awk -F '=' '{print $2}')
@@ -101,14 +112,6 @@ if [ -z "$DBFS_CONFIG_DIR" ]; then
 fi
 export DBFSMOUNTSCR=${DBFS_CONFIG_DIR}/dbfsMount.sh
 ########################################################################
-
-
-#Check that this is running by oracle root
-if [ "$(whoami)" != "root" ]; then
-        echo "Script must be run as user: root"
-        exit 1
-fi
-
 
 create_backup(){
 	if test -f $1; then
@@ -159,6 +162,7 @@ install_required_packages(){
 	yum install libaio-devel -y >> $LOGFILE
 	yum install psmisc -y >> $LOGFILE
 	yum install compat-libcap1 -y >> $LOGFILE
+	echo "You can ignore the Error: \"Unable to find a match: compat-libcap1\" in OEL 8 operating systems since this package no longer exists in this OEL version." | tee $LOGFILE
 }
 
 prepare_response_file(){

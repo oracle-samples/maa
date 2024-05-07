@@ -5,17 +5,17 @@
 ##
 
 ## OCI Provider details
-tenancy_ocid     = "ocid1.tenancy.oc1..aaaaaaaa7dkeohv7arjwvdgobyqml2vefxxrokon3f2bxo6z6e2odqxsklgq"
-user_ocid        = "ocid1.user.oc1..aaaaaaaa77pn6uke4zyxeumfxv4tfyveensu5doteepq6d7jqaubes3fsq4q"
-fingerprint      = "5c:44:53:23:4c:a6:20:76:34:9c:0d:ae:98:28:e6:ba"
-private_key_path = "/home/opc/TERRAFORM_TESTS/my_keys/oracleidentitycloudservice_iratxe.etxebarria-02-28-08-31.pem"
+tenancy_ocid     = "ocid1.tenancy.oc1......................o6z6e2odqxsklgq"
+user_ocid        = "ocid1.user.o..........oteepq6d7jqaubes3fsq4q"
+fingerprint      = "5c:4..........e6:ba"
+private_key_path = "/home/opc/my_keys/oracleidentitycloudservice_key-02-28-08-31.pem"
 region           = "us-ashburn-1"
-compartment_id   = "ocid1.compartment.oc1..aaaaaaaa6zlezuvycwpmaiyuunyfqrunkcutyl3faqfhi6x6qdtd2vathgya"
+compartment_id   = "ocid1.compartment.oc1...............td2vathgya"
 
 
 ### Properties for the OCI Load Balancer
 LBR_display_name  = "HyLBR"
-webtier_subnet_id = "ocid1.subnet.oc1.iad.aaaaaaaad4gjjpcxcjp3fl2uztz66c4eazyjimri5ygytfl3ipd2gqlgvfkq"
+webtier_subnet_id = "ocid1.subnet.oc1......................ytfl3ipd2gqlgvfkq"
 LBR_is_private    = "false"
 LBR_shape         = "flexible"
 LBR_minbw         = "10"
