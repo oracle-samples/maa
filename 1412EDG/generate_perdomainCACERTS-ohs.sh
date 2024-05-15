@@ -91,7 +91,7 @@ echo "FINAL DNS string : $final_sanurl "
 
 for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 	echo "Generating OHS Virtual Host certificate for $vhost..."
-	java utils.CertGen -cn $vhost -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $vhost.cert -keyfile $vhost.key -domain $ASERVER -nosanhostdns -a $final_sanurl
+	java utils.CertGen -cn $vhost -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $vhost.cert -keyfile $vhost.key -domain $ASERVER -nosanhostdns -a $final_sanurl -validuntil "2030-03-01"
 	echo "Cleaning previous alias and importing certificates in the Identity store..."
 	keytool -delete -alias $vhost -storepass  $KEYPASS -keystore appIdentityKeyStore.jks
 	java  utils.ImportPrivateKey -certfile $ASERVER/security/$vhost.cert.der -keyfile $ASERVER/security/$vhost.key.der -keyfilepass $KEYPASS -keystore appIdentityKeyStore.jks -storepass $KEYPASS -alias $vhost -keypass $KEYPASS
