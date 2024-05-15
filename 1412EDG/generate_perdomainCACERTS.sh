@@ -72,7 +72,7 @@ trimmed_list_of_hosts="${list_of_hosts//$'\n'/ }"
 echo "Creating and importing certs for: $trimmed_list_of_hosts"
 
 for hosty in $trimmed_list_of_hosts; do
-        java utils.CertGen -cn $hosty -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $hosty.cert -keyfile $hosty.key -domain $ASERVER -nosanhostdns
+        java utils.CertGen -cn $hosty -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $hosty.cert -keyfile $hosty.key -domain $ASERVER -nosanhostdns -validuntil "2030-03-01"
 	echo "Cleaning alias if it exists already..."
         keytool -delete -alias $hosty -storepass  $KEYPASS -keystore appIdentityKeyStore.jks
         java  utils.ImportPrivateKey -certfile $ASERVER/security/$hosty.cert.der -keyfile $ASERVER/security/$hosty.key.der -keyfilepass $KEYPASS -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -storepass $KEYPASS -alias $hosty -keypass $KEYPASS
