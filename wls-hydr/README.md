@@ -23,13 +23,13 @@ Although the framework's main use case is configuring a hybrid disaster protecti
 
 ## Topology Diagram
 The following diagram shows a typical Hybrid Disaster Recover topology for an Oracle WebLogic Server system.
-![maa-wls-hybrid-dr-tool.png ](/wls-hydr/images/maa-wls-hybrid-dr-tool.png)
+![maa-wls-hybrid-dr-tool.png ](./images/maa-wls-hybrid-dr-tool.png)
 
 This framework provisions and configures the components highlighted in green. 
 
 A **bastion node** is used in Oracle's Cloud to run the framework. When used for the "COMPLETE HYBRID DR SETUP", the bastion connects to primary and creates the secondary system. It then replicates primary's configuration and binaries to the secondary. In the "MIGRATION FROM COPY" use case, the bastion receives a "copy" of the artifacts from the primary system in a precise directory structure. It then creates the secondary system using information in this copy. When used only for the creation of the infrastructure required by an Enteprise Deployment on OCI, the bastion is used simply to initiate and orchestrate the creation of resources in the Cloud.
 
-![maa-wls-hybrid-dr-tool-highlights.png ](/images/maa-wls-hybrid-dr-tool-highlights.png) 
+![maa-wls-hybrid-dr-tool-highlights.png ](./images/maa-wls-hybrid-dr-tool-highlights.png) 
 
 > (*) FastConnect provides a dedicated connection between an on-premises data center and Oracle Cloud Infrastructure and is the preferred connectivity solution for Oracle Data Guard between an on-premises Oracle Database and the OCI standby database. Alternatively, you can use Site-to-Site VPN as long as it meets the bandwidth and latency needs for the Weblogic domain and database replication.  
 > The tool uses this connectivity to establish a SSH connections from the bastion host to the primary hosts both in the initial setup and for the ongoing replication of binaries and configuration.
@@ -89,7 +89,7 @@ This solution requires the following services and roles:
 FRAMEWORK OVERVIEW
 ==================================================
 The WLS_HYDR framework consists of three main components:  
-![tool-main-modules.png ](/images/tool-main-modules.png) 
+![tool-main-modules.png ](./images/tool-main-modules.png) 
 
 |What|Description
 |---|---|
@@ -110,21 +110,21 @@ END-TO-END PROCEDURE
 ==================================================
 - "COMPLETE HYBRID DR SETUP": The following diagram summarizes the main flow execution of the framework. This procedure creates a secondary system in OCI for a given primary based on the EDG best practices. The phases are run individually but the execution of each one depends on the results of the previous one for end to end automation.
 
-![Flow diagram to create a secondary system in OCI for a given on-prem environment. ](/images/Main_flow_diagram.png)
+![Flow diagram to create a secondary system in OCI for a given on-prem environment. ](./images/Main_flow_diagram.png)
 
 Additional scenarios that can take advantage of this framework:
 
 - "MIGRATION USE CASE": The flow of execution is exactly the same as for the "COMPLETE HYBRID DR SETUP". Only the posterior steps after the initial configuration defer: the system is "switched over" to secondary and primary is decomissioned for the production workloads.
 
-![Flow diagram to migrate to OCI for a given on-prem environment. ](/images/flow_migration.png)
+![Flow diagram to migrate to OCI for a given on-prem environment. ](./images/flow_migration.png)
 
 - "MIGRATION FROM COPY": To migrate a primary system. There is no connectivity between OCI bastion and primary's hosts. You can't run the pull and discovery phases in this case:
 
-![Flow diagram to migrate on-prem system to OCI (without connectivity). ](/images/flow_migrate.png)
+![Flow diagram to migrate on-prem system to OCI (without connectivity). ](./images/flow_migrate.png)
 
 - "INFRASTRUCTURE CREATION": To create the resources in OCI without having any primary environment as reference. You only need to prepare and run the provisioning phase.
 
-![Flow diagram to create a system in OCI from zero (without any primary system). ](/images/flow_diagram_create_from_zero.png)
+![Flow diagram to create a system in OCI from zero (without any primary system). ](./images/flow_diagram_create_from_zero.png)
 
 ## Preparing the system for executing the WLS_HYDR framework
 Run the following steps as preparation for the execution of the required scripts:
@@ -210,6 +210,7 @@ If you don't have SSH connectivity between the bastion to the on-premises hosts,
 │   │   └── dp
 
 └── webtier
+
 │   ├── ohs_private_config
 
 │   │   ├── ohsnode1_private_config
