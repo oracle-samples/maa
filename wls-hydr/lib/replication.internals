@@ -1,0 +1,41 @@
+[DIRECTORIES]
+# staging directory structure
+
+STAGE_OHS_PRODUCTS              = %(STAGE_GOLD_COPY_BASE)s/webtier/ohs_products_home
+STAGE_OHS_PRODUCTS1             = %(STAGE_OHS_PRODUCTS)s/ohs_products_home1
+STAGE_OHS_PRODUCTS2             = %(STAGE_OHS_PRODUCTS)s/ohs_products_home2
+STAGE_OHS_PRIVATE_CONFIG_DIR    = %(STAGE_GOLD_COPY_BASE)s/webtier/ohs_private_config
+STAGE_WLS_PRODUCTS              = %(STAGE_GOLD_COPY_BASE)s/midtier/wls_products_home
+STAGE_WLS_PRODUCTS1             = %(STAGE_WLS_PRODUCTS)s/wls_products_home1
+STAGE_WLS_PRODUCTS2             = %(STAGE_WLS_PRODUCTS)s/wls_products_home2
+STAGE_WLS_SHARED_CONFIG_DIR     = %(STAGE_GOLD_COPY_BASE)s/midtier/wls_shared_config
+STAGE_WLS_PRIVATE_CONFIG_DIR    = %(STAGE_GOLD_COPY_BASE)s/midtier/wls_private_config
+STAGE_WLS_VAR                   = %(STAGE_GOLD_COPY_BASE)s/midtier/var
+STAGE_WLS_SHARED_ADDITIONAL     = %(STAGE_WLS_SHARED_CONFIG_DIR)s/additional_dirs
+
+[OPTIONS]
+# rsync options to use
+exclude_ohs_private_config  = .snapshot
+exclude_ohs_products        = .snapshot
+exclude_wls_private_config  = .snapshot
+                              servers/*/data/nodemanager/*.lck
+                              servers/*/data/nodemanager/*.pid
+                              servers/*/data/nodemanager/*.state
+                              servers/*/tmp
+                              servers/*/adr
+                              nodemanager/*.id
+                              nodemanager/*.lck
+                              tnsnames.ora
+                              
+
+exclude_wls_shared_config   = .snapshot
+                              servers/*/data/nodemanager/*.lck
+                              servers/*/data/nodemanager/*.pid
+                              servers/*/data/nodemanager/*.state
+                              servers/*/tmp
+                              servers/*/adr
+                              nodemanager/*.id
+                              nodemanager/*.lck
+                              tnsnames.ora
+                              
+exclude_wls_products        = .snapshot
