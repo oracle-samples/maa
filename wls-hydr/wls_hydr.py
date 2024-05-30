@@ -58,13 +58,17 @@ LBR_ADMIN_BACKEND_SET_NAME = "OHS_Admin_backendset"
 LBR_ADMIN_COOKIE_NAME = "X-Oracle-LBR-ADMIN-Backendset"
 LBR_HTTP_BACKEND_SET_NAME = "OHS_HTTP_APP_backendset"
 LBR_HTTP_COOKIE_NAME = "X-Oracle-LBR-OHS-HTTP-Backendset"
+LBR_INTERNAL_BACKEND_SET_NAME = "OHS_HTTP_INTERNAL_backendset"
+LBR_INTERNAL_COOKIE_NAME = "X-Oracle-LBR-OHS-Internal-Backendset"
 LBR_EMPTY_BACKEND_SET_NAME = "empty_backendset"
 LBR_CERT_NAME = "HyDR_lbr_cert"
 LBR_HOSTNAME_NAME = "HyDR_LBR_virtual_hostname"
 LBR_ADMIN_HOSTNAME_NAME = "HyDR_LBR_admin_hostname"
+LBR_VIRT_HOST_HOSTNAME_NAME = "internal_frontend"
 LBR_ADMIN_LISTENER = "Admin_listener"
 LBR_HTTPS_LISTENER = "HTTPS_APP_listener"
 LBR_HTTP_LISTENER = "HTTP_APP_listener"
+LBR_VIRT_HOST_LISTENER = "HTTP_internal_listener"
 LBR_SSLHEADERS_RULE_SET = "SSLHeaders"
 LBR_HTTP_REDIRECT_RULE_SET = "HTTP_to_HTTPS_redirect"
 LBR_HTTP_PORT = 80
@@ -162,8 +166,8 @@ def parse_input_file(file_path):
     validation_errors = []
     for row in csv_data:
         try:
-            json_path, type = row[2].split("/")
-            value = [val.strip() for val in row[3:] if val.strip() != ""]
+            json_path, type = row[3].split("/")
+            value = [val.strip() for val in row[4:] if val.strip() != ""]
             if len(value) == 0:
                 value = ""
             elif len(value) == 1:
@@ -584,18 +588,19 @@ def main():
                 LBR_HTTP_PORT, \
                 sysconfig['oci']['lbr']['admin_port'], \
                 sysconfig['oci']['network']['ports']['ssh']:
-        logger.writelog("debug", f"Opening port {port}")
-        success, reason = oci_manager.open_ingress_tcp_port(
-            security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
-            source=sysconfig['prem']['network']['cidr'],
-            description=f"Allow access from on-prem network to frontend {port} port",
-            port=port
-        )
-        if not success:
-            logger.writelog("error", f"Could not open port {port}")
-            logger.writelog("debug", reason)
-            sys.exit(1)
-        logger.writelog("debug", f"Opened port {port}")
+        if port:
+            logger.writelog("debug", f"Opening port {port}")
+            success, reason = oci_manager.open_ingress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+                source=sysconfig['prem']['network']['cidr'],
+                description=f"Allow access from on-prem network to frontend {port} port",
+                port=port
+            )
+            if not success:
+                logger.writelog("error", f"Could not open port {port}")
+                logger.writelog("debug", reason)
+                sys.exit(1)
+            logger.writelog("debug", f"Opened port {port}")
 
     logger.writelog("debug", "Opening ingress frontend ports from midtier")
     for port in sysconfig['oci']['lbr']['https_port'], \
@@ -635,41 +640,43 @@ def main():
         sysconfig['oci']['lbr']['https_port']
     ))
 
-    logger.writelog("info", "Opening ingress frontend admin port {0} from NAT GW IP".format(
-        sysconfig['oci']['lbr']['admin_port']
-    ))
-    success, reason = oci_manager.open_ingress_tcp_port(
-        security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
-        source=sysconfig['oci']['network']['nat_gateway']['ip'],
-        description="Allow access from NAT GW IP to frontend admin port {0}".format(
-            sysconfig['oci']['lbr']['admin_port']
-        ),
-        source_type='IP',
-        port=sysconfig['oci']['lbr']['admin_port']
-    )
-    if not success:
-        logger.writelog("error", "Could not open frontend admin port {0} from NAT GW IP".format(
+    if sysconfig['oci']['lbr']['admin_port']:
+        logger.writelog("info", "Opening ingress frontend admin port {0} from NAT GW IP".format(
             sysconfig['oci']['lbr']['admin_port']
         ))
-        logger.writelog("debug", reason)
-        sys.exit(1)
-    logger.writelog("debug", "Opened frontend HTTPS port {0} from NAT GW IP".format(
-        sysconfig['oci']['lbr']['admin_port']
-    ))
+        success, reason = oci_manager.open_ingress_tcp_port(
+            security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+            source=sysconfig['oci']['network']['nat_gateway']['ip'],
+            description="Allow access from NAT GW IP to frontend admin port {0}".format(
+                sysconfig['oci']['lbr']['admin_port']
+            ),
+            source_type='IP',
+            port=sysconfig['oci']['lbr']['admin_port']
+        )
+        if not success:
+            logger.writelog("error", "Could not open frontend admin port {0} from NAT GW IP".format(
+                sysconfig['oci']['lbr']['admin_port']
+            ))
+            logger.writelog("debug", reason)
+            sys.exit(1)
+        logger.writelog("debug", "Opened frontend admin port {0} from NAT GW IP".format(
+            sysconfig['oci']['lbr']['admin_port']
+        ))
 
     logger.writelog("debug", "Updating webtier egress rules")
     logger.writelog("debug", "Opening outgoing admin server port")
-    success, reason = oci_manager.open_egress_tcp_port(
-        security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
-        destination_cidr=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
-        port=sysconfig['oci']['ohs']['console_port'],
-        description="Allow outgoing access from web-tier to mid-tier {0} port".format(sysconfig['oci']['ohs']['console_port'])
-    )
-    if not success:
-        logger.writelog("error", "Could not open outgoing port {0}".format(sysconfig['oci']['ohs']['console_port']))
-        logger.writelog("debug", reason)
-        sys.exit(1)            
-    logger.writelog("debug", "Opened outgoing port {0}".format(sysconfig['oci']['ohs']['console_port']))
+    if sysconfig['oci']['ohs']['console_port']:
+        success, reason = oci_manager.open_egress_tcp_port(
+            security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+            destination_cidr=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
+            port=sysconfig['oci']['ohs']['console_port'],
+            description="Allow outgoing access from web-tier to mid-tier {0} port".format(sysconfig['oci']['ohs']['console_port'])
+        )
+        if not success:
+            logger.writelog("error", "Could not open outgoing port {0}".format(sysconfig['oci']['ohs']['console_port']))
+            logger.writelog("debug", reason)
+            sys.exit(1)            
+        logger.writelog("debug", "Opened outgoing port {0}".format(sysconfig['oci']['ohs']['console_port']))
 
     logger.writelog("debug", "Opening outgoing WLS servers ports")
     for port in sysconfig['oci']['network']['ports']['wlsservers']:
@@ -741,20 +748,21 @@ def main():
     logger.writelog("debug", "Opened all egress inside midtier")
 
     # allow from on-prem to different ports
-    logger.writelog("debug", "Opening ssh and admin server ports from on-prem to midtier")
+    logger.writelog("debug", "Opening ssh and admin server (if used) ports from on-prem to midtier")
     for port in sysconfig['oci']['network']['ports']['ssh'], \
                 sysconfig['oci']['ohs']['console_port']:
-        success, reason = oci_manager.open_ingress_tcp_port(
-            security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
-            source=sysconfig['prem']['network']['cidr'],
-            description=f"Allow access from on-prem network to {port} port",
-            port=port
-        )
-        if not success:
-            logger.writelog("error", f"Could not open midtier ingress port {port}")
-            logger.writelog("debug", reason)
-            sys.exit(1)
-        logger.writelog("debug", f"Opened midtier ingress port {port}")
+        if port:
+            success, reason = oci_manager.open_ingress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
+                source=sysconfig['prem']['network']['cidr'],
+                description=f"Allow access from on-prem network to {port} port",
+                port=port
+            )
+            if not success:
+                logger.writelog("error", f"Could not open midtier ingress port {port}")
+                logger.writelog("debug", reason)
+                sys.exit(1)
+            logger.writelog("debug", f"Opened midtier ingress port {port}")
 
     # allow wls servers ports from on-prem
     logger.writelog("debug", "Opening wls servers ports from on-prem to midtier")
@@ -771,23 +779,24 @@ def main():
             sys.exit(1)
         logger.writelog("debug", f"Opened midtier ingress port {port}")
 
-    # allow from webtier to admin server port
-    logger.writelog("debug", "Opening admin server port from webtier")
-    success, reason = oci_manager.open_ingress_tcp_port(
-        security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
-        source=sysconfig['oci']['network']['subnets']['webtier']['cidr'],
-        description="Allow access from web-tier network to admin port {0}".format(
-            sysconfig['oci']['ohs']['console_port']),
-        port=sysconfig['oci']['ohs']['console_port']
-    )
-    if not success:
-        logger.writelog("error", "Could not open midtier ingress admin port {0}".format(
-            sysconfig['oci']['ohs']['console_port']))
-        logger.writelog("debug", reason)
-        sys.exit(1)
-    logger.writelog("debug", "Opened midtier ingress admin port {0}".format(
-        sysconfig['oci']['ohs']['console_port']
-    ))
+    # allow from webtier to admin server port - if admin server used
+    if sysconfig['oci']['ohs']['console_port']:
+        logger.writelog("debug", "Opening admin server port from webtier")
+        success, reason = oci_manager.open_ingress_tcp_port(
+            security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
+            source=sysconfig['oci']['network']['subnets']['webtier']['cidr'],
+            description="Allow access from web-tier network to admin port {0}".format(
+                sysconfig['oci']['ohs']['console_port']),
+            port=sysconfig['oci']['ohs']['console_port']
+        )
+        if not success:
+            logger.writelog("error", "Could not open midtier ingress admin port {0}".format(
+                sysconfig['oci']['ohs']['console_port']))
+            logger.writelog("debug", reason)
+            sys.exit(1)
+        logger.writelog("debug", "Opened midtier ingress admin port {0}".format(
+            sysconfig['oci']['ohs']['console_port']
+        ))
 
     # allow from midtier wls servers ports
     logger.writelog("debug", "Opening wls servers ports from webtier to midtier")
@@ -955,24 +964,26 @@ def main():
         logger.writelog("debug", reason)
         sys.exit(1)
     logger.writelog("debug", "Opened egress HTTPS port from mid-tier to web-tier") 
-    logger.writelog("debug", "Opening egress admin port {0} from mid-tier to web-tier".format(
-        sysconfig['oci']['lbr']['admin_port']
-    )) 
-    success, reason = oci_manager.open_egress_tcp_port(
-        security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
-        destination_cidr=destination,
-        description="Allow outgoing access from mid-tier to web-tier admin port",
-        port=sysconfig['oci']['lbr']['admin_port']
-    )
-    if not success:
-        logger.writelog("error", "Could not open egress admin port {0} from mid-tier to web-tier".format(
+
+    if sysconfig['oci']['lbr']['admin_port']:
+        logger.writelog("debug", "Opening egress admin port {0} from mid-tier to web-tier".format(
             sysconfig['oci']['lbr']['admin_port']
-        ))
-        logger.writelog("debug", reason)
-        sys.exit(1)
-    logger.writelog("debug", "Opened egress admin port {0} from mid-tier to web-tier".format(
-        sysconfig['oci']['lbr']['admin_port']
-    )) 
+        )) 
+        success, reason = oci_manager.open_egress_tcp_port(
+            security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
+            destination_cidr=destination,
+            description="Allow outgoing access from mid-tier to web-tier admin port",
+            port=sysconfig['oci']['lbr']['admin_port']
+        )
+        if not success:
+            logger.writelog("error", "Could not open egress admin port {0} from mid-tier to web-tier".format(
+                sysconfig['oci']['lbr']['admin_port']
+            ))
+            logger.writelog("debug", reason)
+            sys.exit(1)
+        logger.writelog("debug", "Opened egress admin port {0} from mid-tier to web-tier".format(
+            sysconfig['oci']['lbr']['admin_port']
+        )) 
 
     # GitLab #16 egress access for yum 
     logger.writelog("debug", "Opening mid-tier egress 443 port to OSN") 
@@ -1524,33 +1535,37 @@ def main():
     save_sysconfig(sysconfig, sysconfig_file)
 
     # CREATE FILE SYSTEMS   
-    # shared config
     logger.writelog("info", "Creating Filesystems")
-    logger.writelog("info", f"Creating shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
-    success, ret = oci_manager.create_filesystem(
-        availability_domain=sysconfig['oci']['availability_domains'][0],
-        name=sysconfig['oci']['storage']['fss']['sharedconfig']['name'],
-    )
-    if not success:
-        logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
-    sysconfig['oci']['storage']['fss']['sharedconfig']['id'] = ret.id
-
-    # runtime
-    logger.writelog("info", f"Creating runtime filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
-    success, ret = oci_manager.create_filesystem(
-        availability_domain=sysconfig['oci']['availability_domains'][0],
-        name=sysconfig['oci']['storage']['fss']['runtime']['name'],
-    )
-    if not success:
-        logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
-    sysconfig['oci']['storage']['fss']['runtime']['id'] = ret.id
-
+    # shared config - only if supplied in input file
+    if sysconfig['prem']['wls']['mountpoints']['config']:
+        logger.writelog("info", f"Creating shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
+        success, ret = oci_manager.create_filesystem(
+            availability_domain=sysconfig['oci']['availability_domains'][0],
+            name=sysconfig['oci']['storage']['fss']['sharedconfig']['name'],
+        )
+        if not success:
+            logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
+        sysconfig['oci']['storage']['fss']['sharedconfig']['id'] = ret.id
+    else:
+        logger.writelog("info", "WLS shared config not supplied - will not create")
+    # runtime - only if supplied in input file
+    if sysconfig['prem']['wls']['mountpoints']['runtime']:
+        logger.writelog("info", f"Creating runtime filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
+        success, ret = oci_manager.create_filesystem(
+            availability_domain=sysconfig['oci']['availability_domains'][0],
+            name=sysconfig['oci']['storage']['fss']['runtime']['name'],
+        )
+        if not success:
+            logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
+        sysconfig['oci']['storage']['fss']['runtime']['id'] = ret.id
+    else:
+        logger.writelog("info", "WLS shared runtime not supplied - will not create")
     # products
     for idx in range(0, len(sysconfig['oci']['storage']['fss']['products'])):
         availability_domain = sysconfig['oci']['availability_domains'][idx % ad_modulo]
@@ -1595,37 +1610,43 @@ def main():
 
     # EXPORT FILESYSTEMS
     logger.writelog("info", "Exporting filesystems")
-    # shared config
-    logger.writelog("info", "Exporting shared config filesystem")
-    success, ret = oci_manager.export_filesystem(
-        export_set_id=sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['export_set_id'],
-        filesystem_id=sysconfig['oci']['storage']['fss']['sharedconfig']['id'],
-        path=sysconfig['oci']['storage']['fss']['sharedconfig']['export_path']
-    )
-    if not success:
-        logger.writelog("error", "Could not export shared config filesystem")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Succesfully exported shared config filesystem")
-    sysconfig['oci']['storage']['fss']['sharedconfig']['export_id'] = ret.id
-    sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['ip']
-    save_sysconfig(sysconfig, sysconfig_file)
+    # shared config - only if supplied in input file
+    if sysconfig['prem']['wls']['mountpoints']['config']:
+        logger.writelog("info", "Exporting shared config filesystem")
+        success, ret = oci_manager.export_filesystem(
+            export_set_id=sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['export_set_id'],
+            filesystem_id=sysconfig['oci']['storage']['fss']['sharedconfig']['id'],
+            path=sysconfig['oci']['storage']['fss']['sharedconfig']['export_path']
+        )
+        if not success:
+            logger.writelog("error", "Could not export shared config filesystem")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", "Succesfully exported shared config filesystem")
+        sysconfig['oci']['storage']['fss']['sharedconfig']['export_id'] = ret.id
+        sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['ip']
+        save_sysconfig(sysconfig, sysconfig_file)
+    else:
+        logger.writelog("info", "WLS shared config filesystem not used - will not export")
 
-    # runtime
-    logger.writelog("info", "Exporting runtime filesystem")
-    success, ret = oci_manager.export_filesystem(
-        export_set_id=sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['export_set_id'],
-        filesystem_id=sysconfig['oci']['storage']['fss']['runtime']['id'],
-        path=sysconfig['oci']['storage']['fss']['runtime']['export_path']
-    )
-    if not success:
-        logger.writelog("error", "Could not export runtime filesystem")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Succesfully exported runtime filesystem")
-    sysconfig['oci']['storage']['fss']['runtime']['export_id'] = ret.id
-    sysconfig['oci']['storage']['fss']['runtime']['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['ip']
-    save_sysconfig(sysconfig, sysconfig_file)
+    # runtime - only if supplied in input file
+    if sysconfig['prem']['wls']['mountpoints']['runtime']:
+        logger.writelog("info", "Exporting runtime filesystem")
+        success, ret = oci_manager.export_filesystem(
+            export_set_id=sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['export_set_id'],
+            filesystem_id=sysconfig['oci']['storage']['fss']['runtime']['id'],
+            path=sysconfig['oci']['storage']['fss']['runtime']['export_path']
+        )
+        if not success:
+            logger.writelog("error", "Could not export runtime filesystem")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", "Succesfully exported runtime filesystem")
+        sysconfig['oci']['storage']['fss']['runtime']['export_id'] = ret.id
+        sysconfig['oci']['storage']['fss']['runtime']['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['ip']
+        save_sysconfig(sysconfig, sysconfig_file)
+    else:
+        logger.writelog("info", "WLS shared runtime filesystem not used - will not export")
 
     # products
     for idx in range(0, len(sysconfig['oci']['storage']['fss']['products'])):
@@ -1676,7 +1697,23 @@ def main():
     fw_ports = []
     fw_ports.extend(sysconfig['oci']['network']['ports']['wlsservers'])
     fw_ports.append(sysconfig['oci']['network']['ports']['node_manager'])
-    fw_ports.append(sysconfig['oci']['network']['ports']['coherence'])
+    coherence_ports = []
+    if isinstance(sysconfig['oci']['network']['ports']['coherence'], list):
+        coherence_ports = sysconfig['oci']['network']['ports']['coherence']
+    else:
+        coherence_ports = [sysconfig['oci']['network']['ports']['coherence']]
+    # check if shared config filesystem is used otherwise leave vars black
+    config_fs = ""
+    config_mount = ""
+    runtime_fs = ""
+    runtime_mount = ""
+    if sysconfig['prem']['wls']['mountpoints']['config']:
+        config_fs = f"{sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip']}:{sysconfig['oci']['storage']['fss']['sharedconfig']['export_path']}"
+        config_mount = sysconfig['prem']['wls']['mountpoints']['config']
+    if sysconfig['prem']['wls']['mountpoints']['runtime']:
+        runtime_fs = f"{sysconfig['oci']['storage']['fss']['runtime']['export_ip']}:{sysconfig['oci']['storage']['fss']['runtime']['export_path']}"
+        runtime_mount = sysconfig['prem']['wls']['mountpoints']['runtime']
+    # build init script
     for idx in range(0, int(sysconfig['oci']['wls']['nodes_count'])):
         logger.writelog("info", f"Building WLS node {sysconfig['oci']['wls']['nodes'][idx]['name']} init script")
         node_init_script = f"{basedir}/lib/{sysconfig['oci']['wls']['nodes'][idx]['name']}_init.sh"
@@ -1689,26 +1726,36 @@ def main():
                         line = line.replace("%%ORACLE_UID%%", 
                                             sysconfig['prem']['wls']['oracle_uid'])
                         line = line.replace("%%CONFIG_FS%%", 
-                                            f"{sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip']}:{sysconfig['oci']['storage']['fss']['sharedconfig']['export_path']}")
+                                            #f"{sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip']}:{sysconfig['oci']['storage']['fss']['sharedconfig']['export_path']}")
+                                            config_fs)
                         line = line.replace("%%RUNTIME_FS%%", 
-                                            f"{sysconfig['oci']['storage']['fss']['runtime']['export_ip']}:{sysconfig['oci']['storage']['fss']['runtime']['export_path']}")
+                                            # f"{sysconfig['oci']['storage']['fss']['runtime']['export_ip']}:{sysconfig['oci']['storage']['fss']['runtime']['export_path']}")
+                                            runtime_fs)
                         line = line.replace("%%PRODUCTS_FS%%", 
                                             f"{sysconfig['oci']['storage']['fss']['products'][idx % ad_modulo]['export_ip']}:{sysconfig['oci']['storage']['fss']['products'][idx % ad_modulo]['export_path']}")
                         line = line.replace("%%CONFIG_MOUNT%%", 
-                                            f"{sysconfig['prem']['wls']['mountpoints']['config']}")
+                                            #f"{sysconfig['prem']['wls']['mountpoints']['config']}")
+                                            config_mount)
                         line = line.replace("%%RUNTIME_MOUNT%%", 
-                                            f"{sysconfig['prem']['wls']['mountpoints']['runtime']}")
+                                            # f"{sysconfig['prem']['wls']['mountpoints']['runtime']}")
+                                            runtime_mount)
                         line = line.replace("%%PRODUCTS_MOUNT%%", 
                                             f"{sysconfig['prem']['wls']['mountpoints']['products']}")
                         line = line.replace("%%PORTS%%", 
                                             f"({' '.join(fw_ports)})")
+                        line = line.replace("%%COHERENCE_PORTS%%", 
+                                            f"({' '.join(coherence_ports)})")
                         line = line.replace("%%SSH_PUB_KEY%%", ssh_key)
                         line = line.replace("%%LBR_IP%%", 
                                             f"{sysconfig['oci']['lbr']['ip']}")
                         line = line.replace("%%LBR_VIRT_HOSTNAME%%", 
                                             f"{sysconfig['oci']['lbr']['virtual_hostname_value']}")
-                        line = line.replace("%%LBR_ADMIN_HOSTNAME%%", 
-                                            f"{sysconfig['oci']['lbr']['admin_hostname_value']}")                                          
+                        if sysconfig['oci']['lbr']['admin_hostname_value']:
+                            line = line.replace("%%LBR_ADMIN_HOSTNAME%%", 
+                                                f"{sysconfig['oci']['lbr']['admin_hostname_value']}")
+                        if sysconfig['oci']['lbr']['virt_host_hostname']:
+                            line = line.replace("%%LBR_INTERNAL_VIRT_HOSTNAME%%", 
+                                            f"{sysconfig['oci']['lbr']['virt_host_hostname']}")
                     outfile.write(line)
         logger.writelog("info", f"Creating WLS node {sysconfig['oci']['wls']['nodes'][idx]['name']}")
         success, ret = oci_manager.provision_instance(
@@ -1753,9 +1800,10 @@ def main():
                                             sysconfig['prem']['ohs']['oinstall_gid'])
                         line = line.replace("%%ORACLE_UID%%", 
                                             sysconfig['prem']['ohs']['oracle_uid'])
-                        line = line.replace("%%PORTS%%", "({0} {1})".format(
+                        line = line.replace("%%PORTS%%", "({0} {1} {2})".format(
                                                             sysconfig['oci']['ohs']['console_port'],
-                                                            sysconfig['oci']['ohs']['http_port']
+                                                            sysconfig['oci']['ohs']['http_port'],
+                                                            sysconfig['oci']['lbr']['virt_host_ohs_port']
                                                             ))
                         line = line.replace("%%HOSTNAME_ALIAS%%", 
                                             sysconfig['prem']['ohs']['listen_addresses'][idx])
@@ -2149,20 +2197,21 @@ def main():
     logger.writelog("info", "Certificate uploaded to LBR")
     sysconfig['oci']['lbr']['cert_name'] = LBR_CERT_NAME
 
-    logger.writelog("info", "Creating LBR admin backend set")
-    success, ret = oci_manager.lbr_create_backend_set(
-        load_balancer_id=sysconfig['oci']['lbr']['id'],
-        backend_set_name=LBR_ADMIN_BACKEND_SET_NAME,
-        cookie_name=LBR_ADMIN_COOKIE_NAME,
-        healthcheck_port=sysconfig['oci']['ohs']['console_port']
-    )
-    if not success:
-        logger.writelog("error", "Could not create admin backend set")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Created admin backend set")
-    sysconfig['oci']['lbr']['admin_backend_set'] = LBR_ADMIN_BACKEND_SET_NAME
-    save_sysconfig(sysconfig, sysconfig_file)
+    if sysconfig['oci']['ohs']['console_port']:
+        logger.writelog("info", "Creating LBR admin backend set")
+        success, ret = oci_manager.lbr_create_backend_set(
+            load_balancer_id=sysconfig['oci']['lbr']['id'],
+            backend_set_name=LBR_ADMIN_BACKEND_SET_NAME,
+            cookie_name=LBR_ADMIN_COOKIE_NAME,
+            healthcheck_port=sysconfig['oci']['ohs']['console_port']
+        )
+        if not success:
+            logger.writelog("error", "Could not create admin backend set")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", "Created admin backend set")
+        sysconfig['oci']['lbr']['admin_backend_set'] = LBR_ADMIN_BACKEND_SET_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
 
     logger.writelog("info", "Creating LBR HTTP backend set")
     success, ret = oci_manager.lbr_create_backend_set(
@@ -2194,22 +2243,44 @@ def main():
     sysconfig['oci']['lbr']['empty_backend_set'] = LBR_EMPTY_BACKEND_SET_NAME
     save_sysconfig(sysconfig, sysconfig_file)
 
-    # add LBR backends to backend sets
-    logger.writelog("info", "Adding backends to admin backend set")
-    for node in sysconfig['oci']['ohs']['nodes']:
-        logger.writelog("info", f"Adding backend {node['ip']} to admin backend set")
-        success, ret = oci_manager.add_backend_to_set(
-            lbr_id=sysconfig['oci']['lbr']['id'],
-            backend_set_name=sysconfig['oci']['lbr']['admin_backend_set'],
-            backend_ip=node['ip'],
-            backend_port=sysconfig['oci']['ohs']['console_port']
+    # Create internal backend set if required values are supplied in sysconfig csv input file
+    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+        and sysconfig['oci']['lbr']['virt_host_hostname'] \
+        and sysconfig['oci']['lbr']['virt_host_lbr_port']:
+        logger.writelog("info", "Creating LBR internal backend set")
+        success, ret = oci_manager.lbr_create_backend_set(
+            load_balancer_id=sysconfig['oci']['lbr']['id'],
+            backend_set_name=LBR_INTERNAL_BACKEND_SET_NAME,
+            cookie_name=LBR_INTERNAL_COOKIE_NAME,
+            healthcheck_port=sysconfig['oci']['lbr']['virt_host_ohs_port']
         )
         if not success:
-            logger.writelog("error", f"Failed adding backend {node['ip']} to admin backend set")
+            logger.writelog("error", "Could not create LBR internal backend set")
             logger.writelog("debug", ret)
             sys.exit(1)
-        logger.writelog("info", f"Successfully added backend {node['ip']} to admin backend set")
+        logger.writelog("info", "Created LBR internal backend set")
+        sysconfig['oci']['lbr']['internal_backend_set'] = LBR_INTERNAL_BACKEND_SET_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
 
+    # add LBR backends to backend sets
+    # admin backend - if used
+    if sysconfig['oci']['ohs']['console_port']:
+        logger.writelog("info", "Adding backends to admin backend set")
+        for node in sysconfig['oci']['ohs']['nodes']:
+            logger.writelog("info", f"Adding backend {node['ip']} to admin backend set")
+            success, ret = oci_manager.add_backend_to_set(
+                lbr_id=sysconfig['oci']['lbr']['id'],
+                backend_set_name=sysconfig['oci']['lbr']['admin_backend_set'],
+                backend_ip=node['ip'],
+                backend_port=sysconfig['oci']['ohs']['console_port']
+            )
+            if not success:
+                logger.writelog("error", f"Failed adding backend {node['ip']} to admin backend set")
+                logger.writelog("debug", ret)
+                sys.exit(1)
+            logger.writelog("info", f"Successfully added backend {node['ip']} to admin backend set")
+
+    # http backend
     logger.writelog("info", "Adding backends to http backend set")
     for node in sysconfig['oci']['ohs']['nodes']:
         logger.writelog("info", f"Adding backend {node['ip']} to http backend set")
@@ -2225,6 +2296,24 @@ def main():
             sys.exit(1)
         logger.writelog("info", f"Successfully added backend {node['ip']} to http backend set")
 
+    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+        and sysconfig['oci']['lbr']['virt_host_hostname'] \
+        and sysconfig['oci']['lbr']['virt_host_lbr_port']:
+        logger.writelog("info", "Adding backends to internal backend set")
+        for node in sysconfig['oci']['ohs']['nodes']:
+            logger.writelog("info", f"Adding backend {node['ip']} to internal backend set")
+            success, ret = oci_manager.add_backend_to_set(
+                lbr_id=sysconfig['oci']['lbr']['id'],
+                backend_set_name=sysconfig['oci']['lbr']['internal_backend_set'],
+                backend_ip=node['ip'],
+                backend_port=sysconfig['oci']['lbr']['virt_host_ohs_port']
+            )
+            if not success:
+                logger.writelog("error", f"Failed adding backend {node['ip']} to internal backend set")
+                logger.writelog("debug", ret)
+                sys.exit(1)
+            logger.writelog("info", f"Successfully added backend {node['ip']} to internal backend set")
+
     # create LBR virtual hostname
     logger.writelog("info", f"Creating LBR virtual hostname {sysconfig['oci']['lbr']['virtual_hostname_value']}")
     success, ret = oci_manager.create_lbr_virtual_hostname(
@@ -2239,19 +2328,37 @@ def main():
     sysconfig['oci']['lbr']['hostname_name'] = LBR_HOSTNAME_NAME
     save_sysconfig(sysconfig, sysconfig_file)
 
-    # create LBR admin hostname
-    logger.writelog("info", f"Creating LBR admin hostname {sysconfig['oci']['lbr']['admin_hostname_value']}")
-    success, ret = oci_manager.create_lbr_virtual_hostname(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        hostname_name=LBR_ADMIN_HOSTNAME_NAME,
-        hostname=sysconfig['oci']['lbr']['admin_hostname_value']
-    )
-    if not success:
-        logger.writelog("error", "Failed creating LBR admin hostname")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    sysconfig['oci']['lbr']['admin_hostname_name'] = LBR_ADMIN_HOSTNAME_NAME
-    save_sysconfig(sysconfig, sysconfig_file)
+    # create LBR admin hostname - if used
+    if sysconfig['oci']['lbr']['admin_hostname_value']:
+        logger.writelog("info", f"Creating LBR admin hostname {sysconfig['oci']['lbr']['admin_hostname_value']}")
+        success, ret = oci_manager.create_lbr_virtual_hostname(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            hostname_name=LBR_ADMIN_HOSTNAME_NAME,
+            hostname=sysconfig['oci']['lbr']['admin_hostname_value']
+        )
+        if not success:
+            logger.writelog("error", "Failed creating LBR admin hostname")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        sysconfig['oci']['lbr']['admin_hostname_name'] = LBR_ADMIN_HOSTNAME_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
+
+    # create LBR internal hostname if required values are supplied in sysconfig input csv file
+    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+        and sysconfig['oci']['lbr']['virt_host_hostname'] \
+        and sysconfig['oci']['lbr']['virt_host_lbr_port']:
+        logger.writelog("info", f"Creating LBR internal hostname {sysconfig['oci']['lbr']['virt_host_hostname']}")
+        success, ret = oci_manager.create_lbr_virtual_hostname(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            hostname_name=LBR_VIRT_HOST_HOSTNAME_NAME,
+            hostname=sysconfig['oci']['lbr']['virt_host_hostname']
+        )
+        if not success:
+            logger.writelog("error", "Failed creating LBR internal hostname")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        sysconfig['oci']['lbr']['virt_hostname_name'] = LBR_VIRT_HOST_HOSTNAME_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
 
     # create rulesets
     logger.writelog("info", "Creating SSL headers ruleset")
@@ -2280,20 +2387,21 @@ def main():
     
     # create LBR listeners
     logger.writelog("info", "Creating listeners")
-    # create admin listener
-    logger.writelog("info", "Creating admin listener")
-    success, ret = oci_manager.lbr_create_listener(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        listener_name=LBR_ADMIN_LISTENER,
-        backend_set_name=sysconfig['oci']['lbr']['admin_backend_set'],
-        hostname_name=sysconfig['oci']['lbr']['admin_hostname_name'],
-        port=sysconfig['oci']['lbr']['admin_port'],
-    )
-    if not success:
-        logger.writelog("error", "Failed creating admin listener")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Created admin listener")
+    # create admin listener - if used
+    if sysconfig['oci']['lbr']['admin_port']:
+        logger.writelog("info", "Creating admin listener")
+        success, ret = oci_manager.lbr_create_listener(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            listener_name=LBR_ADMIN_LISTENER,
+            backend_set_name=sysconfig['oci']['lbr']['admin_backend_set'],
+            hostname_name=sysconfig['oci']['lbr']['admin_hostname_name'],
+            port=sysconfig['oci']['lbr']['admin_port'],
+        )
+        if not success:
+            logger.writelog("error", "Failed creating admin listener")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", "Created admin listener")
 
     logger.writelog("info", "Creating HTTPS listener")
     success, ret = oci_manager.lbr_create_listener(
@@ -2326,6 +2434,24 @@ def main():
         logger.writelog("debug", ret)
         sys.exit(1)
     logger.writelog("info", "Created HTTP listener")
+
+    # create internal listener if required values are supplied in sysconfig csv input file
+    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+        and sysconfig['oci']['lbr']['virt_host_hostname'] \
+        and sysconfig['oci']['lbr']['virt_host_lbr_port']:
+        logger.writelog("info", "Creating internal listener")
+        success, ret = oci_manager.lbr_create_listener(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            listener_name=LBR_VIRT_HOST_LISTENER,
+            backend_set_name=sysconfig['oci']['lbr']['internal_backend_set'],
+            hostname_name=sysconfig['oci']['lbr']['virt_hostname_name'],
+            port=sysconfig['oci']['lbr']['virt_host_lbr_port']
+        )
+        if not success:
+            logger.writelog("error", "Failed creating internal listener")
+            logger.writelog("debug", ret)
+            sys.exit(1)
+        logger.writelog("info", "Created internal listener")
 
     logger.writelog("info", "All OCI resources provisioned")
     if Utils.confirm("Update OCI environment configuration file?"):

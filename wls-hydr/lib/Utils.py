@@ -180,7 +180,7 @@ class Utils:
                 'OHS_PRODUCTS',
                 'OHS_PRIVATE_CONFIG_DIR',
                 'WLS_PRODUCTS',
-                'WLS_SHARED_CONFIG_DIR',
+                #'WLS_SHARED_CONFIG_DIR',
                 'WLS_PRIVATE_CONFIG_DIR',
                 'WLS_CONFIG_PATH',
                 'STAGE_GOLD_COPY_BASE',
@@ -249,12 +249,19 @@ class Utils:
                     errors.append(f"Item {item} missing from section {section}")
         # check that all items have a value
         try:
-            for section in config.sections():
-                for key, value in config[section].items():
+            # for section in config.sections():
+            #     for key, value in config[section].items():
+            #         # only exclude lists can be empty
+            #         if not key.startswith("exclude") and not value:
+            #             valid = False
+            #             errors.append(f"{key.upper()} value cannot be empty in section {section}")
+            for section in MANDATORY_KEYS.keys():
+                for item in MANDATORY_KEYS[section]:
                     # only exclude lists can be empty
-                    if not key.startswith("exclude") and not value:
+                    if not item.startswith("exclude") and not config[section][item]:
                         valid = False
-                        errors.append(f"{key.upper()} value cannot be empty in section {section}")
+                        errors.append(f"{item.upper()} value cannot be empty in section {section}")  
+
         except Exception as e:
             valid = False
             errors.append(str(e))

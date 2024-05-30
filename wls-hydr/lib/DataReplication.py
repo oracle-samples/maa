@@ -344,115 +344,48 @@ def pull(logger, config, data, instance):
                     logger.writelog("error", f"Pull failed: {reason}")
                     logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     pull_successful = False
-        # pull wls shared config - if requested
+        # pull wls shared config - if requested and if WLS_SHARED_CONFIG_DIR supplied in replication.properties 
         if any(dta in data for dta in ['shared_config', 'all']):
-            logger.writelog("info", f"Reading remote config.xml file [{config[DIRECTORIES]['WLS_CONFIG_PATH']}]")
-            ssh_client = paramiko.SSHClient()
-            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh_client.connect(username=config[PRIMARY]['wls_osuser'], hostname=primary_wls_nodes[0], key_filename=config[PRIMARY]["wls_ssh_key"])
-            sftp_client = ssh_client.open_sftp()
-            cfg_file = io.BytesIO()
-            sftp_client.getfo(config[DIRECTORIES]['WLS_CONFIG_PATH'], cfg_file)
-            cfg_file.seek(0)
-            sftp_client.close()
-            ssh_client.close()
-            cfg_xml = ET.parse(cfg_file)
-            root = cfg_xml.getroot()
-            namespaces = {"xmlns" : "http://xmlns.oracle.com/weblogic/domain"}
-            origin_apps_path = root.find("xmlns:app-deployment/[xmlns:name='em']/xmlns:source-path", namespaces).text
-            origin_apps_path = pathlib.Path(origin_apps_path).parents[0].as_posix()
-            logger.writelog("debug", f"Applications origin path: {origin_apps_path}")
-            destination_apps_path = origin_apps_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-            logger.writelog("debug", f"Applications destination path: {destination_apps_path}")
-            origin_domain_path = pathlib.Path(config[DIRECTORIES]['WLS_CONFIG_PATH']).parents[1].as_posix()
-            logger.writelog("debug",f"Domain origin path: {origin_domain_path}")
-            destination_domain_path = origin_domain_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-            logger.writelog("debug",f"Domain destination path: {destination_domain_path}")
-            origin_dp_path = config[DIRECTORIES]['WLS_DP_DIR']
-            logger.writelog("debug", f"Deployment plan directory origin path: {origin_dp_path}")
-            destination_dp_path = origin_dp_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-            logger.writelog("debug", f"Deployment plan directory destination path: {destination_dp_path}")
-            logger.writelog("info", f"Pulling WLS application from primary [{PRIMARY}]")
-            if not os.path.isdir(destination_apps_path):
-                os.makedirs(destination_apps_path)
-            pull_success, reason = transfer_data(
-                transfer_type='pull',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[PRIMARY]['wls_osuser'],
-                host=primary_wls_nodes[0],
-                key_path=config[PRIMARY]["wls_ssh_key"],
-                origin_path=origin_apps_path,
-                destination_path=destination_apps_path,
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-            )
-            if not pull_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                pull_successful = False
-            logger.writelog("info", f"Pulling WLS domain from primary [{PRIMARY}]")
-            if not os.path.isdir(destination_domain_path):
-                os.makedirs(destination_domain_path)
-            pull_success, reason = transfer_data(
-                transfer_type='pull',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[PRIMARY]['wls_osuser'],
-                host=primary_wls_nodes[0],
-                key_path=config[PRIMARY]["wls_ssh_key"],
-                origin_path=origin_domain_path,
-                destination_path=destination_domain_path,
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-            )
-            if not pull_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                pull_successful = False
-            logger.writelog("info", f"Pulling WLS deployment plan directory from primary [{PRIMARY}]")
-            if not os.path.isdir(destination_dp_path):
-                os.makedirs(destination_dp_path)
-            pull_success, reason = transfer_data(
-                transfer_type='pull',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[PRIMARY]['wls_osuser'],
-                host=primary_wls_nodes[0],
-                key_path=config[PRIMARY]["wls_ssh_key"],
-                origin_path=origin_dp_path,
-                destination_path=destination_dp_path,
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-            )
-            if not pull_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                pull_successful = False
-            # pull additional directories (if any)
-            additional_dirs = [ x.strip() for x in config[DIRECTORIES]['WLS_ADDITIONAL_SHARED_DIRS'].split("\n") if x]
-            for dir in additional_dirs:
-                logger.writelog("info", f"Pulling additional WLS shared directory [{dir}]")
-                # create staging destination directory
-                stage_destination = f"{config[DIRECTORIES]['STAGE_WLS_SHARED_ADDITIONAL']}/{dir}"
-                if not os.path.isdir(stage_destination):
-                    try:
-                        logger.writelog("error", f"Creating directory {stage_destination}")
-                        os.makedirs(stage_destination)
-                    except Exception as e:
-                        logger.writelog("error", f"Failed creating directory {stage_destination}")
-                        logger.writelog("debug", str(e))
-                        pull_successful = False
-                        continue
-                    logger.writelog("info", f"Created directory {stage_destination}")
+            if not config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+                logger.writelog("info", "WLS_SHARED_CONFIG_DIR not supplied in replication.properties - shared config not used, will not pull")
+            else:
+                logger.writelog("info", f"Reading remote config.xml file [{config[DIRECTORIES]['WLS_CONFIG_PATH']}]")
+                ssh_client = paramiko.SSHClient()
+                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_client.connect(username=config[PRIMARY]['wls_osuser'], hostname=primary_wls_nodes[0], key_filename=config[PRIMARY]["wls_ssh_key"])
+                sftp_client = ssh_client.open_sftp()
+                cfg_file = io.BytesIO()
+                sftp_client.getfo(config[DIRECTORIES]['WLS_CONFIG_PATH'], cfg_file)
+                cfg_file.seek(0)
+                sftp_client.close()
+                ssh_client.close()
+                cfg_xml = ET.parse(cfg_file)
+                root = cfg_xml.getroot()
+                namespaces = {"xmlns" : "http://xmlns.oracle.com/weblogic/domain"}
+                origin_apps_path = root.find("xmlns:app-deployment/[xmlns:name='em']/xmlns:source-path", namespaces).text
+                origin_apps_path = pathlib.Path(origin_apps_path).parents[0].as_posix()
+                logger.writelog("debug", f"Applications origin path: {origin_apps_path}")
+                destination_apps_path = origin_apps_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug", f"Applications destination path: {destination_apps_path}")
+                origin_domain_path = pathlib.Path(config[DIRECTORIES]['WLS_CONFIG_PATH']).parents[1].as_posix()
+                logger.writelog("debug",f"Domain origin path: {origin_domain_path}")
+                destination_domain_path = origin_domain_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug",f"Domain destination path: {destination_domain_path}")
+                origin_dp_path = config[DIRECTORIES]['WLS_DP_DIR']
+                logger.writelog("debug", f"Deployment plan directory origin path: {origin_dp_path}")
+                destination_dp_path = origin_dp_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug", f"Deployment plan directory destination path: {destination_dp_path}")
+                logger.writelog("info", f"Pulling WLS application from primary [{PRIMARY}]")
+                if not os.path.isdir(destination_apps_path):
+                    os.makedirs(destination_apps_path)
                 pull_success, reason = transfer_data(
                     transfer_type='pull',
                     use_delete=config.getboolean(OPTIONS, 'delete'),
                     username=config[PRIMARY]['wls_osuser'],
                     host=primary_wls_nodes[0],
                     key_path=config[PRIMARY]["wls_ssh_key"],
-                    origin_path=dir,
-                    destination_path=stage_destination,
+                    origin_path=origin_apps_path,
+                    destination_path=destination_apps_path,
                     logger=logger,
                     retries=config[OPTIONS]['rsync_retries'],
                     exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
@@ -461,6 +394,76 @@ def pull(logger, config, data, instance):
                     logger.writelog("error", f"Pull failed: {reason}")
                     logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     pull_successful = False
+                logger.writelog("info", f"Pulling WLS domain from primary [{PRIMARY}]")
+                if not os.path.isdir(destination_domain_path):
+                    os.makedirs(destination_domain_path)
+                pull_success, reason = transfer_data(
+                    transfer_type='pull',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[PRIMARY]['wls_osuser'],
+                    host=primary_wls_nodes[0],
+                    key_path=config[PRIMARY]["wls_ssh_key"],
+                    origin_path=origin_domain_path,
+                    destination_path=destination_domain_path,
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                )
+                if not pull_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    pull_successful = False
+                logger.writelog("info", f"Pulling WLS deployment plan directory from primary [{PRIMARY}]")
+                if not os.path.isdir(destination_dp_path):
+                    os.makedirs(destination_dp_path)
+                pull_success, reason = transfer_data(
+                    transfer_type='pull',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[PRIMARY]['wls_osuser'],
+                    host=primary_wls_nodes[0],
+                    key_path=config[PRIMARY]["wls_ssh_key"],
+                    origin_path=origin_dp_path,
+                    destination_path=destination_dp_path,
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                )
+                if not pull_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    pull_successful = False
+                # pull additional directories (if any)
+                additional_dirs = [ x.strip() for x in config[DIRECTORIES]['WLS_ADDITIONAL_SHARED_DIRS'].split("\n") if x]
+                for dir in additional_dirs:
+                    logger.writelog("info", f"Pulling additional WLS shared directory [{dir}]")
+                    # create staging destination directory
+                    stage_destination = f"{config[DIRECTORIES]['STAGE_WLS_SHARED_ADDITIONAL']}/{dir}"
+                    if not os.path.isdir(stage_destination):
+                        try:
+                            logger.writelog("error", f"Creating directory {stage_destination}")
+                            os.makedirs(stage_destination)
+                        except Exception as e:
+                            logger.writelog("error", f"Failed creating directory {stage_destination}")
+                            logger.writelog("debug", str(e))
+                            pull_successful = False
+                            continue
+                        logger.writelog("info", f"Created directory {stage_destination}")
+                    pull_success, reason = transfer_data(
+                        transfer_type='pull',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[PRIMARY]['wls_osuser'],
+                        host=primary_wls_nodes[0],
+                        key_path=config[PRIMARY]["wls_ssh_key"],
+                        origin_path=dir,
+                        destination_path=stage_destination,
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries'],
+                        exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                    )
+                    if not pull_success:
+                        logger.writelog("error", f"Pull failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        pull_successful = False
 
     # pull ohs products - if requested
     if any(ins in instance for ins in ['ohs', 'all']):
@@ -566,230 +569,234 @@ def push(logger, config, data, instance):
                 logger.writelog("error", f"Pull failed: {reason}")
                 logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                 push_successful = False
-    # push wls private config to standby - if requested
-    if any(dta in data for dta in ['private_config', 'all']):
-        for index in range(len(standby_wls_nodes)):
-            ssh_client = paramiko.SSHClient()
-            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[index], key_filename=config[STANDBY]["wls_ssh_key"])
-            sftp_client = ssh_client.open_sftp()
-            logger.writelog("debug", f"Checking destination directory exists: {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']}")
-            try:
-                sftp_client.stat(config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR'])
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']}")
-                    error = stderr.read().decode()
-                    if error:
-                        logger.writelog("error", f"Failed creating remote destination directory: {error}")
+        # push wls private config to standby - if requested
+        if any(dta in data for dta in ['private_config', 'all']):
+            for index in range(len(standby_wls_nodes)):
+                ssh_client = paramiko.SSHClient()
+                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[index], key_filename=config[STANDBY]["wls_ssh_key"])
+                sftp_client = ssh_client.open_sftp()
+                logger.writelog("debug", f"Checking destination directory exists: {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']}")
+                try:
+                    sftp_client.stat(config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR'])
+                except IOError as e:
+                    if e.errno == errno.ENOENT:
+                        stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']}")
+                        error = stderr.read().decode()
+                        if error:
+                            logger.writelog("error", f"Failed creating remote destination directory: {error}")
+                            push_successful = False
+                            continue
+                    else:
+                        logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
                         push_successful = False
                         continue
-                else:
-                    logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
+                sftp_client.close()
+                ssh_client.close()
+                logger.writelog("info", f"Pushing WLS node {index + 1} private config")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['wls_osuser'],
+                    host=standby_wls_nodes[index],
+                    key_path=config[STANDBY]["wls_ssh_key"],
+                    origin_path=f"{config[DIRECTORIES]['STAGE_WLS_PRIVATE_CONFIG_DIR']}/wlsnode{index + 1}_private_config",
+                    destination_path=config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_private_config'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Push failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     push_successful = False
-                    continue
-            sftp_client.close()
-            ssh_client.close()
-            logger.writelog("info", f"Pushing WLS node {index + 1} private config")
-            push_success, reason = transfer_data(
-                transfer_type='push',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[STANDBY]['wls_osuser'],
-                host=standby_wls_nodes[index],
-                key_path=config[STANDBY]["wls_ssh_key"],
-                origin_path=f"{config[DIRECTORIES]['STAGE_WLS_PRIVATE_CONFIG_DIR']}/wlsnode{index + 1}_private_config",
-                destination_path=config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_private_config'].split("\n")
-            )
-            if not push_success:
-                logger.writelog("error", f"Push failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                push_successful = False
-    # push wls shared config - if requested
-    if any(dta in data for dta in ['shared_config', 'all']):
-        local_cfg = config[DIRECTORIES]['WLS_CONFIG_PATH'].replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-        logger.writelog("debug", f"Reading local config.xml file [{local_cfg}]")
-        cfg_xml = ET.parse(local_cfg)
-        root = cfg_xml.getroot()
-        namespaces = {"xmlns" : "http://xmlns.oracle.com/weblogic/domain"}
-        destination_apps_path = root.find("xmlns:app-deployment/[xmlns:name='em']/xmlns:source-path", namespaces).text
-        destination_apps_path = pathlib.Path(destination_apps_path).parents[0].as_posix()
-        origin_apps_path = destination_apps_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-        logger.writelog("debug", f"Applications origin path: {origin_apps_path}")
-        logger.writelog("debug", f"Applications destination path: {destination_apps_path}")
-        destination_domain_path = pathlib.Path(config[DIRECTORIES]['WLS_CONFIG_PATH']).parents[1].as_posix()
-        origin_domain_path = destination_domain_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-        logger.writelog("debug",f"Domain origin path: {origin_domain_path}")
-        logger.writelog("debug",f"Domain destination path: {destination_domain_path}")
-        destination_dp_path = config[DIRECTORIES]['WLS_DP_DIR']
-        origin_dp_path = destination_dp_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
-        logger.writelog("debug", f"Deployment plan directory origin path: {origin_dp_path}")
-        logger.writelog("debug", f"Deployment plan directory destination path: {destination_dp_path}")
-        # transfer applications, domain an dp but make sure destination dirs exist first
-        ssh_client = paramiko.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[0], key_filename=config[STANDBY]["wls_ssh_key"])
-        sftp_client = ssh_client.open_sftp()
-        for destination in [destination_apps_path, destination_domain_path, destination_dp_path]:
-            logger.writelog("debug", f"Checking destination directory exists: {destination}")
-            try:
-                sftp_client.stat(destination)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {destination}")
-                    error = stderr.read().decode()
-                    if error:
-                        logger.writelog("error", f"Failed creating remote destination directory: {error}")
-                        push_successful = False
-                else:
-                    logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
+        # push wls shared config - if requested and if WLS_SHARED_CONFIG_DIR supplied in replication.properties 
+        if any(dta in data for dta in ['shared_config', 'all']):
+            if not config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+                logger.writelog("info", "WLS_SHARED_CONFIG_DIR not supplied in replication.properties - shared config not used, will not push")
+            else:
+                local_cfg = config[DIRECTORIES]['WLS_CONFIG_PATH'].replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug", f"Reading local config.xml file [{local_cfg}]")
+                cfg_xml = ET.parse(local_cfg)
+                root = cfg_xml.getroot()
+                namespaces = {"xmlns" : "http://xmlns.oracle.com/weblogic/domain"}
+                destination_apps_path = root.find("xmlns:app-deployment/[xmlns:name='em']/xmlns:source-path", namespaces).text
+                destination_apps_path = pathlib.Path(destination_apps_path).parents[0].as_posix()
+                origin_apps_path = destination_apps_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug", f"Applications origin path: {origin_apps_path}")
+                logger.writelog("debug", f"Applications destination path: {destination_apps_path}")
+                destination_domain_path = pathlib.Path(config[DIRECTORIES]['WLS_CONFIG_PATH']).parents[1].as_posix()
+                origin_domain_path = destination_domain_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug",f"Domain origin path: {origin_domain_path}")
+                logger.writelog("debug",f"Domain destination path: {destination_domain_path}")
+                destination_dp_path = config[DIRECTORIES]['WLS_DP_DIR']
+                origin_dp_path = destination_dp_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
+                logger.writelog("debug", f"Deployment plan directory origin path: {origin_dp_path}")
+                logger.writelog("debug", f"Deployment plan directory destination path: {destination_dp_path}")
+                # transfer applications, domain an dp but make sure destination dirs exist first
+                ssh_client = paramiko.SSHClient()
+                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[0], key_filename=config[STANDBY]["wls_ssh_key"])
+                sftp_client = ssh_client.open_sftp()
+                for destination in [destination_apps_path, destination_domain_path, destination_dp_path]:
+                    logger.writelog("debug", f"Checking destination directory exists: {destination}")
+                    try:
+                        sftp_client.stat(destination)
+                    except IOError as e:
+                        if e.errno == errno.ENOENT:
+                            stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {destination}")
+                            error = stderr.read().decode()
+                            if error:
+                                logger.writelog("error", f"Failed creating remote destination directory: {error}")
+                                push_successful = False
+                        else:
+                            logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
+                            push_successful = False
+                sftp_client.close()
+                ssh_client.close()
+                logger.writelog("info", "Pushing WLS application to standby")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['wls_osuser'],
+                    host=standby_wls_nodes[0],
+                    key_path=config[STANDBY]["wls_ssh_key"],
+                    origin_path=origin_apps_path,
+                    destination_path=destination_apps_path,
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Push failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     push_successful = False
-        sftp_client.close()
-        ssh_client.close()
-        logger.writelog("info", "Pushing WLS application to standby")
-        push_success, reason = transfer_data(
-            transfer_type='push',
-            use_delete=config.getboolean(OPTIONS, 'delete'),
-            username=config[STANDBY]['wls_osuser'],
-            host=standby_wls_nodes[0],
-            key_path=config[STANDBY]["wls_ssh_key"],
-            origin_path=origin_apps_path,
-            destination_path=destination_apps_path,
-            logger=logger,
-            retries=config[OPTIONS]['rsync_retries'],
-            exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-        )
-        if not push_success:
-            logger.writelog("error", f"Push failed: {reason}")
-            logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-            push_successful = False
-        logger.writelog("info", "Pushing WLS domain to standby")
-        push_success, reason = transfer_data(
-            transfer_type='push',
-            use_delete=config.getboolean(OPTIONS, 'delete'),
-            username=config[STANDBY]['wls_osuser'],
-            host=standby_wls_nodes[0],
-            key_path=config[STANDBY]["wls_ssh_key"],
-            origin_path=origin_domain_path,
-            destination_path=destination_domain_path,
-            logger=logger,
-            retries=config[OPTIONS]['rsync_retries'],
-            exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-        )
-        if not push_success:
-            logger.writelog("error", f"Push failed: {reason}")
-            logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-            push_successful = False
-        logger.writelog("info", "Pushing WLS deployment plan directory to standby")
-        push_success, reason = transfer_data(
-            transfer_type='push',
-            use_delete=config.getboolean(OPTIONS, 'delete'),
-            username=config[STANDBY]['wls_osuser'],
-            host=standby_wls_nodes[0],
-            key_path=config[STANDBY]["wls_ssh_key"],
-            origin_path=origin_dp_path,
-            destination_path=destination_dp_path,
-            logger=logger,
-            retries=config[OPTIONS]['rsync_retries'],
-            exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-        )
-        if not push_success:
-            logger.writelog("error", f"Push failed: {reason}")
-            logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-            push_successful = False
-        # push additional dirs (if any)
-        # open ssh and sftp conection to check destination directory exists
-        ssh_client = paramiko.SSHClient()
-        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[0], key_filename=config[STANDBY]["wls_ssh_key"])
-        sftp_client = ssh_client.open_sftp()
-        additional_dirs = [ x.strip() for x in config[DIRECTORIES]['WLS_ADDITIONAL_SHARED_DIRS'].split("\n") if x]
-        for dir in additional_dirs:
-            logger.writelog("info", f"Pushing additional WLS shared directory [{dir}]")
-            # check if directory exists in staging environment
-            stage_dir = f"{config[DIRECTORIES]['STAGE_WLS_SHARED_ADDITIONAL']}/{dir}"
-            if not os.path.isdir(stage_dir):
-                logger.writelog("error", f"Additional WLS shared directory [{stage_dir}] missing from staging environment - consider re-running pull")
-                push_successful = False
-                continue
-            # make sure destination directory exists
-            logger.writelog("debug", f"Checking destination directory exists: {dir}")
-            try:
-                sftp_client.stat(dir)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {dir}")
-                    error = stderr.read().decode()
-                    if error:
-                        logger.writelog("error", f"Failed creating remote destination directory: {error}")
+                logger.writelog("info", "Pushing WLS domain to standby")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['wls_osuser'],
+                    host=standby_wls_nodes[0],
+                    key_path=config[STANDBY]["wls_ssh_key"],
+                    origin_path=origin_domain_path,
+                    destination_path=destination_domain_path,
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Push failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    push_successful = False
+                logger.writelog("info", "Pushing WLS deployment plan directory to standby")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['wls_osuser'],
+                    host=standby_wls_nodes[0],
+                    key_path=config[STANDBY]["wls_ssh_key"],
+                    origin_path=origin_dp_path,
+                    destination_path=destination_dp_path,
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Push failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    push_successful = False
+                # push additional dirs (if any)
+                # open ssh and sftp conection to check destination directory exists
+                ssh_client = paramiko.SSHClient()
+                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[0], key_filename=config[STANDBY]["wls_ssh_key"])
+                sftp_client = ssh_client.open_sftp()
+                additional_dirs = [ x.strip() for x in config[DIRECTORIES]['WLS_ADDITIONAL_SHARED_DIRS'].split("\n") if x]
+                for dir in additional_dirs:
+                    logger.writelog("info", f"Pushing additional WLS shared directory [{dir}]")
+                    # check if directory exists in staging environment
+                    stage_dir = f"{config[DIRECTORIES]['STAGE_WLS_SHARED_ADDITIONAL']}/{dir}"
+                    if not os.path.isdir(stage_dir):
+                        logger.writelog("error", f"Additional WLS shared directory [{stage_dir}] missing from staging environment - consider re-running pull")
                         push_successful = False
                         continue
-                else:
-                    logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
-                    push_successful = False
-                    continue
-            push_success, reason = transfer_data(
-                transfer_type='push',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[STANDBY]['wls_osuser'],
-                host=standby_wls_nodes[0],
-                key_path=config[STANDBY]["wls_ssh_key"],
-                origin_path=stage_dir,
-                destination_path=dir,
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
-            )
-            if not push_success:
-                logger.writelog("error", f"Push failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                push_successful = False
-        sftp_client.close()
-        ssh_client.close()
+                    # make sure destination directory exists
+                    logger.writelog("debug", f"Checking destination directory exists: {dir}")
+                    try:
+                        sftp_client.stat(dir)
+                    except IOError as e:
+                        if e.errno == errno.ENOENT:
+                            stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {dir}")
+                            error = stderr.read().decode()
+                            if error:
+                                logger.writelog("error", f"Failed creating remote destination directory: {error}")
+                                push_successful = False
+                                continue
+                        else:
+                            logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
+                            push_successful = False
+                            continue
+                    push_success, reason = transfer_data(
+                        transfer_type='push',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[STANDBY]['wls_osuser'],
+                        host=standby_wls_nodes[0],
+                        key_path=config[STANDBY]["wls_ssh_key"],
+                        origin_path=stage_dir,
+                        destination_path=dir,
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries'],
+                        exclude_list=config[OPTIONS]['exclude_wls_shared_config'].split("\n")
+                    )
+                    if not push_success:
+                        logger.writelog("error", f"Push failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        push_successful = False
+                sftp_client.close()
+                ssh_client.close()
 
     # push ohs products - if requested
     if any(ins in instance for ins in ['ohs', 'all']):
-        logger.writelog("info", "Pushing ohs products to standby")
-        for index in range(len(standby_ohs_nodes)):
-            logger.writelog("info", f"Pushing OHS node {index + 1} products")
-            push_success, reason = transfer_data(
-                transfer_type='push',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[STANDBY]['ohs_osuser'],
-                host=standby_ohs_nodes[index],
-                key_path=config[STANDBY]["ohs_ssh_key"],
-                origin_path=config[DIRECTORIES][f'STAGE_OHS_PRODUCTS{index % 2 + 1}'],
-                destination_path=config[DIRECTORIES]['OHS_PRODUCTS'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
-            )
-            if not push_success:
-                logger.writelog("error", f"Push failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                push_successful = False
-    # push ohs private config - if requested
-    if any(dta in data for dta in ['private_config', 'all']):
-        for index in range(len(standby_ohs_nodes)):
-            logger.writelog("info", f"Pushing OHS node {index + 1} private config")
-            push_success, reason = transfer_data(
-                transfer_type='push',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[STANDBY]['ohs_osuser'],
-                host=standby_ohs_nodes[index],
-                key_path=config[STANDBY]["ohs_ssh_key"],
-                origin_path=f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{index + 1}_private_config",
-                destination_path=config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_ohs_private_config'].split("\n")
-            )
-            if not push_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                push_successful = False
+        if any(dta in data for dta in ['products', 'all']):
+            logger.writelog("info", "Pushing ohs products to standby")
+            for index in range(len(standby_ohs_nodes)):
+                logger.writelog("info", f"Pushing OHS node {index + 1} products")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['ohs_osuser'],
+                    host=standby_ohs_nodes[index],
+                    key_path=config[STANDBY]["ohs_ssh_key"],
+                    origin_path=config[DIRECTORIES][f'STAGE_OHS_PRODUCTS{index % 2 + 1}'],
+                    destination_path=config[DIRECTORIES]['OHS_PRODUCTS'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Push failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    push_successful = False
+        # push ohs private config - if requested
+        if any(dta in data for dta in ['private_config', 'all']):
+            for index in range(len(standby_ohs_nodes)):
+                logger.writelog("info", f"Pushing OHS node {index + 1} private config")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['ohs_osuser'],
+                    host=standby_ohs_nodes[index],
+                    key_path=config[STANDBY]["ohs_ssh_key"],
+                    origin_path=f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{index + 1}_private_config",
+                    destination_path=config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_ohs_private_config'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    push_successful = False
     return push_successful
 
 def tnsnames(logger, config):

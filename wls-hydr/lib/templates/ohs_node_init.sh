@@ -380,4 +380,18 @@ if [[ -n "$HOSTNAME_ALIAS" ]] && [[ ! "$HOSTNAME_ALIAS" =~ "%%" ]]; then
     fi
 fi
 
+log "info" "Amending variables in oracle .bashrc"
+if ! {
+        sed -i 's/^\s*\(export MW_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export WLS_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export WL_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export JAVA_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export PATH=\/u01\/jdk\/bin:$PATH.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export MIDDLEWARE_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export DOMAIN_HOME.*\)/#\1/' /home/oracle/.bashrc
+    } >> "$LOG_FILE" 2>&1; then
+    log "error" "Failed amending variables in oracle .bashrc"
+    FAILURE='true'
+fi
+
 myexit

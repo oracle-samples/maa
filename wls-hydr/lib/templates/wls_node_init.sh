@@ -12,10 +12,12 @@ CONFIG_MOUNT="%%CONFIG_MOUNT%%"
 RUNTIME_MOUNT="%%RUNTIME_MOUNT%%"
 PRODUCTS_MOUNT="%%PRODUCTS_MOUNT%%"
 PORTS=%%PORTS%%
+COHERENCE_PORTS=%%COHERENCE_PORTS%%
 SSH_PUB_KEY="%%SSH_PUB_KEY%%"
 LBR_IP="%%LBR_IP%%"
 LBR_VIRT_HOSTNAME="%%LBR_VIRT_HOSTNAME%%"
 LBR_ADMIN_HOSTNAME="%%LBR_ADMIN_HOSTNAME%%"
+LBR_INTERNAL_VIRT_HOSTNAME="%%LBR_INTERNAL_VIRT_HOSTNAME%%"
 
 function log(){
     timestamp=$(date +'%Y-%m-%d %H:%M:%S')
@@ -225,32 +227,8 @@ if [[ -z "$ORACLE_UID" ]] || [[ "$ORACLE_UID" =~ "%%" ]]; then
     myexit
 fi
 
-if [[ -z "$CONFIG_FS" ]] || [[ "$CONFIG_FS" =~ "%%" ]]; then
-    log "error" "CONFIG_FS has invalid value: [$CONFIG_FS]"
-    FAILURE='true'
-    myexit
-fi
-
-if [[ -z "$RUNTIME_FS" ]] || [[ "$RUNTIME_FS" =~ "%%" ]]; then
-    log "error" "RUNTIME_FS has invalid value: [$RUNTIME_FS]"
-    FAILURE='true'
-    myexit
-fi
-
 if [[ -z "$PRODUCTS_FS" ]] || [[ "$PRODUCTS_FS" =~ "%%" ]]; then
     log "error" "PRODUCTS_FS has invalid value: [$PRODUCTS_FS]"
-    FAILURE='true'
-    myexit
-fi
-
-if [[ -z "$CONFIG_MOUNT" ]] || [[ "$CONFIG_MOUNT" =~ "%%" ]]; then
-    log "error" "CONFIG_MOUNT has invalid value: [$CONFIG_MOUNT]"
-    FAILURE='true'
-    myexit
-fi
-
-if [[ -z "$RUNTIME_MOUNT" ]] || [[ "$RUNTIME_MOUNT" =~ "%%" ]]; then
-    log "error" "RUNTIME_MOUNT has invalid value: [$RUNTIME_MOUNT]"
     FAILURE='true'
     myexit
 fi
@@ -262,6 +240,12 @@ if [[ -z "$PRODUCTS_MOUNT" ]] || [[ "$PRODUCTS_MOUNT" =~ "%%" ]]; then
 fi
 
 if [[ -z "$PORTS" ]] || [[ "$PORTS" =~ "%%" ]]; then
+    log "error" "PORTS has invalid value: [$PORTS]"
+    FAILURE='true'
+    myexit
+fi
+
+if [[ -z "$COHERENCE_PORTS" ]] || [[ "$COHERENCE_PORTS" =~ "%%" ]]; then
     log "error" "PORTS has invalid value: [$PORTS]"
     FAILURE='true'
     myexit
@@ -281,12 +265,6 @@ fi
 
 if [[ -z "$LBR_VIRT_HOSTNAME" ]] || [[ "$LBR_VIRT_HOSTNAME" =~ "%%" ]]; then
     log "error" "LBR_VIRT_HOSTNAME not populated"
-    FAILURE='true'
-    myexit
-fi
-
-if [[ -z "$LBR_ADMIN_HOSTNAME" ]] || [[ "$LBR_ADMIN_HOSTNAME" =~ "%%" ]]; then
-    log "error" "LBR_ADMIN_HOSTNAME not populated"
     FAILURE='true'
     myexit
 fi
@@ -384,34 +362,49 @@ else
         log "info" "Successfully updated /etc/fstab with products mount"   
     fi
 fi
-log "info" "Creating shared config mountpoint"
-if ! mkdir -p "$CONFIG_MOUNT" >> "$LOG_FILE" 2>&1; then
-    log "error" "Failure creating mount point $CONFIG_MOUNT"
-    FAILURE='true'
-else 
-    log "info" "Updating /etc/fstab"
-    echo -e "$CONFIG_FS\t$CONFIG_MOUNT nfs defaults,nofail,nosuid,resvport 0 0" >> /etc/fstab
-    if ! grep -q "$CONFIG_MOUNT" /etc/fstab; then
-        log "error" "Failure updating /etc/fstab"
+if [[ -z "$CONFIG_FS" ]] || [[ "$CONFIG_FS" =~ "%%" ]]; then
+    log "info" "Shared config not used - not creating mountpoint"
+else
+    log "info" "Creating shared config mountpoint"
+    if ! mkdir -p "$CONFIG_MOUNT" >> "$LOG_FILE" 2>&1; then
+        log "error" "Failure creating mount point $CONFIG_MOUNT"
         FAILURE='true'
     else 
-        log "info" "Successfully updated /etc/fstab with shared config mount"
+        log "info" "Updating /etc/fstab"
+        echo -e "$CONFIG_FS\t$CONFIG_MOUNT nfs defaults,nofail,nosuid,resvport 0 0" >> /etc/fstab
+        if ! grep -q "$CONFIG_MOUNT" /etc/fstab; then
+            log "error" "Failure updating /etc/fstab"
+            FAILURE='true'
+        else 
+            log "info" "Successfully updated /etc/fstab with shared config mount"
+        fi
     fi
 fi
-log "info" "Creating shared runtime mountpoint"
-if ! mkdir -p "$RUNTIME_MOUNT" >> "$LOG_FILE" 2>&1; then
-    log "error" "Failure creating mount point $RUNTIME_MOUNT"
-    FAILURE='true'
-else 
-    log "info" "Updating /etc/fstab"
-    echo -e "$RUNTIME_FS\t$RUNTIME_MOUNT nfs defaults,nofail,nosuid,resvport 0 0" >> /etc/fstab
-    if ! grep -q "$RUNTIME_MOUNT" /etc/fstab; then
-        log "error" "Failure updating /etc/fstab"
-        FAILURE='true'
-    else 
-        log "info" "Successfully updated /etc/fstab with shared runtime mount"
+
+if [[ -z "$RUNTIME_FS" ]] || [[ "$RUNTIME_FS" =~ "%%" ]]; then
+    log "info" "Shared runtime not used - not creating mountpoint"
+else
+    if [[ -z "$RUNTIME_MOUNT" ]] || [[ "$RUNTIME_MOUNT" =~ "%%" ]]; then
+        log "info" "Runtime mount not used - will not create shared runtime mountpoint"
+    else
+        log "info" "Creating shared runtime mountpoint"
+        if ! mkdir -p "$RUNTIME_MOUNT" >> "$LOG_FILE" 2>&1; then
+            log "error" "Failure creating mount point $RUNTIME_MOUNT"
+            FAILURE='true'
+        else 
+            log "info" "Updating /etc/fstab"
+            echo -e "$RUNTIME_FS\t$RUNTIME_MOUNT nfs defaults,nofail,nosuid,resvport 0 0" >> /etc/fstab
+            if ! grep -q "$RUNTIME_MOUNT" /etc/fstab; then
+                log "error" "Failure updating /etc/fstab"
+                FAILURE='true'
+            else 
+                log "info" "Successfully updated /etc/fstab with shared runtime mount"
+            fi
+        fi
     fi
 fi
+
+
 
 log "info" "Running mount -a" 
 if ! mount -a >> "$LOG_FILE" 2>&1; then 
@@ -421,25 +414,32 @@ fi
 
 log "info" "Checking that filesystems are mounted"
 valid='true'
-for fs in $CONFIG_FS $RUNTIME_FS $PRODUCTS_FS; do
-    if ! df -h | grep -q "$fs"; then 
-        log "error" "Filesystem $fs not mounted"
-        valid='false'
-        FAILURE='true'
-    fi 
+for fs in "$CONFIG_FS" "$RUNTIME_FS" "$PRODUCTS_FS"; do
+    if [[ -n "$fs" ]] && [[ ! "$fs" =~ "%%" ]]; then
+        if ! df -h | grep -q "$fs"; then 
+            log "error" "Filesystem $fs not mounted"
+            valid='false'
+            FAILURE='true'
+        else 
+            log "info" "Filesystem $fs mounted"
+        fi 
+    fi
 done 
 if [[ $valid == 'true' ]]; then 
     log "info" "All filesystems successfully mounted"
 fi 
 
 log "info" "Setting mount points correct ownership (oracle:oinstall)" 
-# using a kdludge below because of chown: changing ownership of ‘/u01/oracle/products/.snapshot’: Operation not permitted
+# using a kludge 'grep -v snapshot' below because of chown: changing ownership of ‘/u01/oracle/products/.snapshot’: Operation not permitted
 for mount in "$CONFIG_MOUNT" "$RUNTIME_MOUNT" "$PRODUCTS_MOUNT"; do
-    if chown -R "oracle:oinstall" "$mount" 2>&1 | grep -v snapshot >> "$LOG_FILE" 2>&1; then 
-        log "error" "Failed setting correct ownership for mount point $mount"
-        FAILURE='true'
-    else 
-        log "info" "$mount correct ownership set"
+    # checking each mount is set because some are optional and can be empty
+    if [[ -n "$mount" ]] && [[ ! "$mount" =~ "%%" ]]; then
+        if chown -R "oracle:oinstall" "$mount" 2>&1 | grep -v snapshot >> "$LOG_FILE" 2>&1; then 
+            log "error" "Failed setting correct ownership for mount point $mount"
+            FAILURE='true'
+        else 
+            log "info" "$mount correct ownership set"
+        fi
     fi
 done
 
@@ -463,6 +463,45 @@ for port in "${PORTS[@]}"; do
 done 
 if [[ $valid == 'true' ]]; then 
     log "info" "All ports opened successfully"
+fi 
+
+log "info" "Opening Coherence ports ${COHERENCE_PORTS[*]}"
+for port in "${COHERENCE_PORTS[@]}"; do
+    log "info" "Running firewall-offline-cmd --add-port=$port/tcp"
+    if ! firewall-offline-cmd --add-port="$port"/tcp >> "$LOG_FILE" 2>&1; then 
+        log "error" "Failure opening tcp port $port" 
+        FAILURE='true'
+    fi 
+    log "info" "Running firewall-offline-cmd --add-port=$port/udp"
+    if ! firewall-offline-cmd --add-port="$port"/udp >> "$LOG_FILE" 2>&1; then 
+        log "error" "Failure opening udp port $port" 
+        FAILURE='true'
+    fi 
+done 
+
+log "info" "Opening Coherence fixed ports 32768-60999 tcp and udp"
+log "info" "Running firewall-offline-cmd --add-port=32768-60999/tcp"
+if ! firewall-offline-cmd --add-port=32768-60999/tcp >> "$LOG_FILE" 2>&1; then 
+    log "error" "Failure opening tcp ports 32768-60999" 
+    FAILURE='true'
+fi 
+log "info" "Running firewall-offline-cmd --add-port=32768-60999/udp"
+if ! firewall-offline-cmd --add-port=32768-60999/udp >> "$LOG_FILE" 2>&1; then 
+    log "error" "Failure opening udp ports 32768-60999" 
+    FAILURE='true'
+fi 
+
+log "info" "Opening Coherence fixed tcp port 7"
+log "info" "Running firewall-offline-cmd --add-port=7/tcp"
+if ! firewall-offline-cmd --add-port=7/tcp >> "$LOG_FILE" 2>&1; then 
+    log "error" "Failure opening tcp ports 7" 
+    FAILURE='true'
+fi 
+
+log "info" "Restarting firewalld"
+if ! systemctl restart firewalld >> "$LOG_FILE" 2>&1; then
+    log "error" "Failed restarting firewalld"
+    FAILURE='true'
 fi 
 
 log "info" "Restarting firewalld"
@@ -493,11 +532,42 @@ if ! grep -q "^$LBR_IP\s$LBR_VIRT_HOSTNAME" /etc/hosts; then
 else
     log "info" "LBR virtual hostname already present in /etc/hosts"
 fi
-log "info" "Adding LBR admin hostname to /etc/hosts"
-if ! grep -q "^$LBR_IP\s$LBR_ADMIN_HOSTNAME" /etc/hosts; then
-    printf '%s\t%s\n' "$LBR_IP" "$LBR_ADMIN_HOSTNAME" >> /etc/hosts
-    log "info" "Added LBR admin hostname to /etc/hosts"
+
+if [[ -n "$LBR_ADMIN_HOSTNAME" ]] && [[ ! "$LBR_ADMIN_HOSTNAME" =~ "%%" ]]; then
+    log "info" "Adding LBR admin hostname to /etc/hosts"
+    if ! grep -q "^$LBR_IP\s$LBR_ADMIN_HOSTNAME" /etc/hosts; then
+        printf '%s\t%s\n' "$LBR_IP" "$LBR_ADMIN_HOSTNAME" >> /etc/hosts
+        log "info" "Added LBR admin hostname to /etc/hosts"
+    else
+        log "info" "LBR admin hostname already present in /etc/hosts"
+    fi
 else
-    log "info" "LBR admin hostname already present in /etc/hosts"
+    log "info" "LBR admin hostname not supplied."
+fi
+
+if [[ -n "$LBR_INTERNAL_VIRT_HOSTNAME" ]] && [[ ! "$LBR_INTERNAL_VIRT_HOSTNAME" =~ "%%" ]]; then
+    log "info" "Adding LBR internal virtual hostname to /etc/hosts"
+    if ! grep -q "^$LBR_IP\s$LBR_INTERNAL_VIRT_HOSTNAME" /etc/hosts; then
+        printf '%s\t%s\n' "$LBR_IP" "$LBR_INTERNAL_VIRT_HOSTNAME" >> /etc/hosts
+        log "info" "Added LBR internal virtual hostname to /etc/hosts"
+    else
+        log "info" "LBR internal virtual hostname already present in /etc/hosts"
+    fi
+else
+    log "info" "LBR internal virtual hostname not supplied."
+fi
+
+log "info" "Amending variables in oracle .bashrc"
+if ! {
+        sed -i 's/^\s*\(export MW_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export WLS_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export WL_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export JAVA_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export PATH=\/u01\/jdk\/bin:$PATH.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export MIDDLEWARE_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export DOMAIN_HOME.*\)/#\1/' /home/oracle/.bashrc
+    } >> "$LOG_FILE" 2>&1; then
+    log "error" "Failed amending variables in oracle .bashrc"
+    FAILURE='true'
 fi
 myexit

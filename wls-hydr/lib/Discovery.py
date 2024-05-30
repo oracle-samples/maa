@@ -176,17 +176,17 @@ def prompt_user_selection(options_list, prompt="Please select a value:"):
         valid_option = True
     return options_list[opt]
 
-def run_remote_command(ssh_wls_client, command):
+def run_remote_command(ssh_client, command):
     """Run a command on a remote host via paramiko
 
     Args:
-        ssh_wls_client (paramiko.SSHClient): Paramiko SSClient object with connection to remote host
+        ssh_client (paramiko.SSHClient): Paramiko SSClient object with connection to remote host
         command (str): Command to run.
 
     Returns:
         str: Command output
     """
-    stdin, stdout, stderr = ssh_wls_client.exec_command(command)
+    stdin, stdout, stderr = ssh_client.exec_command(command)
     error = stderr.read().decode()
     if error:
         logger.writelog("error", f"Failed running command [{command}]")
@@ -221,7 +221,7 @@ def write_results(sysinfo):
     with open(RESULTS_FILE, "w") as f:
         for key, item in sysinfo.items():
             if item["path"]:
-                f.write(f",,{item['path']},{','.join(item['value']) if type(item['value']) == list else item['value']}\n")
+                f.write(f",,,{item['path']},{','.join(item['value']) if type(item['value']) == list else item['value']}\n")
 
 
 
@@ -320,26 +320,31 @@ except Exception as e:
     myexit(1)
 ssh.close()
 
-# work out wls shared config.xml path from properties files
+# work out config.xml path from propertries file (shared or private depending on info supplied)
 # on-oprem path
-wls_shared_cfg = config[DIRECTORIES]['WLS_CONFIG_PATH']
-# staging shared dir path
-wls_shared_config_path = config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR']
-# replace prem path with staging path
-wls_shared_cfg = wls_shared_cfg.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], wls_shared_config_path)
-if not os.path.isfile(wls_shared_cfg):
-    logger.writelog("error", f"WLS shared config.xml file not found [{wls_shared_cfg}]")
+wls_config_xml_file = config[DIRECTORIES]['WLS_CONFIG_PATH']
+# use shared config if supplied else use private config
+# replace prem path with staging
+if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+    wls_stage_config_path = config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR']
+    wls_config_xml_file = wls_config_xml_file.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], wls_stage_config_path)
+else:
+    logger.writelog("info", "WLS shared config not used - will source information from node 1 private config")
+    wls_stage_config_path = f"{config[DIRECTORIES]['STAGE_WLS_PRIVATE_CONFIG_DIR']}/wlsnode1_private_config"
+    wls_config_xml_file = wls_config_xml_file.replace(config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR'], wls_stage_config_path)
+if not os.path.isfile(wls_config_xml_file):
+    logger.writelog("error", f"WLS config.xml file not found [{wls_config_xml_file}]")
     myexit(1)
 wls_private_config_path = config[DIRECTORIES]['STAGE_WLS_PRIVATE_CONFIG_DIR']
-wls_domain_dir = pathlib.Path(wls_shared_cfg).parents[1]
+wls_domain_dir = pathlib.Path(wls_config_xml_file).parents[1]
 
-domain = re.search(".*\/domains\/(.*?)\/.*", wls_shared_cfg)[1]
+domain = re.search(".*\/domains\/(.*?)\/.*", wls_config_xml_file)[1]
 add_info("domain", "", "Weblogic domain name", domain, False)
 # parse shared config xml file
 try:
-    tree = ET.parse(wls_shared_cfg)
+    tree = ET.parse(wls_config_xml_file)
 except Exception as e:
-    logger.writelog("error", f"Could not parse config file {wls_shared_cfg}")
+    logger.writelog("error", f"Could not parse config file {wls_config_xml_file}")
     myexit(1)
 
 # set up xml namespaces that we are going to need
@@ -439,34 +444,48 @@ if wls_oinstall_gid:
 else:
     logger.writelog("warn", f"Failed getting {config[PREM]['wls_osgroup']} group ID from wls node 1")
 
-# wls shared config mountpoint
-wls_shared_config_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']} | tail -1")
-if wls_shared_config_mount:
-    logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
-    add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/path", f"Weblogic shared config mountpoint", wls_shared_config_mount, False)
+# wls shared config mountpoint - only if shared config supplied otherwise empty value
+if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+    wls_shared_config_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']} | tail -1")
+    if wls_shared_config_mount:
+        logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
+        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
+    else:
+        logger.writelog("warn", "Failed getting weblogic shared config mountpoint from wls node 1")
 else:
-    logger.writelog("warn", f"Failed getting weblogic shared config mountpoint from wls node 1")
+    logger.writelog("debug", "WLS_SHARED_CONFIG_DIR not supplied - will not check mountpoint")
+    add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "", "", False)
 # wls shared runtime mountpoint
-wls_shared_runtime_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_RUNTIME_DIR']} | tail -1")
-if wls_shared_runtime_mount:
-    logger.writelog("debug", f"Weblogic shared runtime mountpoint: {wls_shared_runtime_mount}")
-    add_info("wls_shared_runtime_mount", "prem-wls-mountpoints-runtime/path", f"Weblogic shared runtime mountpoint", wls_shared_runtime_mount, False)
+if config[DIRECTORIES]['WLS_SHARED_RUNTIME_DIR']: 
+    wls_shared_runtime_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_RUNTIME_DIR']} | tail -1")
+    if wls_shared_runtime_mount:
+        logger.writelog("debug", f"Weblogic shared runtime mountpoint: {wls_shared_runtime_mount}")
+        add_info("wls_shared_runtime_mount", "prem-wls-mountpoints-runtime/opt", "Weblogic shared runtime mountpoint", wls_shared_runtime_mount, False)
+    else:
+        logger.writelog("warn", "Failed getting weblogic shared runtime mountpoint from wls node 1")
 else:
-    logger.writelog("warn", f"Failed getting weblogic shared runtime mountpoint from wls node 1")
+    logger.writelog("debug", "WLS_SHARED_RUNTIME_DIR not supplied - will not check mountpoint")
+    add_info("wls_shared_runtime_mount", "prem-wls-mountpoints-runtime/opt", "", "", False)
 # wls products mountpoint
 wls_products_mountpoint = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_PRODUCTS']} | tail -1")
 if wls_products_mountpoint:
+    if wls_products_mountpoint == "/":
+        logger.writelog("debug", f"WLS products mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRODUCTS']} for OCI input")
+        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
     logger.writelog("debug", f"Weblogic products mountpoint: {wls_products_mountpoint}")
-    add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", f"Weblogic products mountpoint", wls_products_mountpoint, False)
+    add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
 else:
     logger.writelog("warn", f"Failed getting weblogic products mountpoint from wls node 1")
 # wls private config mountpoint
 wls_private_config_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']} | tail -1")
 if wls_private_config_mount:
+    if wls_private_config_mount == "/":
+        logger.writelog("debug", f"WLS private config mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']} for OCI input")
+        wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
     logger.writelog("debug", f"Weblogic private config mountpoint: {wls_private_config_mount}")
-    add_info("wls_private_config_mount", "prem-wls-mountpoints-private/path", f"Weblogic private config mountpoint", wls_private_config_mount, False)
+    add_info("wls_private_config_mount", "prem-wls-mountpoints-private/path", "Weblogic private config mountpoint", wls_private_config_mount, False)
 else:
-    logger.writelog("warn", f"Failed getting weblogic private config mountpoint from wls node 1")
+    logger.writelog("warn", "Failed getting weblogic private config mountpoint from wls node 1")
 
 ssh_wls_client.close()
 
@@ -633,7 +652,7 @@ if len(valid_lbr_hostnames) == 0:
     myexit(1)
 logger.writelog("debug", f"LBR virtual hostnames found: {valid_lbr_hostnames}")
 add_info("lbr_virt_hostname", "oci-lbr-virtual_hostname_value/opt", "LBR virtual hostname", valid_lbr_hostnames, False)
-add_info("lbr_admin_virt_hostname", "oci-lbr-admin_hostname_value/opt", "LBR admin virtual hostname for Weblogic admin console", valid_lbr_hostnames, False)
+#add_info("lbr_admin_virt_hostname", "oci-lbr-admin_hostname_value/opt", "LBR admin virtual hostname for Weblogic admin console", valid_lbr_hostnames, False)
 
 # get info from httpd.conf if not found in moduleconf files
 if not ohs_http_ports:
@@ -653,11 +672,11 @@ if not ohs_http_ports:
 ohs_http_ports = list(set(ohs_http_ports))
 lbr_ports = list(set(lbr_ports))
 logger.writelog("debug", f"OHS HTTP ports found: {ohs_http_ports}")
-add_info("ohs_console_port", "oci-ohs-console_port/port", "OHS HTTP port for Weblogic admin console", ohs_http_ports, False)
+#add_info("ohs_console_port", "oci-ohs-console_port/port", "OHS HTTP port for Weblogic admin console", ohs_http_ports, False)
 add_info("ohs_http_port", "oci-ohs-http_port/port", "OHS HTTP port", ohs_http_ports, False)
 logger.writelog("debug", f"LBR ports found: {lbr_ports}")
 add_info("lbr_https_port", "oci-lbr-https_port/port", "LBR HTTPS port", lbr_ports, False)
-add_info("lbr_admin_port", "oci-lbr-admin_port/port", "LBR port for  WebLogic Admin console", lbr_ports, False)
+#add_info("lbr_admin_port", "oci-lbr-admin_port/port", "LBR port for WebLogic Admin console", lbr_ports, False)
 
 # add OHS products and private config paths
 add_info("ohs_products", "prem-ohs-products_path/path", "", config[DIRECTORIES]['OHS_PRODUCTS'], False)
@@ -668,7 +687,7 @@ clean_sysinfo(discovery_sysinfo)
 # present results to user
 print_discovery_results(discovery_sysinfo)
 
-# post-processing for anything that requries it:
+# post-processing for anything that requires it:
 # e.g. - listen addresses need to be an array in the csv file used 
 #        as input for the oci provisioning script, not individual items
 wls_addr_arr = []
