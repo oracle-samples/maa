@@ -23,7 +23,7 @@ Although the framework's main use case is configuring a hybrid disaster protecti
 
 ## Topology Diagram
 The following diagram shows a typical Hybrid Disaster Recover topology for an Oracle WebLogic Server system.
-![maa-wls-hybrid-dr-tool.png ](/images/maa-wls-hybrid-dr-tool.png)
+![maa-wls-hybrid-dr-tool.png ](/wls-hydr/images/maa-wls-hybrid-dr-tool.png)
 
 This framework provisions and configures the components highlighted in green. 
 
