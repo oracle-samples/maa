@@ -1,0 +1,7 @@
+#
+# Modify this file according to your environmenty.  Please refer to the README for further details.
+#
+FS_ALIAS=<short name / alias for this file system for example, fs1>
+LOG_FILE_NAME=<file to write rsync execution log info to, in $LOG_DIR>
+SOURCE_RSYNC_DIR=<path of directory to replicate>
+TARGET_RSYNC_DIR=<path of target directory to write to>
