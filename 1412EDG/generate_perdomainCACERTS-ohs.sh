@@ -44,7 +44,7 @@ else
 	echo "Provide a list of virtual hosts inside single quotes and a store password"
     	echo ""
     	echo "Usage:"
-    	echo "    $0 [WLS_DOMAIN_DIRECTORY] [MW_HOME] [KEYSTORE_HOME] [KEYPASS]"
+    	echo "    $0 [WLS_DOMAIN_DIRECTORY] [MW_HOME] [KEYSTORE_HOME] [KEYPASS] [LIST_OF_OHS_SSL_VIRTUAL_HOSTS]"
     	echo ""
     	echo "Example:  "
     	echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw /u01/oracle/config/keystores mycertkeystorepass123 'ohstvhost1.soaedgexample.com ohstvhost2.soaedgexample.com'"
