@@ -2,7 +2,7 @@
 
 ## replacement_script_BVmodel.sh
 ##
-## Copyright (c) 2022 Oracle and/or its affiliates
+## Copyright (c) 2024 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
@@ -16,14 +16,14 @@
 ##############################################################################################################
 # Customize the following values
 
-# Provide the PDB service name used by the datasources in THIS site
+# Provide the PDB service name used in THIS site
 LOCAL_PDB_SERVICE="PDB1.mysubnet1.myvcn1.oraclevcn.com"
-# Provide the PDB service name used by the datasources in the REMOTE site
+# Provide the PDB service name used in the REMOTE site
 REMOTE_PDB_SERVICE="PDB1.mysubnet2.myvnc2.oraclevcn.com"
 
-# Provide the database scan name used by the datasources in THIS site
+# Provide the database scan name used in THIS site
 LOCAL_DB_SCAN_NAME="mydbhosta-scan.mysubnet1.myvnc1.oraclevcn.com"
-# Provide the database scan name used by the datasources in the REMOTE site
+# Provide the database scan name used in the REMOTE site
 REMOTE_DB_SCAN_NAME="mydbhostb-scan.mysubnet2.myvcn2.oraclevcn.com"
 
 ##############################################################################################################
@@ -35,6 +35,7 @@ if [ "$(whoami)" != "oracle" ]; then
 	exit 1
 fi
 
+export date_label=$(date '+%Y-%m-%d-%H_%M_%S')
 
 replace_connect_info(){
         echo ""
@@ -44,11 +45,21 @@ replace_connect_info(){
         echo "String for local SCAN name    .................." ${LOCAL_DB_SCAN_NAME}
 
         echo "Replacing instance specific information in datasource files..."
-        cd ${DOMAIN_HOME}/config/
+        cp -rf ${DOMAIN_HOME}/config/jdbc ${DOMAIN_HOME}/config/jdbc_${date_label}
+        cd ${DOMAIN_HOME}/config/jdbc
         find . -name '*.xml' | xargs sed -i 's|'${REMOTE_PDB_SERVICE}'|'${LOCAL_PDB_SERVICE}'|gI'
         find . -name '*.xml' | xargs sed -i 's|'${REMOTE_DB_SCAN_NAME}'|'${LOCAL_DB_SCAN_NAME}'|gI'
-        echo "Replacement in ${DOMAIN_HOME}/config/ complete!"
+        echo "Replacement in ${DOMAIN_HOME}/config/jdbc complete!"
         echo ""
+        if [ -d "${DOMAIN_HOME}/config/fmwconfig" ]; then
+                cp -rf ${DOMAIN_HOME}/config/fmwconfig ${DOMAIN_HOME}/config/fmwconfig_${date_label}
+	        cd ${DOMAIN_HOME}/config/fmwconfig
+        	echo "Replacing instance specific information in ${DOMAIN_HOME}/config/fmwconfig files..."
+        	find . -name '*.xml' | xargs sed -i 's|'${REMOTE_PDB_SERVICE}'|'${LOCAL_PDB_SERVICE}'|gI'
+                find . -name '*.xml' | xargs sed -i 's|'${REMOTE_DB_SCAN_NAME}'|'${LOCAL_DB_SCAN_NAME}'|gI'
+        	echo "Replacement in ${DOMAIN_HOME}/config/fmwconfig complete!"
+	fi
+
 }
 
 replace_tnsnamesora_dbfs(){
