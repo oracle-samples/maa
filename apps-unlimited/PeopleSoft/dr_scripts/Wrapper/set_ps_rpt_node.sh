@@ -22,8 +22,8 @@
 ############################################################################
 
 source ~/psft.env
-source /u02/app/psft/PSFTRoleChange/psrsync.env
-source $SCRIPT_DIR/ps_rpt.env
+source "${SCRIPT_DIR}"/psrsync.env
+source "${SCRIPT_DIR}"/ps_rpt.env
 
 
 date +"%d-%b-%Y %T"

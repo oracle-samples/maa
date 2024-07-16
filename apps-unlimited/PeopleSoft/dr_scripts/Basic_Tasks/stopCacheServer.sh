@@ -34,7 +34,8 @@ do
           PID_LIST=$(ps -elf | grep psadm2 | grep -E "${EGREP_STRING}" | grep -v grep | awk '{ print $4 }' )
           echo "Killing processes: "
           echo "${PID_LIST}"
-          kill -9 "${PID_LIST}"
+		  # DO NOT place double quotes around ${PID_LIST} as this will remove spaces between pids and cause the kill command to fail.
+          kill -9 ${PID_LIST}
      fi
 
 done

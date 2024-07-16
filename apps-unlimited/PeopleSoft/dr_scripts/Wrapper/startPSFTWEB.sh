@@ -18,14 +18,14 @@
 # 7/1/2023   DPresley
 ############################################################################
 
-SCRIPT_DIR=/u02/app/psft/PSFTRoleChange
+source ~/psft.env
 PS_DOMAIN=HR92U033
 
 # Start the Coherence*Web cache server first.  
-"$SCRIPT_DIR"/startCacheServer.sh "$PS_DOMAIN" 
+"${SCRIPT_DIR}"/startCacheServer.sh "$PS_DOMAIN" 
 
 # Start the PIA web server.
-"$SCRIPT_DIR"/startWS.sh "$PS_DOMAIN" 
+"${SCRIPT_DIR}"/startWS.sh "$PS_DOMAIN" 
 
 # Don't return control until Coherence and the web server have started
 wait

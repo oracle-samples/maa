@@ -35,7 +35,8 @@
 # 7/1/2023   DPresley   Created
 ############################################################################
 
-source /u02/app/psft/PSFTRoleChange/psrsync.env
+source ~/psft.env
+source ${SCRIPT_DIR}"/psrsync.env
 PS_DOMAIN=HR92U033
 
 if [ -f "${SCRIPT_DIR}/psftrsync.lck" ]
@@ -47,8 +48,8 @@ else
 fi
 
 # Stop application server and process scheduler.
-"$SCRIPT_DIR"/stopPS.sh  "$PS_DOMAIN" &
-"$SCRIPT_DIR"/stopAPP.sh "$PS_DOMAIN" &
+"${SCRIPT_DIR}"/stopPS.sh  "$PS_DOMAIN" &
+"${SCRIPT_DIR}"/stopAPP.sh "$PS_DOMAIN" &
 
 # Uncomment the folloiwng code once you are ready to integrate the rsync scripts.
 # If SKIP_RSYNC is 0, we must wait until all sessions have been shut down.

@@ -18,12 +18,12 @@
 # 7/1/2023   DPresley
 ############################################################################
 
-SCRIPT_DIR=/u02/app/psft/PSFTRoleChange
+source ~/psft.env
 PS_DOMAIN=HR92U033
 
 # Stop the PIA web server
-"$SCRIPT_DIR"/stopWS.sh "$PS_DOMAIN" 
+"${SCRIPT_DIR}"/stopWS.sh "$PS_DOMAIN" 
 
 # Stop the Coherence*Web cache server
-"$SCRIPT_DIR"/stopCacheServer.sh "$PS_DOMAIN"
- 
+"${SCRIPT_DIR}"/stopCacheServer.sh "$PS_DOMAIN"
+

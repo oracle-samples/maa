@@ -29,9 +29,7 @@ if [ "$n" != 0 ]; then
    echo "Domain passed in as parameter: $DOMAIN"
 else
   echo "No domain passed in. Look for single App Server domain."
-#  DOMAIN=`ls -l $PS_CFG_HOME/appserv | grep ^d | grep -v prcs | awk '{print $9}'`
    DOMAIN=$(ls -l "$PS_CFG_HOME"/appserv | grep ^d | grep -v prcs | awk '{print $9}')
-#  n=`echo "$DOMAIN" | wc -w`
    n=$(echo "$DOMAIN" | wc -w)
   if [ "$n" != 1 ]; then
      echo "More than one domain directory found: $DOMAIN . Stopping run."
