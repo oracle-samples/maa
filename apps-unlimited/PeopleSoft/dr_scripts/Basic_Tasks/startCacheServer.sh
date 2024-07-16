@@ -1,9 +1,10 @@
-############################################################################
 #!/bin/sh
+############################################################################
+#
 # File name: startCacheServer.sh  Version 1.0
 # 
 #
-# Copyright (c) 2022 Oracle and/or its affiliates
+# Copyright (c) 2024 Oracle and/or its affiliates
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 #
 # Description: Start Coherence*Web cache server
@@ -28,19 +29,18 @@ DOMAIN=$1
 n=${#DOMAIN}
 
 # Did they pass in a parameter?  it is the domain
-if [ $n != 0 ]; then
+if [ "$n" != 0 ]; then
    echo "Domain passed in as parameter: $DOMAIN"
 else
    echo "No domain passed in. Domain required."
    exit 1
 fi
 
-export $DOMAIN
-export HOSTNAME=`hostname`
-export COHERENCE_HOME=$BASE_DIR/pt/bea/coherence
-export COHERENCE_CONFIG=$PS_CFG_HOME/coherence/config
-export COHERENCE_LOG=$PS_CFG_HOME/coherence/log
-export CWEB_LOG_NAME=pia_${DOMAIN}_${HOSTNAME}
+HOSTNAME="$(hostname)"
+export COHERENCE_HOME="$BASE_DIR"/pt/bea/coherence
+export COHERENCE_CONFIG="$PS_CFG_HOME"/coherence/config
+export COHERENCE_LOG="$PS_CFG_HOME"/coherence/log
+export CWEB_LOG_NAME=pia_"${DOMAIN}"_"${HOSTNAME}"
 export CWEB_LOG_LEVEL=9
 
 date
@@ -48,9 +48,9 @@ echo "------ Starting Coherence*Web Cache Server for domain: $DOMAIN on host: $H
 
 echo ""
 echo "tangosol.coherence.override=${COHERENCE_CONFIG}/tangosol-coherenceoverride.xml"
-echo "Log file can be found at: ${COHERENCE_LOG}/cweb_coherence_server_${CWEB_LOG_NAME}.log "
+echo "Log file can be found at: ${COHERENCE_LOG}/cweb_coherence_server_${CWEB_LOG_NAME}.log"
 
-java -Xms2g -Xmx2g -Dtangosol.coherence.distributed.localstorage=true -Dtangosol.coherence.session.localstorage=true -Dtangosol.coherence.override=${COHERENCE_CONFIG}/tangosol-coherence-override.xml -Dtangosol.coherence.cacheconfig=default-session-cache-config.xml -Dtangosol.coherence.log=${COHERENCE_LOG}/cweb_coherence_server_${CWEB_LOG_NAME}.log -Dtangosol.coherence.log.level=9 -classpath  ${COHERENCE_CONFIG}:${COHERENCE_HOME}/lib/coherence.jar:${COHERENCE_HOME}/lib/coherence-web.jar com.tangosol.net.DefaultCacheServer -Djava.net.preferIPv6Addresses=false -Djava.net.preferIPv4Stack=true -Dcoherence.log.level=${CWEB_LOG_LEVEL}  &
+java -Xms2g -Xmx2g -Dtangosol.coherence.distributed.localstorage=true -Dtangosol.coherence.session.localstorage=true -Dtangosol.coherence.override="${COHERENCE_CONFIG}"/tangosol-coherence-override.xml -Dtangosol.coherence.cacheconfig=default-session-cache-config.xml -Dtangosol.coherence.log="${COHERENCE_LOG}"/cweb_coherence_server_"${CWEB_LOG_NAME}".log -Dtangosol.coherence.log.level=9 -classpath "${COHERENCE_CONFIG}":"${COHERENCE_HOME}"/lib/coherence.jar:"${COHERENCE_HOME}"/lib/coherence-web.jar com.tangosol.net.DefaultCacheServer -Djava.net.preferIPv6Addresses=false -Djava.net.preferIPv4Stack=true -Dcoherence.log.level="${CWEB_LOG_LEVEL}"  &
 
 # Sleep for 30 seconds to allow for cache server to fully start.
 sleep 30

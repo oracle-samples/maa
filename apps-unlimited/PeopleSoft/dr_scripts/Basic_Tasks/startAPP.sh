@@ -1,8 +1,9 @@
-############################################################################
 #!/bin/sh
+############################################################################
+#
 # File name:   startAPP.sh  Version 1.0
 #
-# Copyright (c) 2022 Oracle and/or its affiliates
+# Copyright (c) 2024 Oracle and/or its affiliates
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 #
 # Description: Start PeopleSoft application server on one node
@@ -24,13 +25,15 @@ DOMAIN=$1
 n=${#DOMAIN}
 
 # Did they pass in a parameter?  it is the domain
-if [ $n != 0 ]; then
+if [ "$n" != 0 ]; then
    echo "Domain passed in as parameter: $DOMAIN"
 else
   echo "No domain passed in. Look for single App Server domain."
-  DOMAIN=`ls -l $PS_CFG_HOME/appserv | grep ^d | grep -v prcs | awk '{print $9}'`
-  n=`echo $DOMAIN | wc -w`
-  if [ $n != 1 ]; then
+#  DOMAIN=`ls -l $PS_CFG_HOME/appserv | grep ^d | grep -v prcs | awk '{print $9}'`
+   DOMAIN=$(ls -l "$PS_CFG_HOME"/appserv | grep ^d | grep -v prcs | awk '{print $9}')
+#  n=`echo "$DOMAIN" | wc -w`
+   n=$(echo "$DOMAIN" | wc -w)
+  if [ "$n" != 1 ]; then
      echo "More than one domain directory found: $DOMAIN . Stopping run."
      echo "Count: $n"
      exit 1
@@ -38,15 +41,15 @@ else
 fi
 
 # Is the domain set?
-if { $DOMAIN = "" ]; then
+if [ "$DOMAIN" = "" ]; then
    echo "Domain not set. Stopping run."
    exit 1
 fi
 
-export $DOMAIN
-export HOSTNAME=`hostname`
+export DOMAIN
+HOSTNAME="$(hostname)"
 
 date
 echo "---- Starting Apps Server for domain: $DOMAIN on host: $HOSTNAME ----"
-${PS_HOME}/appserv/psadmin -c boot -d $DOMAIN
+"${PS_HOME}"/appserv/psadmin -c boot -d "$DOMAIN"
 

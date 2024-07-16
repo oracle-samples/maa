@@ -9,10 +9,12 @@ Released under the Universal Permissive License v1.0 as shown at
 
 ## Overview
 
-These wrapper scripts coordinate the execution of the basic task scripts above.  They also coordinate enabling or disabling the replication using the srync replication scripts.  They are designed to be called from external components such as Full Stack DR cloud service but can be run manually if needed.
+These wrapper scripts coordinate the execution of the basic task scripts.  They also coordinate enabling or disabling the replication using the srync replication scripts.  They are designed to be called from external components such as Full Stack DR cloud service but can be run manually if needed.  
+
+The wrapper scripts currently have the calls to the rsync scripts commented out.  Once the rsync scripts under the Replication folder are running properly, uncomment out the calls to the rsync scripts.
 
 > [!NOTE]
-> If you need to stop or start PeopleSoft components without enabling or disabling the rsync replication process, then use the stand-alone scripts in [ Basic Task Scripts ]
+> If you need to stop or start PeopleSoft components without enabling or disabling the rsync replication process, then use the stand-alone scripts in the Basic Task folder. 
 
 
 ## Prerequisite
@@ -66,6 +68,6 @@ The table below provides the script name and its purpose.
 | [stopPSFTAPP.sh](./stopPSFTAPP.sh) | Shuts down the PeopleSosft Applicaton Server domain and coordinates a final rsync of the file system to the remote site once all applicaon sessions have been shut down. |
 | [startPSFTWEB.sh](./startPSFTWEB.sh) | Starts the Coherence*WSeb cache servers and the PIA Web Server domain. |
 | [stopPSFTWEB.sh](./stopPSFTWEB.sh) | Stops the Coherence*WSeb cache servers and the PIA Server domain. |
-| [set_ps_rpt_node.sh](./set_ps_rpt_node.sh) | Before the application and PIA domains can b e stgarted, this script is callec by startPSFTAPP.SH to set the report server node for the site. |
+| [set_ps_rpt_node.sh](./set_ps_rpt_node.sh) | Before the application and PIA domains can b e stgarted, this script is called by startPSFTAPP.sh to set the report server node for the site. |
 
 

@@ -1,13 +1,16 @@
-############################################################################
 #!/bin/sh
+############################################################################
+#
 # File name:   stopPSFTAPP.sh    Version 1.0
 #
-# Copyright (c) 2022 Oracle and/or its affiliates
+# Copyright (c) 2024 Oracle and/or its affiliates
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 #
 # Description: This script shuts down PSFT app servers and process
 #              schedulers.
-#              It is also integrated with the rsync scripts.
+#              It is also integrated with the rsync scripts.  However, the rsync integration is commented out
+#              to prevent running rsync until you have completed all prerequisites.  Once the prerequisites 
+#              have been met, then uncomment out the rsync integration code.
 #
 #              Note: Because this deployment of PeopleSoft uses a shared file
 #              system for interface files, job logs, and reports, only one
@@ -32,35 +35,37 @@
 # 7/1/2023   DPresley   Created
 ############################################################################
 
-source $SCRIPT_DIR/psrsync.env
-PS_DOMAIN= HR92U033
+source /u02/app/psft/PSFTRoleChange/psrsync.env
+PS_DOMAIN=HR92U033
 
 if [ -f "${SCRIPT_DIR}/psftrsync.lck" ]
 then
      SKIP_RSYNC=1
 else
-     hostname > ${SCRIPT_DIR}/psftrsync.lck
+     hostname > "${SCRIPT_DIR}"/psftrsync.lck
      SKIP_RSYNC=0
 fi
 
 # Stop application server and process scheduler.
-$SCRIPT_DIR/stopPS.sh  $PS_DOMAIN &
-$SCRIPT_DIR/stopAPP.sh $PS_DOMAIN &
+"$SCRIPT_DIR"/stopPS.sh  "$PS_DOMAIN" &
+"$SCRIPT_DIR"/stopAPP.sh "$PS_DOMAIN" &
 
+# Uncomment the folloiwng code once you are ready to integrate the rsync scripts.
 # If SKIP_RSYNC is 0, we must wait until all sessions have been shut down.
 # We can then do one final rsync.
-
-if [ ${SKIP_RSYNC} -eq 0 ]
-then
-  echo "Checking number of remaining sessions before performing rsync...."
-  SESSION_COUNT=1
-  while [ ${SESSION_COUNT} -ne 0  ];
-  do
-     SESSION_COUNT=$(${SCRIPT_DIR}/get_db_session_count.sh | sed 's/[^0-9]*//g')
-     echo "Number of remaining sessions: " ${SESSION_COUNT}
-     sleep 3
-  done
-
+#
+#
+# if [ "${SKIP_RSYNC}" -eq 0 ]
+# then
+#  echo "Checking number of remaining sessions before performing rsync...."
+#  SESSION_COUNT=1
+#  while [ "${SESSION_COUNT}" -ne 0  ];
+#  do
+#     SESSION_COUNT=$("${SCRIPT_DIR}"/get_db_session_count.sh | sed 's/[^0-9]*//g')
+#     echo "Number of remaining sessions: " ${SESSION_COUNT}
+#     sleep 3
+#  done
+#
 # Do one final rsync then disable rsync. If there is an existing rsync 
 # process running, wait until the rsync process completes.
 # We need to source the fs1 file to get the SOURCE_RSYNC_DIR env 
@@ -72,14 +77,14 @@ then
 #   source $SCRIPT_DIR/fs1
 #
 #  pcount=1
-#  while [ $pcount -gt 0 ]; 
+#  while [ "$pcount" -gt 0 ]; 
 #  do
 #       pcount=$(ps -elf | grep "rsync -avzh --progress ${SOURCE_RSYNC_DIR}" | grep -v grep | wc -l)
 #       sleep 3
 #  done
 #   
-#  ${SCRIPT_DIR}/rsync_psft.sh $SCRIPT_DIR/fs1
-#  ${SCRIPT_DIR}/disable_psft_rsync.sh $SCRIPT_DIR/fs1
-#  ${SCRIPT_DIR}/disable_psft_rsync.sh $SCRIPT_DIR/fs2
-#  rm -f ${SCRIPT_DIR}/psftrsync.lck
+#  "${SCRIPT_DIR}"/rsync_psft.sh "$SCRIPT_DIR"/fs1
+#  "${SCRIPT_DIR}"/disable_psft_rsync.sh "$SCRIPT_DIR"/fs1
+#  "${SCRIPT_DIR}"/disable_psft_rsync.sh "$SCRIPT_DIR"/fs2
+#  rm -f "${SCRIPT_DIR}"/psftrsync.lck
 #fi

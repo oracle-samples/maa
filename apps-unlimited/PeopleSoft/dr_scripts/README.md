@@ -29,7 +29,7 @@ The scripts for this project fall into one of the following categories:
 These scripts can be used by OCI Full Stack DR Cloud Service (FSDR) to automate switchover and failover.  The rsync scripts will handle file system role transition for the application and web tiers.
 
 The scripts should be placed in a common location at each site that all application and web tier compute instances can access.  In this project, we created the following directory location on each site’s shared storage, and labeled it $SCRIPT_DIR in our .env file:
-/u01/app/psft/pt/custom_admin_scripts
+/u02/app/psft/pt/custom_admin_scripts
 
 As these scripts are used by administrators, it is advisable to add the scripts directory to the administrator account’s PATH.
 

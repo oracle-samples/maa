@@ -2,7 +2,7 @@
 
      Version 1.0
 
-Copyright (c) 2022, 2024 Oracle and/or its affiliates.
+Copyright (c) 2024 Oracle and/or its affiliates.
 
 Released under the Universal Permissive License v1.0 as shown at
 <https://oss.oracle.com/licenses/upl/>.
@@ -39,7 +39,7 @@ The main replication scripts are:
 * [disable_psft_rsync.sh](./disable_psft_rsync.sh)
 * [rsync_psft.sh](./rsync_psft.sh)
 
-There is an environment file called psrsync.env at each site that the rsync scripts use, to limit the need for hard coding.  It contains the following:
+There is an environment file called psrsync.env at each site that the rsync scripts use, to limit the need for hard coding.  The SCRIPT_DIR environment variable may also be defined in the PeopleSoft env file psft.env.  The psrsync.env contains the following:
 
 <pre>
 SCRIPT_DIR=< path to directory containing the replication scripts >
