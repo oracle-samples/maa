@@ -45,5 +45,5 @@ RC=0
 
 echo "${DOMAIN}"
 # Return exit code.
-exot ${RC}
+exit ${RC}
 
