@@ -45,6 +45,9 @@ There is an environment file called psrsync.env at each site that the rsync scri
 SCRIPT_DIR=< path to directory containing the replication scripts >
 LOG_DIR=${SCRIPT_DIR}/log
 USER=< file system owner - typically psadm2 >
+PS_APP_DOMAIN=< PeopleSoft application server domain (Tuxedo domain name for the applicaiton server) >
+PS_PRC_DOMAIN=< PeopleSoft process scheduler server domain (Tuxedo domain name for the process scheduler) >
+PS_PIA_DOMAIN=< PeopleSoft PIA domain (Weblogic domain name for the PIA web server) >
 TNS_CONNECT_STRING=< TNS connect string alias to the PeopleSoft database at the local site >
 TARGET_HOST=< IP address of remote rsync host >
 COMPARTMENT_OCID=< OCID of compartment containing the region-local vault >

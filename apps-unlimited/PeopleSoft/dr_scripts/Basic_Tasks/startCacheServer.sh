@@ -23,8 +23,8 @@
   
 source ~/psft.env
 
-# export DOMAIN=HR92U033
-DOMAIN=$1
+DOMAIN="$1"
+
 # get the length of the parameter
 n=${#DOMAIN}
 
@@ -37,11 +37,11 @@ else
 fi
 
 HOSTNAME="$(hostname)"
-export COHERENCE_HOME="$BASE_DIR"/pt/bea/coherence
-export COHERENCE_CONFIG="$PS_CFG_HOME"/coherence/config
-export COHERENCE_LOG="$PS_CFG_HOME"/coherence/log
-export CWEB_LOG_NAME=pia_"${DOMAIN}"_"${HOSTNAME}"
-export CWEB_LOG_LEVEL=9
+COHERENCE_HOME="$BASE_DIR"/pt/bea/coherence
+COHERENCE_CONFIG="$PS_CFG_HOME"/coherence/config
+COHERENCE_LOG="$PS_CFG_HOME"/coherence/log
+CWEB_LOG_NAME=pia_"${DOMAIN}"_"${HOSTNAME}"
+CWEB_LOG_LEVEL=9
 
 date
 echo "------ Starting Coherence*Web Cache Server for domain: $DOMAIN on host: $HOSTNAME ----"
@@ -52,5 +52,3 @@ echo "Log file can be found at: ${COHERENCE_LOG}/cweb_coherence_server_${CWEB_LO
 
 java -Xms2g -Xmx2g -Dtangosol.coherence.distributed.localstorage=true -Dtangosol.coherence.session.localstorage=true -Dtangosol.coherence.override="${COHERENCE_CONFIG}"/tangosol-coherence-override.xml -Dtangosol.coherence.cacheconfig=default-session-cache-config.xml -Dtangosol.coherence.log="${COHERENCE_LOG}"/cweb_coherence_server_"${CWEB_LOG_NAME}".log -Dtangosol.coherence.log.level=9 -classpath "${COHERENCE_CONFIG}":"${COHERENCE_HOME}"/lib/coherence.jar:"${COHERENCE_HOME}"/lib/coherence-web.jar com.tangosol.net.DefaultCacheServer -Djava.net.preferIPv6Addresses=false -Djava.net.preferIPv4Stack=true -Dcoherence.log.level="${CWEB_LOG_LEVEL}"  &
 
-# Sleep for 30 seconds to allow for cache server to fully start.
-sleep 30

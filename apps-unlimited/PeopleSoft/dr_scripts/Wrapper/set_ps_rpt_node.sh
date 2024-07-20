@@ -37,10 +37,10 @@ echo "URL = ${URL}"
 echo "RPT_URI =  ${RPT_URI}"
 
 # Update the PS_CDM_DIST_NODE table to set the site specific report 
-# distribution node.  There should only be one row in this table.
+# distribution node. 
 sqlplus -s /nolog  <<EOF!
 connect sys/${PSFT_SECRET}@${TNS_CONNECT_STRING} as sysdba
-alter session set container = "${PDB_NAMNE}";
+alter session set container = "${PDB_NAME}";
 set heading off
 set define off
 set feedback on

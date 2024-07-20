@@ -21,7 +21,10 @@
 
 source ~/psft.env
 
-DOMAIN=$1
+DOMAIN="$1"
+DOMAIN_DIR="${PS_CFG_HOME}/appserv"
+RC=0
+
 # get the length of the parameter
 n=${#DOMAIN}
 
@@ -29,13 +32,13 @@ n=${#DOMAIN}
 if [ "$n" != 0 ]; then
    echo "Domain passed in as parameter: $DOMAIN"
 else
-  echo "No domain passed in. Look for single App Server domain."
-   DOMAIN=$(ls -l "$PS_CFG_HOME"/appserv | grep ^d | grep -v prcs | awk '{print $9}')
-   n=$(echo "$DOMAIN" | wc -w)
-  if [ "$n" != 1 ]; then
-     echo "More than one domain directory found: $DOMAIN . Stopping run."
-     echo "Count: $n"
-     exit 1
+   echo "No domain passed in. Look for single App Server domain."
+   DOMAIN="$("$SCRIPT_DIR"/get_ps_domain.sh "${DOMAIN_DIR}")"
+    RC=$?
+   if [ ${RC} != 0 ]; then
+        [[ ${RC} = 1 ]] && echo "Domain directory ${DOMAIN_DIR} does not exists."
+        [[ ${RC} = 2 ]] && echo "Domain directory ${DOMAIN_DIR} contains either no domains or more than one domain."
+        exit ${RC}
   fi
 fi
 
@@ -45,7 +48,6 @@ if [ "$DOMAIN" = "" ]; then
    exit 1
 fi
 
-export DOMAIN
 HOSTNAME="$(hostname)"
 
 date
@@ -65,13 +67,10 @@ PID_LIST=""
 
 echo ""
 echo "Stopping rmiregistry processes..."
-PROCESS_COUNT=$(ps -elf | grep psadm2 | grep -E "${EGREP_STRING}" | grep -v grep | wc -l)
 echo "Number of remaining process : ${PROCESS_COUNT}"
-
-while [ "${PROCESS_COUNT}" -ne 0 ]; 
-do
-   PROCESS_COUNT=$(ps -elf | grep psadm2 | grep -E  "${EGREP_STRING}" | grep -v grep | wc -l )
+PROCESS_COUNT=$(ps -elf | grep psadm2 | grep -E  "${EGREP_STRING}" | grep -v grep | wc -l )
    if [ "${PROCESS_COUNT}" -ne 0 ]; then
+        # Get the list of PIDs.
 		PID_LIST=$(ps -elf | grep psadm2 | grep -E  "${EGREP_STRING}" | grep -v grep | awk '{print $4 }')
         echo "Killing processes:"
         echo "${PID_LIST}"
@@ -79,4 +78,4 @@ do
         kill -9 ${PID_LIST}
    fi
 
-done
+

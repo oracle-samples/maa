@@ -22,14 +22,10 @@ EGREP_STRING="coherence"
 PROCESS_COUNT=0
 PID_LIST=""
 
-echo "Stopping Coherence*Web Cache Server..."
-PROCESS_COUNT=$(ps -elf | grep psadm2 | grep -E "${EGREP_STRING}" | grep -v grep | wc -l )
-echo "Number of remaining process : ${PROCESS_COUNT}"
+    echo "Stopping Coherence*Web Cache Server..."
+    PROCESS_COUNT=$(ps -elf | grep psadm2 | grep -E "${EGREP_STRING}" | grep -v grep | wc -l )
+    echo "Number of remaining process : ${PROCESS_COUNT}"
 
-
-while [ "${PROCESS_COUNT}" -ne 0 ]; 
-do
-     PROCESS_COUNT=$(ps -elf | grep psadm2 | grep -E "${EGREP_STRING}" | grep -v grep | wc -l )
      if [ "${PROCESS_COUNT}" -ne 0 ]; then
           PID_LIST=$(ps -elf | grep psadm2 | grep -E "${EGREP_STRING}" | grep -v grep | awk '{ print $4 }' )
           echo "Killing processes: "
@@ -38,5 +34,4 @@ do
           kill -9 ${PID_LIST}
      fi
 
-done
 

@@ -7,8 +7,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 #
 # Description:  rsync the file system / directory defined in the run env.
-#               file.  If the -f is used, this will cause the script to 
-#               perform a FORCED rsync.  The -f option should only be used 
+#               file.  If the -f is used, this will cause the script to prompt for 
+#               and perform a FORCED rsync.  The -f option should only be used 
 #               in situations where a forced rsync is required such as when
 #               a site failover is required but the file systems at both 
 #               sites are still intact.  
@@ -65,11 +65,15 @@ then
 fi
 
 if [ "${RSYNC_DISABLED}" = 1 ] && [ "${FORCE_RSYNC}" = 1 ]; then
-
+     echo "A forced rsync should only be used for a site failover and the source and target file systems "
+	 echo "are still avaiable. "
+	 echo "Forced rsync: "
+	 echo "  Source file system:  ${SOURCE_RSYNC_DIR} "
+	 echo "  Target file system:  ${TARGET_RSYNC_DIR} "
      proceed=""
      while [[ -z "${proceed}" ]];
      do
-          read -p "Rsync is disabled for ${FS_ALIAS} (${SOURCE_RSYNC_DIR}). OK to continue? [Y|y|N|n] :" proceed
+          read -p "Forced rsync for ${FS_ALIAS} (${SOURCE_RSYNC_DIR}). OK to continue? [Y|y|N|n] :" proceed
           [[ ${proceed} = 'Y' || ${proceed} = 'y' || ${proceed} = 'N' || ${proceed} = 'n' ]] && break
           proceed=""
      done

@@ -19,11 +19,15 @@
 ############################################################################
 
 source ~/psft.env
-PS_DOMAIN=HR92U033
+source "${SCRIPT_DIR}"/psrsync.env
+
+HOSTNAME="$(hostname)"
+DATE_TIME="$(date +"%Y%m%d_%H%M%S")"
 
 # Stop the PIA web server
-"${SCRIPT_DIR}"/stopWS.sh "$PS_DOMAIN" 
+"${SCRIPT_DIR}"/stopWS.sh "${PS_PIA_DOMAIN}" > "${LOG_DIR}"/"${HOSTNAME}"_stopWS_"${DATE_TIME}".log 2>&1
 
 # Stop the Coherence*Web cache server
-"${SCRIPT_DIR}"/stopCacheServer.sh "$PS_DOMAIN"
+"${SCRIPT_DIR}"/stopCacheServer.sh "${PS_PIA_DOMAIN}" > "${LOG_DIR}"/"${HOSTNAME}"_stopCacheServer_"${DATE_TIME}".log 2>&1
+
 

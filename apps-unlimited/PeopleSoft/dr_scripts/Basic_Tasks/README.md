@@ -33,4 +33,5 @@ The table below provides the script name and its purpose.
 | [stopCacheServer.sh](./stopCacheServer.sh) | Stops / kills the Coherence*Web cache server.   |
 | [startWS.sh](./startWS.sh) | Starts the PIA web server domain.   |
 | [stopWS.sh](./stopWS.sh) | Shuts down the PIA web server domain.  |
+| [get_ps_domain.sh](./get_ps_domain.sh) | This script is called by the start and stop scripts listed above to determine the PeopleSoft domain for the application server, process scheduler and web servers. 
 

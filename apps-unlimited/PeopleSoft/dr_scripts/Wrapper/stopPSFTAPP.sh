@@ -36,9 +36,13 @@
 ############################################################################
 
 source ~/psft.env
-source ${SCRIPT_DIR}"/psrsync.env
-PS_DOMAIN=HR92U033
+source "${SCRIPT_DIR}"/psrsync.env
 
+HOSTNAME="$(hostname)"
+DATE_TIME="$(date +"%Y%m%d_%H%M%S")"
+
+# Check to see if the lock file exists.  if so, another stopPSTAPP.sh process is running and will perform the
+# the final rsync.  Otherwise, create the lock file with THIS host name in it.
 if [ -f "${SCRIPT_DIR}/psftrsync.lck" ]
 then
      SKIP_RSYNC=1
@@ -48,8 +52,9 @@ else
 fi
 
 # Stop application server and process scheduler.
-"${SCRIPT_DIR}"/stopPS.sh  "$PS_DOMAIN" &
-"${SCRIPT_DIR}"/stopAPP.sh "$PS_DOMAIN" &
+
+"${SCRIPT_DIR}"/stopPS.sh  "${PS_PRC_DOMAIN}" > "${LOG_DIR}"/"${HOSTNAME}"_stopPS_"${DATE_TIME}".log 2>&1  &
+"${SCRIPT_DIR}"/stopAPP.sh "${PS_APP_DOMAIN}" > "${LOG_DIR}"/"${HOSTNAME}"_stopAPP_"${DATE_TIME}".log 2>&1  &
 
 # Uncomment the folloiwng code once you are ready to integrate the rsync scripts.
 # If SKIP_RSYNC is 0, we must wait until all sessions have been shut down.
@@ -87,5 +92,5 @@ fi
 #  "${SCRIPT_DIR}"/rsync_psft.sh "$SCRIPT_DIR"/fs1
 #  "${SCRIPT_DIR}"/disable_psft_rsync.sh "$SCRIPT_DIR"/fs1
 #  "${SCRIPT_DIR}"/disable_psft_rsync.sh "$SCRIPT_DIR"/fs2
-#  rm -f "${SCRIPT_DIR}"/psftrsync.lck
-#fi
+   rm -f "${SCRIPT_DIR}"/psftrsync.lck
+# fi

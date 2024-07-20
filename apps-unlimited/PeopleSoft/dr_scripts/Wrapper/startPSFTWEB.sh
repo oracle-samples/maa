@@ -19,13 +19,16 @@
 ############################################################################
 
 source ~/psft.env
-PS_DOMAIN=HR92U033
+source "${SCRIPT_DIR}"/psrsync.env
 
-# Start the Coherence*Web cache server first.  
-"${SCRIPT_DIR}"/startCacheServer.sh "$PS_DOMAIN" 
+HOSTNAME="$(hostname)"
+DATE_TIME="$(date +"%Y%m%d_%H%M%S")"
+
+# Start the Coherence*Web cache server first. 
+"${SCRIPT_DIR}"/startCacheServer.sh "${PS_PIA_DOMAIN}" > "${LOG_DIR}"/"${HOSTNAME}"_startCacheServer_"${DATE_TIME}".log 2>&1
 
 # Start the PIA web server.
-"${SCRIPT_DIR}"/startWS.sh "$PS_DOMAIN" 
+"${SCRIPT_DIR}"/startWS.sh "${PS_PIA_DOMAIN}"  > "${LOG_DIR}"/"${HOSTNAME}"_startWS_"${DATE_TIME}".log 2>&1
 
 # Don't return control until Coherence and the web server have started
 wait
