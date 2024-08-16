@@ -14,7 +14,7 @@ These are simple scripts to start and stop the application server domain, the pr
 
 ## Prerequisite
 
-Ensure that the environment variables required for PeopleSoft applicaiton servers and web servers are properly defined.  These scripts must run on the appropriate PeopleSoft server.  
+Ensure that the environment variables required for PeopleSoft application servers and web servers are properly defined.  These scripts must run on the appropriate PeopleSoft server.  
 
 
 ## Script Description
@@ -25,7 +25,7 @@ The table below provides the script name and its purpose.
 
 | Script Name | Description |
 | ------ | ------ |
-| [startAPP.sh](./startAPP.sh) | Starts the PeopleSosft Applicaton Server domain. |
+| [startAPP.sh](./startAPP.sh) | Starts the PeopleSosft Application Server domain. |
 | [stopAPP.sh](./stopAPP.sh) | Shuts down the PeopleSoft Application Server domain. |
 | [startPS.sh](startPS.sh) | Starts the PeopleSoft Process Scheduler domain. |
 | [stopPS.sh](./stopPS.sh) | Shuts down the PeopleSoft Process Scheduler domain. |

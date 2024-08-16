@@ -30,10 +30,10 @@ n=${#DOMAIN}
 
 # Did they pass in a parameter?  it is the domain
 if [ "$n" != 0 ]; then
-   echo "Domain passed in as parameter: $DOMAIN"
+   echo "Domain passed in as parameter: ${DOMAIN}"
 else
    echo "No domain passed in. Look for single App Server domain."
-   DOMAIN="$("$SCRIPT_DIR"/get_ps_domain.sh "${DOMAIN_DIR}")"
+   DOMAIN="$("${SCRIPT_DIR}"/get_ps_domain.sh "${DOMAIN_DIR}")"
     RC=$?
    if [ ${RC} != 0 ]; then
         [[ ${RC} = 1 ]] && echo "Domain directory ${DOMAIN_DIR} does not exists."
@@ -43,7 +43,7 @@ else
 fi
 
 # Is the DOMAIN set?
-if [ "$DOMAIN" = "" ]; then
+if [ "${DOMAIN}" = "" ]; then
    echo "DOMAIN not set. Stopping run."
    exit 1
 fi
@@ -54,7 +54,7 @@ date
 echo "---- Stopping Apps Server for domain: $DOMAIN on host: $HOSTNAME ----"
 
 # Note the shutdown! is a forced shutdown.
-"${PS_HOME}"/appserv/psadmin -c shutdown! -d "$DOMAIN"
+"${PS_HOME}"/appserv/psadmin -c shutdown! -d "${DOMAIN}"
 
 # Explicitly stopping rmiregistry due to a bug in PeopleTools 8.57.
 # This is not needed for later versions of PeopleTools.  

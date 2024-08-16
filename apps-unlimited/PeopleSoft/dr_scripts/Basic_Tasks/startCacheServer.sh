@@ -20,7 +20,7 @@
 # Date       Who       What
 # 7/1/2023   DPresley  Created
 ############################################################################
-  
+
 source ~/psft.env
 
 DOMAIN="$1"
@@ -30,16 +30,16 @@ n=${#DOMAIN}
 
 # Did they pass in a parameter?  it is the domain
 if [ "$n" != 0 ]; then
-   echo "Domain passed in as parameter: $DOMAIN"
+   echo "Domain passed in as parameter: ${DOMAIN}"
 else
    echo "No domain passed in. Domain required."
    exit 1
 fi
 
 HOSTNAME="$(hostname)"
-COHERENCE_HOME="$BASE_DIR"/pt/bea/coherence
-COHERENCE_CONFIG="$PS_CFG_HOME"/coherence/config
-COHERENCE_LOG="$PS_CFG_HOME"/coherence/log
+COHERENCE_HOME="${BASE_DIR}"/pt/bea/coherence
+COHERENCE_CONFIG="${PS_CFG_HOME}"/coherence/config
+COHERENCE_LOG="${PS_CFG_HOME}"/coherence/log
 CWEB_LOG_NAME=pia_"${DOMAIN}"_"${HOSTNAME}"
 CWEB_LOG_LEVEL=9
 

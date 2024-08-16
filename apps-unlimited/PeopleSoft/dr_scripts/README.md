@@ -16,7 +16,7 @@ Please refer to the following playbooks for details about the PeopleSoft topolog
 * PeopleSoft Deployment Playbook (Link to be added)
 
 > [!IMPORTANT] 
-> Verify that you have completed all the pre-requisites listed in the appropriate playbooks above before using these scripts.
+> Verify that you have completed all the pre-requisites listed in the appropriate playbooks referenced above before using these scripts.
 
 ## Scrips Overview
 
@@ -43,7 +43,7 @@ The scripts are grouped in folders as shown in the table below.
 
 | Folder | Content |
 | ------ | ------ |
-| Basic Tasks | Startup and shutdown scripts for PeopleSoft component e.g., applicaiotn server, process scheduler, PIA web server, Coherence Web*Cache. |
-| Replication | Scripts that replicate the middle tier file sstems from the primary to the DR site using rsync. |
-| Wrapper | Scrips that auomate the startup, shutdown and redirect replication. |
+| Basic Tasks | Startup and shutdown scripts for PeopleSoft component e.g., application server, process scheduler, PIA web server, Coherence Web*Cache. |
+| Replication | Scripts that replicate the middle tier file systems from the primary to the DR site using rsync. |
+| Wrapper | Scrips that automate the startup, shutdown and redirect replication. |
 
