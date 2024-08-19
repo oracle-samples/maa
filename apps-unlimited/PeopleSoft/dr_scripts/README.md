@@ -9,11 +9,12 @@ Released under the Universal Permissive License v1.0 as shown at
 
 ## Using the PeopleSoft MAA DR Scripts
 
-Please refer to the following playbooks for details about the PeopleSoft topology, set up and how these scripts are to be used.
+Please refer to the following solution playbooks for details about the PeopleSoft topology, set up and how to use these scripts:
 
-* PeopleSoft Planning Playbook (Link to be added)
+* [Learn about maximum availability architecture for PeopleSoft](https://docs.oracle.com/en/solutions/learn-about-maa-for-peoplesoft/index.html)
 
-* PeopleSoft Deployment Playbook (Link to be added)
+* [Provision and deploy a maximum availability solution for PeopleSoft on Oracle Cloud](https://docs.oracle.com/en/solutions/deploy-maa-for-peoplesoft-on-oci/index.html)
+
 
 > [!IMPORTANT] 
 > Verify that you have completed all the pre-requisites listed in the appropriate playbooks referenced above before using these scripts.

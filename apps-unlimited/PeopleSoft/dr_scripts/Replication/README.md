@@ -28,7 +28,7 @@ The rsync scripts will access the PeopleSoft database at the CDB level and will 
 
 
 > [!IMPORTANT] 
-* These scripts are built with the assumption that the PeopleSoft application and web tiers are deployed on shared file systems in OCI, e.g., on File System Service (FSS).
+* These scripts are built with the assumption that the PeopleSoft application and web tiers are deployed on shared file systems in OCI.  For example, on OCI File Storage service.
 * The rsync scripts can run on the PeopleSoft application or web tiers, but doing so as normal practice prevents you from doing snapshot DR site testing, since the target "production" file systems would need to be unmounted.
 * The startPSFTAPP.sh and stopPSFTAPP.sh wrapper scripts which run on the application tier compute instances, must have access to the rsync scripts described here when performing a full stack switchover.
 * Do not replicate anything under $PS_CFG_HOME, the COBOL run-time environment, or the COBOL license manager and its database.
@@ -90,7 +90,7 @@ The replication scripts call these additional scripts:
 * [get_site_role.sh](./get_site_role.sh)
 * [get_db_session_count.sh](./get_db_session_count.sh)
 
-The get_site_role.sh script queries the database to determine the site role, which is used for determining replication direction. It uses the OCI CLI and SQL*Plus from the Oracle client software to access the PeopleSoft database at the local site.  The get_db_session_count.sh script is used to determine when all PeopleSoft application and process scheduler sessions have shut down, also using OCI cli.  This script is called by the stopPSFTAPP.sh script.
+The get_site_role.sh script queries the database to determine the site role, which is used for determining replication direction. It uses the OCI CLI and SQL*Plus from the Oracle client software to access the PeopleSoft database at the local site.  The get_db_session_count.sh script is used to determine when all PeopleSoft application and process scheduler sessions have shut down, also using OCI CLI.  This script is called by the stopPSFTAPP.sh script.
 
 ## Example Cron Job Entries
 
