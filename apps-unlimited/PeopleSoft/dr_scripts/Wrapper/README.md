@@ -9,7 +9,7 @@ Released under the Universal Permissive License v1.0 as shown at
 
 ## Overview
 
-These wrapper scripts coordinate the execution of the basic task scripts.  They also coordinate enabling or disabling the replication using the rsync replication scripts.  They are designed to be called from external components such as Full Stack DR cloud service but can be run manually if needed.  
+These wrapper scripts coordinate the execution of the basic task scripts.  They also coordinate enabling or disabling the replication using the rsync replication scripts.  They are designed to be called from external components such as Oracle Cloud Infrastructure (OCI) Full Stack Disaster Recovery but can be run manually if needed.  
 
 The wrapper scripts currently have the calls to the rsync scripts commented out.  Once the rsync scripts under the Replication folder are running properly, uncomment out the calls to the rsync scripts.
 
@@ -17,11 +17,11 @@ The wrapper scripts currently have the calls to the rsync scripts commented out.
 > If you need to stop or start PeopleSoft components without enabling or disabling the rsync replication process, then use the stand-alone scripts in the Basic Task folder. 
 
 
-## Prerequisite
+## Prerequisites
 
 The following prerequisites must be met for the wrapper scripts as designed to run in Oracle Cloud Infrastructure.  
 
-*  The OCI command line interface (CLI) must be installed on each middle tier where the wrapper scripts will run. 
+*  The OCI command-line interface (CLI) must be installed on each middle tier where the wrapper scripts will run. 
 *  The wrapper scripts must be able to access and run the basic task scripts.
 *  The wrapper scripts must be able to access and run the rsync_psft.sh script.  
 
@@ -64,8 +64,8 @@ The table below provides the script name and its purpose.
 
 | Script Name | Description |
 | ------ | ------ |
-| [startPSFTAPP.sh](./startPSFTAPP.sh) | Starts the PeopleSosft Application Server domain and enbles replication of the middle tier file system. |
-| [stopPSFTAPP.sh](./stopPSFTAPP.sh) | Shuts down the PeopleSosft Application Server domain and coordinates a final rsync of the file system to the remote site once all applicaon sessions have been shut down. |
+| [startPSFTAPP.sh](./startPSFTAPP.sh) | Starts the PeopleSoft Application Server domain and enbles replication of the middle tier file system. |
+| [stopPSFTAPP.sh](./stopPSFTAPP.sh) | Shuts down the PeopleSoft Application Server domain and coordinates a final rsync of the file system to the remote site once all applicaon sessions have been shut down. |
 | [startPSFTWEB.sh](./startPSFTWEB.sh) | Starts the Coherence*WSeb cache servers and the PIA Web Server domain. |
 | [stopPSFTWEB.sh](./stopPSFTWEB.sh) | Stops the Coherence*WSeb cache servers and the PIA Server domain. |
 | [set_ps_rpt_node.sh](./set_ps_rpt_node.sh) | Before the application and PIA domains can be started, this script is called by startPSFTAPP.sh to set the report server node for the site. |

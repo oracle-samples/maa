@@ -25,13 +25,13 @@ The table below provides the script name and its purpose.
 
 | Script Name | Description |
 | ------ | ------ |
-| [startAPP.sh](./startAPP.sh) | Starts the PeopleSosft Application Server domain. |
+| [startAPP.sh](./startAPP.sh) | Starts the PeopleSoft Application Server domain. |
 | [stopAPP.sh](./stopAPP.sh) | Shuts down the PeopleSoft Application Server domain. |
 | [startPS.sh](startPS.sh) | Starts the PeopleSoft Process Scheduler domain. |
 | [stopPS.sh](./stopPS.sh) | Shuts down the PeopleSoft Process Scheduler domain. |
 | [startCacheServer.sh](./startCacheServer.sh) | Starts the Coherence*Web cache server.   |
-| [stopCacheServer.sh](./stopCacheServer.sh) | Stops / kills the Coherence*Web cache server.   |
+| [stopCacheServer.sh](./stopCacheServer.sh) | Stops the Coherence*Web cache server.   |
 | [startWS.sh](./startWS.sh) | Starts the PIA web server domain.   |
 | [stopWS.sh](./stopWS.sh) | Shuts down the PIA web server domain.  |
-| [get_ps_domain.sh](./get_ps_domain.sh) | This script is called by the start and stop scripts listed above to determine the PeopleSoft domain for the application server, process scheduler and web servers. 
+| [get_ps_domain.sh](./get_ps_domain.sh) | Called by the start and stop scripts listed above to determine the PeopleSoft domain for the application server, process scheduler and web servers. 
 
