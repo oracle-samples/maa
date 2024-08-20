@@ -17,9 +17,9 @@ Please refer to the following solution playbooks for details about the PeopleSof
 
 
 > [!IMPORTANT] 
-> Verify that you have completed all the pre-requisites listed in the appropriate playbooks referenced above before using these scripts.
+> Verify that you have completed all the prerequisites listed in the appropriate playbooks referenced above before using these scripts.
 
-## Scrips Overview
+## Scripts Overview
 
 The scripts for this project fall into one of the following categories:
 
@@ -27,7 +27,7 @@ The scripts for this project fall into one of the following categories:
 2.	Rsync scripts that replicate middle tier file system contents from one site to another 
 3.	Wrapper scripts that call the stand-alone scripts plus enable or disable rsync replication, depending on which wrapper script is run
 
-These scripts can be used by OCI Full Stack DR Cloud Service (FSDR) to automate switchover and failover.  The rsync scripts will handle file system role transition for the application and web tiers.
+These scripts can be used by the OCI Full Stack Disaster Recovery (FSDR) service to automate switchover and failover.  The rsync scripts will handle file system role transition for the application and web tiers.
 
 The scripts should be placed in a common location at each site that all application and web tier compute instances can access.  In this project, we created the following directory location on each site’s shared storage, and labeled it $SCRIPT_DIR in our .env file:
 /u02/app/psft/pt/custom_admin_scripts

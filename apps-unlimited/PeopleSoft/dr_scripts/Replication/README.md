@@ -94,7 +94,7 @@ The get_site_role.sh script queries the database to determine the site role, whi
 
 ## Example Cron Job Entries
 
-The cron job entries run the rsync_psft.sh at a specific time or frequency and for a specific file system as defined above.  The cron job entries must be configured at both the primary and standby sites.  As described in the PeopleSoft Deployment Playbook, the rsync_psft.sh script will continuously run at both sites but the script will only replicate in one direction based on which site is in the primary role.  In the example below, we are replicating two FSS file systems:
+The cron job entries run the rsync_psft.sh at a specific time or frequency and for a specific file system as defined above.  The cron job entries must be configured at both the primary and standby sites.  As described in [Provision and deploy a maximum availability solution for PeopleSoft on Oracle Cloud](https://docs.oracle.com/en/solutions/deploy-maa-for-peoplesoft-on-oci/index.html), the rsync_psft.sh script will continuously run at both sites but the script will only replicate in one direction based on which site is in the primary role.  In the example below, we are replicating two FSS file systems:
 
 * /u02/app/psft/ps, defined in the file fs1, that contains job logs and the report repository.
 * /u01/app/psft/pt, defined in the file fs2, that contains the PeopleSoft PeopleTools software installation.
