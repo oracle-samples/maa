@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:    rsync_psft.sh    Version 1.0
@@ -17,10 +17,7 @@
 # 
 # Errors:       No run environment file specified
 #               Cannot find run environment file
-# 
-# Revisions:
-# Date       Who       What
-# 7/1/2023   DPresley  Created
+#
 ############################################################################
 
 if [ $# -eq 0 ]

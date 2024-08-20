@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:    get_db_session_count.sh    Version 1.0
@@ -19,9 +19,6 @@
 #
 # Notes: This script requires oci cli be installed
 #
-# Revisions:
-# Date       Who         What
-# 7/1/2023   DPresley    Created
 ############################################################################
 
 source ~/psft.env

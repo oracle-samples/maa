@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:    set_ps_rpt_node.sh    Version 1.0
@@ -16,9 +16,6 @@
 # Errors:      Can return a database error (ORA-XXXXX) if database is 
 #              unavailable or there is access failure.
 #
-# Revisions:
-# Date       Who        What
-# 7/1/2023   DPresley   Created
 ############################################################################
 
 source ~/psft.env

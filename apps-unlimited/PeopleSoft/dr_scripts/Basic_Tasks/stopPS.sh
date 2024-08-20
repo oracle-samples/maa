@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:  stopPS.sh   Version 1.0
@@ -14,9 +14,6 @@
 # Errors: Domain not set
 #         More than one domain found.
 #
-# Revisions:
-# Date       Who
-# 7/1/2023   DPresley
 ############################################################################
 
 source ~/psft.env

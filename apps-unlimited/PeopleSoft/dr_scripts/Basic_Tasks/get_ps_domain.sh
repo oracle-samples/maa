@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name: get_ps_domain.sh   Version 1.0
@@ -19,9 +19,6 @@
 #         Domain directory location does not exists.  Return exit code 1
 #         More than one domain found.  Return exit code 2.
 #
-# Revisions:
-# Date       Who         What
-# 7/1/2023   DPresley    Created
 ############################################################################
 
 DOMAIN_DIR="$1"

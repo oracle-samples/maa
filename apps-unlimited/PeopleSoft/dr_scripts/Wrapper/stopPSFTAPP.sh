@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:   stopPSFTAPP.sh    Version 1.0
@@ -28,11 +28,8 @@
 #              individual scripts: 
 #              stopAPP.sh and stopPS.sh
 #
-# Errors:
+# Errors:      Any errors from dependent scripts.
 #
-# Revisions:
-# Date       Who       What
-# 7/1/2023   DPresley   Created
 ############################################################################
 
 source ~/psft.env

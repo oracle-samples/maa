@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name: stopCacheServer.sh  Version 1.0
@@ -11,11 +11,8 @@
 # Usage: stopCacheServer.sh
 #        NOTE: THIS STOPS ALL COHERENCE PROCESSES RUNNING ON THIS SERVER
 # 
-# Errors: 
+# Errors: None
 #
-# Revisions:
-# Date       Who
-# 7/1/2023   DPresley
 ############################################################################
   
 EGREP_STRING="coherence"

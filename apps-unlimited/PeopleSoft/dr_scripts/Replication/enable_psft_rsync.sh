@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:    enable_psft_rsync.sh    Version 1.0
@@ -14,9 +14,6 @@
 # Errors:       No run environment file specified
 #               Cannot find run environment file
 #
-# Revisions:
-# Date       Who        What
-# 7/1/2023   DPresley   Created
 ############################################################################
 
 # Enable the PeopleSoft rsync job.

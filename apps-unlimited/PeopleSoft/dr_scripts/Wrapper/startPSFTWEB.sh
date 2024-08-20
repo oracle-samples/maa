@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 #
@@ -11,11 +11,8 @@
 # 
 # Usage:        startPSFTWEB.sh
 # 
-# Errors:
+# Errors:       Any errors from dependent scripts.
 #
-# Revisions:
-# Date       Who
-# 7/1/2023   DPresley
 ############################################################################
 
 source ~/psft.env

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:  stopWS.sh    Version 1.0
@@ -12,10 +12,6 @@
 # 
 # Errors:    No domain passed in, more than one found
 #
-# Revisions:
-#
-# Date       Who        What
-# 7/1/2023   DPresley   Created
 ############################################################################
 
 source ~/psft.env

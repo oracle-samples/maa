@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:    get_site_role.sh    Version 1.0
@@ -14,9 +14,6 @@
 # 
 # Errors:      Can return a database error (ORA-XXXXX) if database is unavailable or access failure.
 #
-# Revisions:
-# Date       Who       What
-# 7/1/2023   DPresley  Created
 ############################################################################
 
 source ~/psft.env

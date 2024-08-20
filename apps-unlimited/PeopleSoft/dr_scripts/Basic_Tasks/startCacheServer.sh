@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name: startCacheServer.sh  Version 1.0
@@ -16,9 +16,6 @@
 # 
 # Errors: Could not determine Coherence domain
 #
-# Revisions:
-# Date       Who       What
-# 7/1/2023   DPresley  Created
 ############################################################################
 
 source ~/psft.env

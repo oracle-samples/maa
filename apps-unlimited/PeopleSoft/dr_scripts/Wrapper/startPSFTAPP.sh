@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:    startPSFTAPP.sh    Version 1.0
@@ -13,11 +13,8 @@
 # 
 # Usage:        startPSFTAPP.sh
 # 
-# Errors:
+# Errors:       Any errors returned by any dependent scripts.
 #
-# Revisions:
-# Date       Who       What
-# 7/1/2023   DPresley  Created
 ############################################################################
 
 source ~/psft.env

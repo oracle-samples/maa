@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ############################################################################
 #
 # File name:   startAPP.sh  Version 1.0
@@ -13,9 +13,6 @@
 # 
 # Errors: Domain not set.  Could not determine domain.
 #
-# Revisions:
-# Date       Who       What
-# 7/1/2023   DPresley  Created
 ############################################################################
 
 source ~/psft.env
