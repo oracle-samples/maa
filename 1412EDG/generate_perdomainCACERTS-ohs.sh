@@ -51,7 +51,7 @@ else
     	exit 1
 fi
 export dt=`date +%y-%m-%d-%H-%M-%S`
-. $WL_HOME/server/bin/setWLSEnv.sh
+. $MW_HOME/server/bin/setWLSEnv.sh
 
 #If the script is used 
 mkdir -p $KEYSTORE_HOME
