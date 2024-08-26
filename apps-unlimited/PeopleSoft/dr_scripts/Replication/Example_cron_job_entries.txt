@@ -1,0 +1,8 @@
+In this project, we are replicating two FSS file systems:
+•	/u02/app/psft/ps, defined in the file fs1, that contains job logs and the report repository.
+•	/u01/app/psft/pt, defined in the file fs2, that contains the PeopleSoft PeopleTools software installation.
+The file system for fs1 needs to match the contents of the database as closely as possible, thus needs to have a higher frequency of replication.  In the below crontab entry, it is set to every 5 minutes (*/5) for the minutes column.
+The file system for fs2 is more static and is set up to replicate once a day, at 2:00 AM (0 2).
+
+*/5 * * * * psadm2 /u01/app/psft/pt/custom_admin_scripts/rsync_psft.sh /u01/app/psft/pt/custom_admin_scripts/fs1
+0 2 * * * psadm2 /u01/app/psft/pt/custom_admin_scripts/rsync_psft.sh /u01/app/psft/pt/custom_admin_scripts/fs2
