@@ -6,15 +6,16 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 ### This script generates the required per domain CA certificates for the listen addresses used in an existing WLS domain.
-### It needs an existing FMW/WLS installation (required for setting JAVA_HOME, WL_HOME etc).
+### It needs an existing Oracle WebLogic installation (required for setting JAVA_HOME, WL_HOME etc) and an existing WLS domain.
 ### Usage:
 ###
-###      	./generate_perdomainCACERTS.sh [WLS_DOMAIN_DIRECTORY] [MW_HOME] [KEYSTORE_HOME] [KEYPASS]
+###      	./generate_perdomainCACERTS.sh [WLS_DOMAIN_DIRECTORY] [WL_HOME] [KEYSTORE_HOME] [KEYPASS]
 ### Where:
 ###		WLS_DOMAIN_DIRECTORY:
 ###			Directory hosting the Weblogic Domain that the Administration Server uses.
-###		MW_HOME:
-###			Location of the FMW/WLS installation.
+###		WL_HOME:
+###			The directory within the Oracle home where the Oracle WebLogic Server software binaries are stored.
+### 			Typically /u01/oracle/products/fmw/wlserver
 ###		KEYSTORE_HOME:
 ###			Directory where appIdentity and appTrust stores will be created.
 ###		KEYPASS:
@@ -22,7 +23,7 @@
 if [[ $# -eq 4 ]];
 then
 	export ASERVER=$1
-	export MW_HOME=$2
+	export WL_HOME=$2
 	export KEYSTORE_HOME=$3
 	export KEYPASS=$4	
 else
@@ -30,15 +31,15 @@ else
     echo "ERROR: Incorrect number of parameters used: Expected 4, got $#"
     echo ""
     echo "Usage:"
-    echo "    $0 [WLS_DOMAIN_DIRECTORY] [MW_HOME] [KEYSTORE_HOME] [KEYPASS]"
+    echo "    $0 [WLS_DOMAIN_DIRECTORY] [WL_HOME] [KEYSTORE_HOME] [KEYPASS]"
     echo ""
     echo "Example:  "
-    echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw /u01/oracle/config/keystores mycertkeystorepass123"
+    echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw/wlserver /u01/oracle/config/keystores mycertkeystorepass123"
     exit 1
 fi
 
 export dt=`date +%y-%m-%d-%H-%M-%S`
-. $MW_HOME/wlserver/server/bin/setWLSEnv.sh
+. $WL_HOME/server/bin/setWLSEnv.sh
 
 mkdir -p $KEYSTORE_HOME
 cd $KEYSTORE_HOME
@@ -51,7 +52,7 @@ if [ -f $KEYSTORE_HOME/appIdentityKeyStore.jks ]; then
 	cp $KEYSTORE_HOME/appIdentityKeyStore.jks $KEYSTORE_HOME/appIdentityKeyStore.$dt.jks
 fi
 
-cp $MW_HOME/wlserver/server/lib/cacerts $KEYSTORE_HOME/appTrustKeyStore.jks
+cp $WL_HOME/server/lib/cacerts $KEYSTORE_HOME/appTrustKeyStore.jks
 
 keytool -storepasswd -new $KEYPASS -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -storepass changeit
 cd $KEYSTORE_HOME
