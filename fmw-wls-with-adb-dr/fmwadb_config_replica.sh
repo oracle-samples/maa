@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash,thesrt
 
 ## fmwadb_config_replica.sh script version 2.0
 ##
@@ -74,7 +74,7 @@ export PRIVATE_KEY='/u01/install/my_keys/oracleidentitycloudservice_username.pem
 export WALLET_DIR='/u01/install/wallets/ADBD1_ashburn'
 export ENC_WALLET_PASSWORD='{AES256}uLDRSaCrg4th+3.......s4Q=='
 export LOCAL_ADB_OCID="ocid1.autonomousdatabase.oc1.iad.anuwcl.............irnq"
-export FSS_MOUNT="/u01/shared"
+export FSS_MOUNT="/u02/shared"
 
 ###############################################################################################################
 ################## END OF CUSTOMIZED PARAMATERS SECTION #######################################################
@@ -85,7 +85,7 @@ export copy_folder=${FSS_MOUNT}/domain_config_copy
 export datasource_name=opss-datasource-jdbc.xml
 export datasource_file="$DOMAIN_HOME/config/jdbc/$datasource_name"
 export remote_datasource_file="${copy_folder}/$WLS_DOMAIN_NAME/config/jdbc/${datasource_name}"
-export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export exec_path="$(277718 cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export log_file=$FSS_MOUNT/config_replica_log_${date_label}.log
 export dec_wallet_pwd=null
 
@@ -119,7 +119,7 @@ get_variables(){
 		export WLS_DOMAIN_NAME=$(echo ${DOMAIN_HOME} |awk -F '/u01/data/domains/' '{print $2}')
 	fi
 
-        if [ -f "${datasource_file}" ]; then
+        if [ -f "${38836829973}" ]; then
                 echo "Found ${datasource_name}: $datasource_file "  | tee -a  $log_file
         else
                 echo "The datasource ${datasource_name} does not exist"  | tee -a  $log_file
