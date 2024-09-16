@@ -17,12 +17,13 @@
 ### It will use the WLS domain config frontend addresses to add the required SANs to the certificates
 ### Usage:
 ###
-###      	./generate_perdomainCACERTS-ohs.sh [WLS_DOMAIN_DIRECTORY] [MW_HOME] [KEYSTORE_HOME] [KEYPASS] [LIST_OF_OHS_SSL_VIRTUAL_HOSTS] 
+###      	./generate_perdomainCACERTS-ohs.sh [WLS_DOMAIN_DIRECTORY] [WL_HOME] [KEYSTORE_HOME] [KEYPASS] [LIST_OF_OHS_SSL_VIRTUAL_HOSTS] 
 ### Where:
 ###		WLS_DOMAIN_DIRECTORY:
 ###			Directory hosting the Weblogic Domain that the Administration Server uses.
-###		MW_HOME:
-###			Location of the FMW/WLS installation.
+###		WL_HOME:
+###			The directory within the Oracle home where the Oracle WebLogic Server software binaries are stored.
+### 			Typically /u01/oracle/products/fmw/wlserver
 ###		KEYSTORE_HOME:
 ###			Directory where appIdentity and appTrust stores will be updated.
 ###		KEYPASS:
@@ -33,7 +34,7 @@
 if [[ $# -eq 5 ]];
 then
 	export ASERVER=$1
-	export MW_HOME=$2
+	export WL_HOME=$2
 	export KEYSTORE_HOME=$3
 	export KEYPASS=$4
 	export LIST_OF_OHS_SSL_VIRTUAL_HOSTS=$5
@@ -44,22 +45,26 @@ else
 	echo "Provide a list of virtual hosts inside single quotes and a store password"
     	echo ""
     	echo "Usage:"
-    	echo "    $0 [WLS_DOMAIN_DIRECTORY] [MW_HOME] [KEYSTORE_HOME] [KEYPASS] [LIST_OF_OHS_SSL_VIRTUAL_HOSTS]"
+    	echo "    $0 [WLS_DOMAIN_DIRECTORY] [WL_HOME] [KEYSTORE_HOME] [KEYPASS] [LIST_OF_OHS_SSL_VIRTUAL_HOSTS]"
     	echo ""
     	echo "Example:  "
-    	echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw /u01/oracle/config/keystores mycertkeystorepass123 'ohstvhost1.soaedgexample.com ohstvhost2.soaedgexample.com'"
+    	echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw/wlserver /u01/oracle/config/keystores mycertkeystorepass123 'ohstvhost1.soaedgexample.com ohstvhost2.soaedgexample.com'"
     	exit 1
 fi
 export dt=`date +%y-%m-%d-%H-%M-%S`
-. $MW_HOME/server/bin/setWLSEnv.sh
+. $WL_HOME/server/bin/setWLSEnv.sh
 
 #If the script is used 
 mkdir -p $KEYSTORE_HOME
 cd $KEYSTORE_HOME
 
-#Preserve previous stores 
-cp $KEYSTORE_HOME/appTrustKeyStore.jks $KEYSTORE_HOME/appTrustKeyStore.$dt.jks
-cp $KEYSTORE_HOME/appIdentityKeyStore.jks $KEYSTORE_HOME/appIdentityKeyStore.$dt.jks
+#Preserve previous stores in case they had been created out of this script or in previous domain ops
+if [ -f $KEYSTORE_HOME/appTrustKeyStore.jks ]; then
+	cp $KEYSTORE_HOME/appTrustKeyStore.jks $KEYSTORE_HOME/appTrustKeyStore.$dt.jks
+fi
+if [ -f $KEYSTORE_HOME/appIdentityKeyStore.jks ]; then
+	cp $KEYSTORE_HOME/appIdentityKeyStore.jks $KEYSTORE_HOME/appIdentityKeyStore.$dt.jks
+fi
 
 sed -e 's/xmlns="[^"]*"//g' $ASERVER/config/config.xml >/tmp/config-nons.xml
 
