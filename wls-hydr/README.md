@@ -392,3 +392,29 @@ This table lists all the resources that this framework creates in OCI.
 |                              |                                                             | Add frontend names to the /etc/hosts       |                                                                                   |
 
 </details>
+
+
+LIST OF THE OCI POLICIES REQUIRED
+==================================================
+This table lists all the required OCI Policies for the user who runs the tool.
+
+<details><summary>Click to expand</summary>
+
+"MyGroup" is the group name of the user who will run the tool.   
+"MyCompartment" a is the name of the compartment in which the resources will be created.
+
+| Policy                                                                                     | Description                                                             | Policy Location |
+|--------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|-----------------|
+| Allow group MyGroup to   inspect instance-image in compartment MyCompartment               | To use the WebLogic for OCI images in Marketplace                       | Compartment     |
+| Allow group MyGroup to use   app-catalog-listing in compartment MyCompartment              | To use the Marketplace applications catalog                             | Compartment     |
+| Allow group MyGroup to manage   instance-family in compartment MyCompartment               | To create Compute Instances                                             | Compartment     |
+| Allow group MyGroup to manage   volume-family in compartment MyCompartment                 | To create Block Volumes                                                 | Compartment     |
+| Allow group MyGroup to inspect   limits in tenancy                                         | To determine if resources are available in various compartments         | Compartment     |
+| Allow group MyGroup to manage   virtual-network-family in compartment MyNetworkCompartment | To create VCNs and subnets                                              | Compartment     |
+| Allow group MyGroup to manage   load-balancers in compartment MyNetworkCompartment         | To create a load balancer                                               | Compartment     |
+| Allow group MyGroup to manage   mount-targets in compartment MyCompartment                 | To create mount targets and associate file systems to the mount targets | Compartment     |
+| Allow group MyGroup to manage   file-systems in compartment MyCompartment                  | To create a shared file system                                          | Compartment     |
+| Allow group MyGroup to manage   export-sets in compartment MyCompartment                   | To create export-sets                                                   | Compartment     |
+         
+</details>                                                                                  
+
