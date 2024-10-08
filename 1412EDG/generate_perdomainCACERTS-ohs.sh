@@ -118,7 +118,7 @@ echo "**************************************************************************
 
 #We qualify alias with port in case we have mutiple certs for different virtuaL host that
 #share the same host but listen on different port
-
+echo ""
 for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 	 #Check if the cert for this virtual host already exists
 	if [ $(keytool -list -keystore  appIdentityKeyStore.jks -storepass $KEYPASS |  grep $vhost | grep -c PrivateKeyEntry) -ge 1 ]
@@ -130,17 +130,38 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
                 	[Nn]* ) echo "Skipping update for  $vhost";addcert=false;break ;;
                 	* ) echo "Please answer y or n.";;
                         esac
-                	
 		done
 
 	else
-                addcert=true
-        fi
-        if [ "$addcert" = true ];then
+     addcert=true
+   fi
+   if [ "$addcert" = true ];then
+		echo ""
 		echo "Generating and adding cert for $vhost"
         	java utils.CertGen -cn $vhost -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $vhost.cert -keyfile $vhost.key -domain $ASERVER -nosanhostdns -a $final_sanurl -validuntil "2030-03-01"
-        	java  utils.ImportPrivateKey -certfile $ASERVER/security/$vhost.cert.der -keyfile $ASERVER/security/$vhost.key.der -keyfilepass $KEYPASS -keystore appIdentityKeyStore.jks -storepass $KEYPASS -alias $vhost -keypass $KEYPASS
-        fi
+        	java  utils.ImportPrivateKey -certfile $ASERVER/security/$vhost.cert.der -keyfile $ASERVER/security/$vhost.key.der -keyfilepass $KEYPASS -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -storepass $KEYPASS -alias $vhost -keypass $KEYPASS
+		echo ""
+		echo "Updating orapki wallet with new cert..."
+                if [ -f $KEYSTORE_HOME/orapki ]; then
+                        echo "Root orapki wallet already exists, adding just the new cert... "
+                else
+                        echo "Root orapki wallet does not exist, creating it and adding the new certs for WLS access..."
+			mkdir -p  $KEYSTORE_HOME/orapki/
+			$WL_HOME/../bin/orapki wallet create -wallet $KEYSTORE_HOME/orapki/ -auto_login_only
+			$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/ -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -jkspwd $KEYPASS
+                fi
+		rm -rf $KEYSTORE_HOME/orapki/orapki-vh-$vhost
+		mkdir -p $KEYSTORE_HOME/orapki/orapki-vh-$vhost
+		echo ""
+		$WL_HOME/../bin/orapki wallet create -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -auto_login_only
+		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -jkspwd $KEYPASS -aliases $vhost
+		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -jkspwd $KEYPASS
+    fi
 done
+cd $KEYSTORE_HOME
+tar -czvf  $KEYSTORE_HOME/orapki-ohs.gz ./orapki
+echo "******************************************************"
+echo "Tar to ship to ohs nodes: $KEYSTORE_HOME/orapki-ohs.gz"
+echo "******************************************************"
 
 rm -rf /tmp/config-nons.xml
