@@ -133,9 +133,9 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 		done
 
 	else
-                addcert=true
-        fi
-        if [ "$addcert" = true ];then
+     addcert=true
+   fi
+   if [ "$addcert" = true ];then
 		echo ""
 		echo "Generating and adding cert for $vhost"
         	java utils.CertGen -cn $vhost -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $vhost.cert -keyfile $vhost.key -domain $ASERVER -nosanhostdns -a $final_sanurl -validuntil "2030-03-01"
@@ -156,7 +156,7 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 		$WL_HOME/../bin/orapki wallet create -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -auto_login_only
 		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -jkspwd $KEYPASS -aliases $vhost
 		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -jkspwd $KEYPASS
-        fi
+    fi
 done
 cd $KEYSTORE_HOME
 tar -czvf  $KEYSTORE_HOME/orapki-ohs.gz ./orapki
