@@ -31,7 +31,7 @@
 ###		KEYPASS:
 ###			Password used for the weblogic administration user (will be reused for certs and stores)
 ###		LIST_OF_OHS_SSL_VIRTUAL_HOSTS:
-###			A space seprated  list of OHS Virtual host addresses enclosed in single quotes '.
+###			A space separated list of OHS Virtual host addresses enclosed in single quotes ' (just the host address, do not include the port).
 
 if [[ $# -eq 5 ]];
 then
@@ -50,7 +50,7 @@ else
     	echo "    $0 [WLS_DOMAIN_DIRECTORY] [WL_HOME] [KEYSTORE_HOME] [KEYPASS] [LIST_OF_OHS_SSL_VIRTUAL_HOSTS]"
     	echo ""
     	echo "Example:  "
-    	echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw/wlserver /u01/oracle/config/keystores mycertkeystorepass123 'ohstvhost1.soaedgexample.com:4445 ohstvhost2.soaedgexample.com:4445'"
+    	echo "    $0 /u01/oracle/config/domains/soaedg /u01/oracle/products/fmw/wlserver /u01/oracle/config/keystores mycertkeystorepass123 'ohstvhost1.soaedgexample.com ohstvhost2.soaedgexample.com'"
     	exit 1
 fi
 export dt=`date +%y-%m-%d-%H-%M-%S`
@@ -112,12 +112,10 @@ done
 
 final_sanurl=$(echo $sanurl |sed -e 's/\(,\)*$//g')
 
+echo ""
 echo "***************************************************************************"
 echo "******* CREATING AND ADDING CERTIFICATES FOR THE OHS VIRTUAL HOSTS  *******"
 echo "***************************************************************************"
-
-#We qualify alias with port in case we have mutiple certs for different virtuaL host that
-#share the same host but listen on different port
 echo ""
 for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 	 #Check if the cert for this virtual host already exists
@@ -133,9 +131,9 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 		done
 
 	else
-     addcert=true
-   fi
-   if [ "$addcert" = true ];then
+     		addcert=true
+   	fi
+   	if [ "$addcert" = true ];then
 		echo ""
 		echo "Generating and adding cert for $vhost"
         	java utils.CertGen -cn $vhost -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $vhost.cert -keyfile $vhost.key -domain $ASERVER -nosanhostdns -a $final_sanurl -validuntil "2030-03-01"
@@ -156,12 +154,13 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 		$WL_HOME/../bin/orapki wallet create -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -auto_login_only
 		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -jkspwd $KEYPASS -aliases $vhost
 		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -jkspwd $KEYPASS
-    fi
+    	fi
 done
 cd $KEYSTORE_HOME
 tar -czvf  $KEYSTORE_HOME/orapki-ohs.gz ./orapki
+echo""
 echo "******************************************************"
-echo "Tar to ship to ohs nodes: $KEYSTORE_HOME/orapki-ohs.gz"
+echo "Tar to ship to Oracle HTTP Server nodes: $KEYSTORE_HOME/orapki-ohs.gz"
 echo "******************************************************"
-
+echo ""
 rm -rf /tmp/config-nons.xml
