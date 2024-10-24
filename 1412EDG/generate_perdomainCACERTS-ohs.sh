@@ -33,6 +33,8 @@
 ###		LIST_OF_OHS_SSL_VIRTUAL_HOSTS:
 ###			A space separated list of OHS Virtual host addresses enclosed in single quotes ' (just the host address, do not include the port).
 
+export storetype=pkcs12
+
 if [[ $# -eq 5 ]];
 then
 	export ASERVER=$1
@@ -56,19 +58,19 @@ fi
 export dt=`date +%y-%m-%d-%H-%M-%S`
 . $WL_HOME/server/bin/setWLSEnv.sh
 
-if [ -f $KEYSTORE_HOME/appTrustKeyStore.jks ]; then
-	cp $KEYSTORE_HOME/appTrustKeyStore.jks $KEYSTORE_HOME/appTrustKeyStore.$dt.jks
+if [ -f $KEYSTORE_HOME/appTrustKeyStore.$storetype ]; then
+	cp $KEYSTORE_HOME/appTrustKeyStore.$storetype $KEYSTORE_HOME/appTrustKeyStore.$dt.$storetype
 else
 	echo""
-	echo "appTrustKeyStore.jks not found under $KEYSTORE_HOME." 
+	echo "appTrustKeyStore.$storetype not found under $KEYSTORE_HOME." 
 	echo "Make sure you have used generate_perdomainCACERTS.sh before running this script!"
 	exit
 fi
-if [ -f $KEYSTORE_HOME/appIdentityKeyStore.jks ]; then
-	cp $KEYSTORE_HOME/appIdentityKeyStore.jks $KEYSTORE_HOME/appIdentityKeyStore.$dt.jks
+if [ -f $KEYSTORE_HOME/appIdentityKeyStore.$storetype ]; then
+	cp $KEYSTORE_HOME/appIdentityKeyStore.$storetype $KEYSTORE_HOME/appIdentityKeyStore.$dt.$storetype
 else
 	echo""
-	echo "appIdentityKeyStore.jks not found under $KEYSTORE_HOME."
+	echo "appIdentityKeyStore.$storetype not found under $KEYSTORE_HOME."
         echo"Make sure you have used generate_perdomainCACERTS.sh before running this script!"
         exit
 fi
@@ -84,8 +86,6 @@ echo "**************************************************************************
 echo "**** ADDING THE FRONT-END ADDRESSES' CA/CERTIFICATES TO THE TRUST STORE ***"
 echo "***************************************************************************"
 
-echo "List of front-ends : $list_of_fe"
-echo "List of ports : $list_of_ports"
 num_of_fe=$(echo $list_of_fe | awk '{print NF}')
 declare -A matrix
 
@@ -95,7 +95,7 @@ for ((j=1;j<=num_of_fe;j++)) do
 	matrix[$j,3]=$(echo ${matrix[$j,1]}:${matrix[$j,2]})
 	sanurl+="DNS:${matrix[$j,1]},"
 	echo ""
-	echo "Downloading and adding front cert and chain for ${matrix[$j,3]}"
+	echo "Downloading and adding cert and chain for ${matrix[$j,3]}"
         mkdir -p $KEYSTORE_HOME/${matrix[$j,3]}
 
         openssl s_client -connect ${matrix[$j,3]} -showcerts </dev/null 2>/dev/null| sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p'  > $KEYSTORE_HOME/${matrix[$j,3]}.crt
@@ -104,13 +104,13 @@ for ((j=1;j<=num_of_fe;j++)) do
         for pemfilewithpath in $KEYSTORE_HOME/${matrix[$j,3]}/certchain.*.pem
 	do
 		pemfile=$(basename -- "$pemfilewithpath")
-		if [ $(keytool -list -keystore $KEYSTORE_HOME/appTrustKeyStore.jks  -storepass $KEYPASS |  grep -w ${matrix[$j,3]}.$pemfile| grep -c trustedCertEntry) -ge 1 ]
+		if [ $(keytool -list -keystore $KEYSTORE_HOME/appTrustKeyStore.$storetype  -storepass $KEYPASS |  grep -w ${matrix[$j,3]}.$pemfile| grep -c trustedCertEntry) -ge 1 ]
 	       	then
 			echo ""
 			while true; do
 				read -p "An alias for for ${matrix[$j,3]}.$pemfile already exists in the truststore. Do you want to replace it? " yn
                 		case $yn in
-                                [Yy]* ) echo "Removing current cert for ${matrix[$j,3]}.$pemfile"; addtrust=true;keytool  -keystore $KEYSTORE_HOME/appTrustKeyStore.jks  -storepass $KEYPASS  -delete  -noprompt -alias ${matrix[$j,3]}.$pemfile;break;;
+                                [Yy]* ) echo "Removing current cert for ${matrix[$j,3]}.$pemfile"; addtrust=true;keytool  -keystore $KEYSTORE_HOME/appTrustKeyStore.$storetype  -storepass $KEYPASS  -delete  -noprompt -alias ${matrix[$j,3]}.$pemfile;break;;
                                 [Nn]* ) echo "Skipping update for ${matrix[$j,3]}.$pemfile";addtrust=false;break ;;
                                 * ) echo "Please answer y or n.";;
                         	esac
@@ -120,13 +120,26 @@ for ((j=1;j<=num_of_fe;j++)) do
         	fi
 		if [ "$addtrust" = true ];then
 			echo "Adding cert chain for ${matrix[$j,3]}.$pemfile"
-			keytool -import -file $pemfile -trustcacerts -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -alias ${matrix[$j,3]}.$pemfile -storepass $KEYPASS
+			keytool -import -file $pemfile -trustcacerts -keystore $KEYSTORE_HOME/appTrustKeyStore.$storetype -alias ${matrix[$j,3]}.$pemfile -storepass $KEYPASS -storetype $storetype
 		fi		
-                
 	done
 done
 
 final_sanurl=$(echo $sanurl |sed -e 's/\(,\)*$//g')
+
+echo ""
+echo "***************************************************************************"
+echo "****  ADDING CERTIFICATE STORE LOCATION TO THE WEBLOGIC START SCRIPTS  ****"
+echo "***************************************************************************"
+echo ""
+cat << EOF >> $ASERVER/bin/setUserOverridesLate.sh
+
+EXTRA_JAVA_PROPERTIES="${EXTRA_JAVA_PROPERTIES} -Djavax.net.ssl.trustStore=$KEYSTORE_HOME/appTrustKeyStore.$storetype -Djavax.net.ssl.trustStorePassword=$KEYPASS"
+export EXTRA_JAVA_PROPERTIES
+EOF
+
+echo "Overrides updated per:"
+cat  $ASERVER/bin/setUserOverridesLate.sh
 
 echo ""
 echo "***************************************************************************"
@@ -136,12 +149,12 @@ echo ""
 for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 	#Check if the cert for this virtual host already exists
 	mkdir -p $KEYSTORE_HOME/$vhost
-	if [ $(keytool -list -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -storepass $KEYPASS |  grep $vhost | grep -c PrivateKeyEntry) -ge 1 ]
+	if [ $(keytool -list -keystore $KEYSTORE_HOME/appIdentityKeyStore.$storetype -storepass $KEYPASS |  grep $vhost | grep -c PrivateKeyEntry) -ge 1 ]
 	then
 		while true; do
                        	read -p "An entry for virtual host $vhost already exists in the Identity Store. Do you want to replace it? " yn
 	        	case $yn in
-        		[Yy]* ) echo "Removing current entry for  $vhost..."; addcert=true;keytool  -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks  -storepass $KEYPASS  -delete  -noprompt -alias $vhost;break;;
+        		[Yy]* ) echo "Removing current entry for  $vhost..."; addcert=true;keytool  -keystore $KEYSTORE_HOME/appIdentityKeyStore.$storetype  -storepass $KEYPASS  -delete  -noprompt -alias $vhost;break;;
                 	[Nn]* ) echo "Skipping update for  $vhost...";addcert=false;break ;;
                 	* ) echo "Please answer y or n.";;
                         esac
@@ -154,7 +167,7 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
 		echo ""
 		echo "Generating and adding cert for $vhost..."
         	java utils.CertGen -cn $vhost -keyusagecritical "true" -keyusage "digitalSignature,nonRepudiation,keyEncipherment,keyCertSign,dataEncipherment,keyAgreement" -keyfilepass $KEYPASS -certfile $vhost.cert -keyfile $vhost.key -domain $ASERVER -nosanhostdns -a $final_sanurl -validuntil "2030-03-01" >> $KEYSTORE_HOME/$vhost/$vhost.CertGen.$dt.log 2>&1
-        	java  utils.ImportPrivateKey -certfile $ASERVER/security/$vhost.cert.der -keyfile $ASERVER/security/$vhost.key.der -keyfilepass $KEYPASS -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -storepass $KEYPASS -alias $vhost -keypass $KEYPASS  >> $KEYSTORE_HOME/$vhost/$vhost.ImportPrivateKey.$dt.log 2>&1
+        	java  utils.ImportPrivateKey -certfile $ASERVER/security/$vhost.cert.der -keyfile $ASERVER/security/$vhost.key.der -keyfilepass $KEYPASS -keystore $KEYSTORE_HOME/appIdentityKeyStore.$storetype -storepass $KEYPASS -alias $vhost -keypass $KEYPASS  -storetype $storetype  >> $KEYSTORE_HOME/$vhost/$vhost.ImportPrivateKey.$dt.log 2>&1
 		echo ""
 		echo "Updating orapki wallet with new cert..."
                 if [ -d $KEYSTORE_HOME/orapki ]; then
@@ -163,14 +176,14 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
                         echo "Root orapki wallet does not exist, creating it and adding the new certs for WLS access..."
 			mkdir -p  $KEYSTORE_HOME/orapki/
 			$WL_HOME/../bin/orapki wallet create -wallet $KEYSTORE_HOME/orapki/ -auto_login_only
-			$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/ -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -jkspwd $KEYPASS
+			$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/ -keystore $KEYSTORE_HOME/appTrustKeyStore.$storetype -jkspwd $KEYPASS
                 fi
 		rm -rf $KEYSTORE_HOME/orapki/orapki-vh-$vhost
 		mkdir -p $KEYSTORE_HOME/orapki/orapki-vh-$vhost
 		echo ""
 		$WL_HOME/../bin/orapki wallet create -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -auto_login_only
-		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appIdentityKeyStore.jks -jkspwd $KEYPASS -aliases $vhost  >> $KEYSTORE_HOME/$vhost/jks_to_pkcs12id.$dt.log 2>&1
-		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appTrustKeyStore.jks -jkspwd $KEYPASS >> $KEYSTORE_HOME/$vhost/jks_to_pkcs12tr.$dt.log 2>&1
+		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appIdentityKeyStore.$storetype -jkspwd $KEYPASS -aliases $vhost
+		$WL_HOME/../bin/orapki wallet jks_to_pkcs12 -wallet  $KEYSTORE_HOME/orapki/orapki-vh-$vhost -keystore $KEYSTORE_HOME/appTrustKeyStore.$storetype -jkspwd $KEYPASS
     	fi
 done
 cd $KEYSTORE_HOME
