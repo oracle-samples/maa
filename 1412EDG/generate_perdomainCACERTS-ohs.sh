@@ -33,6 +33,7 @@
 ###		LIST_OF_OHS_SSL_VIRTUAL_HOSTS:
 ###			A space separated list of OHS Virtual host addresses enclosed in single quotes ' (just the host address, do not include the port).
 
+## Only jks and pkcs12 are admited as store formats.
 export storetype=pkcs12
 
 if [[ $# -eq 5 ]];
@@ -127,19 +128,6 @@ done
 
 final_sanurl=$(echo $sanurl |sed -e 's/\(,\)*$//g')
 
-echo ""
-echo "***************************************************************************"
-echo "****  ADDING CERTIFICATE STORE LOCATION TO THE WEBLOGIC START SCRIPTS  ****"
-echo "***************************************************************************"
-echo ""
-cat << EOF >> $ASERVER/bin/setUserOverridesLate.sh
-
-EXTRA_JAVA_PROPERTIES="${EXTRA_JAVA_PROPERTIES} -Djavax.net.ssl.trustStore=$KEYSTORE_HOME/appTrustKeyStore.$storetype -Djavax.net.ssl.trustStorePassword=$KEYPASS"
-export EXTRA_JAVA_PROPERTIES
-EOF
-
-echo "Overrides updated per:"
-cat  $ASERVER/bin/setUserOverridesLate.sh
 
 echo ""
 echo "***************************************************************************"
