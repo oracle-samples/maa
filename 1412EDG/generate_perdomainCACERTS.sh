@@ -29,6 +29,7 @@
 ###			Address to be used in the new cert to be created and added to the Identity Store.
 ###
 
+### Only jks and pkcs12 are admited as store formats.
 export storetype=pkcs12
 
 createcertandadd (){
@@ -111,7 +112,7 @@ if [ -f $KEYSTORE_HOME/appTrustKeyStore.$storetype ]; then
 	echo "Trust store exists. Creating a backup..."
 	cp $KEYSTORE_HOME/appTrustKeyStore.$storetype $KEYSTORE_HOME/appTrustKeyStore.$dt.$storetype
 else
-	echo "Trust store does not exist, creating it from domain ca import..."
+	echo "Trust store does not exist, creating it from domain ca import."
         keytool -import -v -noprompt -trustcacerts -alias domainCA -file $ASERVER/security/democacert.der -keystore $KEYSTORE_HOME/appTrustKeyStore.$storetype -storepass $KEYPASS -storetype  $storetype >> $KEYSTORE_HOME/appTrustKeyStore.domainCA.$dt.log 2>&1
 fi
 if [ -f $KEYSTORE_HOME/appIdentityKeyStore.$storetype ]; then
@@ -143,6 +144,33 @@ else
 	createcertandadd $NEWADDR
 fi
 
+
+echo ""
+echo "***************************************************************************"
+echo "****  ADDING CERTIFICATE STORE LOCATION TO THE WEBLOGIC START SCRIPTS  ****"
+echo "***************************************************************************"
+echo ""
+cat << EOF >> $ASERVER/bin/setUserOverridesLate.sh
+
+EXTRA_JAVA_PROPERTIES="\${EXTRA_JAVA_PROPERTIES} -Djavax.net.ssl.trustStore=$KEYSTORE_HOME/appTrustKeyStore.$storetype -Djavax.net.ssl.trustStorePassword=$KEYPASS"
+export EXTRA_JAVA_PROPERTIES
+EOF
+
+echo "Java Properties Overrides updated at $ASERVER/bin/setUserOverridesLate.sh per:"
+cat  $ASERVER/bin/setUserOverridesLate.sh
+
 echo ""
 echo "Creation of certs and imports completed!"
+
+echo ""
+echo "***************************************************************************"
+echo "***************************************************************************"
+echo "IDENTITY KEYSTORE CREATED: "
+echo "- $KEYSTORE_HOME/appIdentityKeyStore.$storetype "
+echo "TRUST KEYSTORE CREATED: "
+echo "- $KEYSTORE_HOME/appTrustKeyStore.$storetype"
+echo "***************************************************************************"
+echo "***************************************************************************"
+
+echo ""
 
