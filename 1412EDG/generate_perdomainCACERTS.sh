@@ -7,7 +7,7 @@
 ##
 ### This script generates the required per domain CA certificates for the listen addresses used in an existing WLS domain.
 ### -It adds the generated certificates to an identity store file (appIdentityKeyStore.$storetype) inside the KEYSTORE_HOME directory provided.
-### -It creates a trust store file (appTrustKeyStore.$storetype) based on WL_HOME/server/lib/cacerts inside the KEYSTORE_HOME directory provided.
+### -It creates a trust store file (appTrustKeyStore.$storetype)  inside the KEYSTORE_HOME directory by importing the per domain CA in it.
 ### -It needs an existing Oracle WebLogic installation (required for setting JAVA_HOME, WL_HOME etc) and an existing WLS domain.
 ### Usage:
 ###
@@ -105,7 +105,7 @@ mkdir -p $KEYSTORE_HOME
 cd $KEYSTORE_HOME
 
 #Preserve previous stores in case they had been created out of this script or in previous domain ops. 
-#If trust does not exist we create it from $WL_HOME/server/lib/cacerts.
+#If trust does not exist we create it by importing per domain ca.
 #If identity does not exists, we will create it with first import.
 
 if [ -f $KEYSTORE_HOME/appTrustKeyStore.$storetype ]; then
