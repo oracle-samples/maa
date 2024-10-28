@@ -175,12 +175,12 @@ for vhost in ${LIST_OF_OHS_SSL_VIRTUAL_HOSTS}; do
     	fi
 done
 cd $KEYSTORE_HOME
-tar -czf  $KEYSTORE_HOME/orapki-ohs.gz ./orapki
+tar -czf  $KEYSTORE_HOME/orapki-ohs.tgz ./orapki
 echo""
 echo "***********************************************************************************************"
 echo "***********************************************************************************************"
 echo "Tar to ship to Oracle HTTP Server nodes: "
-echo "		- $KEYSTORE_HOME/orapki-ohs.gz"
+echo "		- $KEYSTORE_HOME/orapki-ohs.tgz"
 echo "***********************************************************************************************"
 echo "***********************************************************************************************"
 
