@@ -3,8 +3,10 @@
 LOG_FILE='/var/log/ohs_init.log'
 FAILURE='false'
 
-OINSTALL_GID="%%OINSTALL_GID%%"
-ORACLE_UID="%%ORACLE_UID%%"
+USER_NAME="%%USER_NAME%%"
+USER_UID="%%USER_UID%%"
+GROUP_NAME="%%GROUP_NAME%%"
+GROUP_GID="%%GROUP_GID%%"
 PORTS=%%PORTS%%
 HOSTNAME_ALIAS="%%HOSTNAME_ALIAS%%"
 PRODUCTS_PATH="%%PRODUCTS_PATH%%"
@@ -207,14 +209,26 @@ function myexit() {
     fi 
 }
 
-if [[ -z "$OINSTALL_GID" ]] || [[ "$OINSTALL_GID" =~ "%%" ]]; then
-    log "error" "OINSTALL_GID has invalid value: [$OINSTALL_GID]"
+if [[ -z "$USER_NAME" ]] || [[ "$USER_NAME" =~ "%%" ]]; then
+    log "error" "USER_NAME has invalid value: [$USER_NAME]"
     FAILURE='true'
     myexit
 fi
 
-if [[ -z "$ORACLE_UID" ]] || [[ "$ORACLE_UID" =~ "%%" ]]; then
-    log "error" "ORACLE_UID has invalid value: [$ORACLE_UID]"
+if [[ -z "$USER_UID" ]] || [[ "$USER_UID" =~ "%%" ]]; then
+    log "error" "USER_UID has invalid value: [$USER_UID]"
+    FAILURE='true'
+    myexit
+fi
+
+if [[ -z "$GROUP_NAME" ]] || [[ "$GROUP_NAME" =~ "%%" ]]; then
+    log "error" "GROUP_NAME has invalid value: [$GROUP_NAME]"
+    FAILURE='true'
+    myexit
+fi
+
+if [[ -z "$GROUP_GID" ]] || [[ "$GROUP_GID" =~ "%%" ]]; then
+    log "error" "GROUP_GID has invalid value: [$GROUP_GID]"
     FAILURE='true'
     myexit
 fi
@@ -243,54 +257,54 @@ if [[ -z "$SSH_PUB_KEY" ]] || [[ "$SSH_PUB_KEY" =~ "%%" ]]; then
     myexit
 fi
 
-log "info" "Verifying oinstall group exists and has proper GID"
-if grep -q oinstall /etc/group; then
-    log "info" "oinstall group exists - checking GID"
-    if grep oinstall /etc/group | grep -q "$OINSTALL_GID"; then
-        log "info" "oinstall has proper GID"
+log "info" "Verifying $GROUP_NAME group exists and has proper GID"
+if grep -q "$GROUP_NAME" /etc/group; then
+    log "info" "$GROUP_NAME group exists - checking GID"
+    if grep "$GROUP_NAME" /etc/group | grep -q "$GROUP_GID"; then
+        log "info" "$GROUP_NAME has proper GID"
     else
-        log "info" "oinstall exists, but has different GID than on-prem - changing GID"
-        if ! change_group_id "oinstall" "$OINSTALL_GID"; then
+        log "info" "$GROUP_NAME exists, but has different GID than on-prem - changing GID"
+        if ! change_group_id "$GROUP_NAME" "$GROUP_GID"; then
             FAILURE='true'
         fi
     fi
 else 
-    log "info" "oinstall does not exist - creating with GID $OINSTALL_GID"
-    if ! create_group  "oinstall" "$OINSTALL_GID"; then
+    log "info" "$GROUP_NAME does not exist - creating with GID $GROUP_GID"
+    if ! create_group  "$GROUP_NAME" "$GROUP_GID"; then
         FAILURE='true'
     fi
 fi
 
-oracle_valid="true"
-log "info" "Verifying oracle user exists and has proper UID"
-if grep -q ^oracle: /etc/passwd; then
-    log "info" "oracle user exists - checking UID"
-    oracle_uid=$(grep ^oracle: /etc/passwd | cut -d ":" -f 3)
-    if [[ "$oracle_uid" == "$ORACLE_UID" ]]; then 
-        log "info" "oracle user has proper UID ($ORACLE_UID)"
+user_valid="true"
+log "info" "Verifying $USER_NAME user exists and has proper UID"
+if grep -q "^$USER_NAME:" /etc/passwd; then
+    log "info" "$USER_NAME user exists - checking UID"
+    local_user_uid=$(grep "^$USER_NAME:" /etc/passwd | cut -d ":" -f 3)
+    if [[ "$local_user_uid" == "$USER_UID" ]]; then 
+        log "info" "$USER_NAME user has proper UID ($USER_UID)"
     else 
-        log "warn" "oracle user has different UID - changing" 
-        if ! change_user_id "oracle" "$ORACLE_UID"; then 
+        log "warn" "$USER_NAME user has different UID - changing" 
+        if ! change_user_id "$USER_NAME" "$USER_UID"; then 
             FAILURE='true'
-            oracle_valid="false"
+            user_valid="false"
         fi
     fi 
 else 
-    log "info" "User oracle does not exist - creating with UID $ORACLE_UID"
-    if ! create_user "oracle" "$ORACLE_UID"; then 
+    log "info" "User $USER_NAME does not exist - creating with UID $USER_UID"
+    if ! create_user "$USER_NAME" "$USER_UID"; then 
         FAILURE='true'
-        oracle_valid="false"
+        user_valid="false"
     fi
 fi 
 
-if [[ "$oracle_valid" == "true" ]]; then
-    log "info" "Making sure user oracle has the proper groups associated"
-    log "info" "Running usermod oracle -g oinstall oracle" 
-    if ! usermod -g oinstall oracle >> "$LOG_FILE" 2>&1; then
+if [[ "$user_valid" == "true" ]]; then
+    log "info" "Making sure user $USER_NAME has the proper groups associated"
+    log "info" "Running usermod $USER_NAME -g $GROUP_NAME $USER_NAME" 
+    if ! usermod -g "$GROUP_NAME" "$USER_NAME" >> "$LOG_FILE" 2>&1; then
         FAILURE='true'
-        log "error" "Failed to associate proper groups to oracle user"
+        log "error" "Failed to associate proper groups to $USER_NAME user"
     else
-        log "info" "Proper groups associated to user oracle"
+        log "info" "Proper groups associated to user $USER_NAME"
     fi
 fi
 
@@ -299,8 +313,8 @@ if ! mkdir -p "$PRODUCTS_PATH" >> "$LOG_FILE" 2>&1; then
     log "error" "Failure creating directory $PRODUCTS_PATH"
     FAILURE='true'
 else 
-    log "info" "Setting ownership to oracle:oinstall"
-    if ! chown -R "oracle:oinstall" "$PRODUCTS_PATH" >> "$LOG_FILE" 2>&1; then 
+    log "info" "Setting ownership to $USER_NAME:$GROUP_NAME"
+    if ! chown -R "$USER_NAME:$GROUP_NAME" "$PRODUCTS_PATH" >> "$LOG_FILE" 2>&1; then 
         log "error" "Failure setting correct permissions for $PRODUCTS_PATH"
         FAILURE='true'
     else 
@@ -313,8 +327,8 @@ if ! mkdir -p "$PRIVATE_CFG_PATH" >> "$LOG_FILE" 2>&1; then
     log "error" "Failure creating directory $PRIVATE_CFG_PATH"
     FAILURE='true'
 else 
-    log "info" "Setting ownership to oracle:oinstall"
-    if ! chown -R "oracle:oinstall" "$PRIVATE_CFG_PATH" >> "$LOG_FILE" 2>&1; then 
+    log "info" "Setting ownership to $USER_NAME:$GROUP_NAME"
+    if ! chown -R "$USER_NAME:$GROUP_NAME" "$PRIVATE_CFG_PATH" >> "$LOG_FILE" 2>&1; then 
         log "error" "Failure setting correct permissions for $PRIVATE_CFG_PATH"
         FAILURE='true'
     else 
@@ -322,19 +336,19 @@ else
     fi
 fi
 
-log "info" "Creating /home/oracle/.ssh directory"
-if ! mkdir -p /home/oracle/.ssh >> "$LOG_FILE" 2>&1; then
-    log "error" "Failed creating /home/oracle/.ssh directory"
+log "info" "Creating /home/$USER_NAME/.ssh directory"
+if ! mkdir -p "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1; then
+    log "error" "Failed creating /home/$USER_NAME/.ssh directory"
     FAILURE='true'
 else
-    log "info" "Adding ssh public key to 'oracle' authorized hosts"
-    echo "$SSH_PUB_KEY" >> /home/oracle/.ssh/authorized_keys
+    log "info" "Adding ssh public key to $USER_NAME authorized hosts"
+    echo "$SSH_PUB_KEY" >> "/home/$USER_NAME/.ssh/authorized_keys"
 fi 
 
 log "info" "Setting .ssh directory and contents correct permissions"
-chown -R oracle:oinstall /home/oracle/.ssh >> "$LOG_FILE" 2>&1
-chmod 700 /home/oracle/.ssh >> "$LOG_FILE" 2>&1
-chmod 600 /home/oracle/.ssh/authorized_keys >> "$LOG_FILE" 2>&1
+chown -R "$USER_NAME:$GROUP_NAME" "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1
+chmod 700 "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1
+chmod 600 "/home/$USER_NAME/.ssh/authorized_keys" >> "$LOG_FILE" 2>&1
 
 
 log "info" "Opening firewalld ports"
@@ -380,17 +394,17 @@ if [[ -n "$HOSTNAME_ALIAS" ]] && [[ ! "$HOSTNAME_ALIAS" =~ "%%" ]]; then
     fi
 fi
 
-log "info" "Amending variables in oracle .bashrc"
+log "info" "Amending variables in $USER_NAME .bashrc"
 if ! {
-        sed -i 's/^\s*\(export MW_HOME.*\)/#\1/' /home/oracle/.bashrc
-        sed -i 's/^\s*\(export WLS_HOME.*\)/#\1/' /home/oracle/.bashrc
-        sed -i 's/^\s*\(export WL_HOME.*\)/#\1/' /home/oracle/.bashrc
-        sed -i 's/^\s*\(export JAVA_HOME.*\)/#\1/' /home/oracle/.bashrc
-        sed -i 's/^\s*\(export PATH=\/u01\/jdk\/bin:$PATH.*\)/#\1/' /home/oracle/.bashrc
-        sed -i 's/^\s*\(export MIDDLEWARE_HOME.*\)/#\1/' /home/oracle/.bashrc
-        sed -i 's/^\s*\(export DOMAIN_HOME.*\)/#\1/' /home/oracle/.bashrc
+        sed -i 's/^\s*\(export MW_HOME.*\)/#\1/' "/home/$USER_NAME/.bashrc"
+        sed -i 's/^\s*\(export WLS_HOME.*\)/#\1/' "/home/$USER_NAME/.bashrc"
+        sed -i 's/^\s*\(export WL_HOME.*\)/#\1/' "/home/$USER_NAME/.bashrc"
+        sed -i 's/^\s*\(export JAVA_HOME.*\)/#\1/' "/home/$USER_NAME/.bashrc"
+        sed -i 's/^\s*\(export PATH=\/u01\/jdk\/bin:$PATH.*\)/#\1/' "/home/$USER_NAME/.bashrc"
+        sed -i 's/^\s*\(export MIDDLEWARE_HOME.*\)/#\1/' "/home/$USER_NAME/.bashrc"
+        sed -i 's/^\s*\(export DOMAIN_HOME.*\)/#\1/' "/home/$USER_NAME/.bashrc"
     } >> "$LOG_FILE" 2>&1; then
-    log "error" "Failed amending variables in oracle .bashrc"
+    log "error" "Failed amending variables in $USER_NAME .bashrc"
     FAILURE='true'
 fi
 
