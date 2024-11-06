@@ -3,8 +3,10 @@
 LOG_FILE='/var/log/wls_init.log'
 FAILURE='false'
 
-OINSTALL_GID="%%OINSTALL_GID%%"
-ORACLE_UID="%%ORACLE_UID%%"
+USER_NAME="%%USER_NAME%%"
+USER_UID="%%USER_UID%%"
+GROUP_NAME="%%GROUP_NAME%%"
+GROUP_GID="%%GROUP_GID%%"
 CONFIG_FS="%%CONFIG_FS%%"
 RUNTIME_FS="%%RUNTIME_FS%%"
 PRODUCTS_FS="%%PRODUCTS_FS%%"
@@ -215,14 +217,26 @@ function myexit() {
     fi 
 }
 
-if [[ -z "$OINSTALL_GID" ]] || [[ "$OINSTALL_GID" =~ "%%" ]]; then
-    log "error" "OINSTALL_GID has invalid value: [$OINSTALL_GID]"
+if [[ -z "$USER_NAME" ]] || [[ "$USER_NAME" =~ "%%" ]]; then
+    log "error" "USER_NAME has invalid value: [$USER_NAME]"
     FAILURE='true'
     myexit
 fi
 
-if [[ -z "$ORACLE_UID" ]] || [[ "$ORACLE_UID" =~ "%%" ]]; then
-    log "error" "ORACLE_UID has invalid value: [$ORACLE_UID]"
+if [[ -z "$USER_UID" ]] || [[ "$USER_UID" =~ "%%" ]]; then
+    log "error" "USER_UID has invalid value: [$USER_UID]"
+    FAILURE='true'
+    myexit
+fi
+
+if [[ -z "$GROUP_NAME" ]] || [[ "$GROUP_NAME" =~ "%%" ]]; then
+    log "error" "GROUP_NAME has invalid value: [$GROUP_NAME]"
+    FAILURE='true'
+    myexit
+fi
+
+if [[ -z "$GROUP_GID" ]] || [[ "$GROUP_GID" =~ "%%" ]]; then
+    log "error" "GROUP_GID has invalid value: [$GROUP_GID]"
     FAILURE='true'
     myexit
 fi
@@ -263,76 +277,70 @@ if [[ -z "$LBR_IP" ]] || [[ "$LBR_IP" =~ "%%" ]]; then
     myexit
 fi
 
-if [[ -z "$LBR_VIRT_HOSTNAME" ]] || [[ "$LBR_VIRT_HOSTNAME" =~ "%%" ]]; then
-    log "error" "LBR_VIRT_HOSTNAME not populated"
-    FAILURE='true'
-    myexit
-fi
-
-log "info" "Verifying oinstall group exists and has proper GID"
-if grep -q oinstall /etc/group; then
-    log "info" "oinstall group exists - checking GID"
-    if grep oinstall /etc/group | grep -q "$OINSTALL_GID"; then
-        log "info" "oinstall has proper GID"
+log "info" "Verifying $GROUP_NAME group exists and has proper GID"
+if grep -q "$GROUP_NAME" /etc/group; then
+    log "info" "$GROUP_NAME group exists - checking GID"
+    if grep "$GROUP_NAME" /etc/group | grep -q "$GROUP_GID"; then
+        log "info" "$GROUP_NAME has proper GID"
     else
-        log "info" "oinstall exists, but has different GID than on-prem - changing GID"
-        if ! change_group_id "oinstall" "$OINSTALL_GID"; then
+        log "info" "$GROUP_NAME exists, but has different GID than on-prem - changing GID"
+        if ! change_group_id "$GROUP_NAME" "$GROUP_GID"; then
             FAILURE='true'
         fi
     fi
 else 
-    log "info" "oinstall does not exist - creating with GID $OINSTALL_GID"
-    if ! create_group  "oinstall" "$OINSTALL_GID"; then
+    log "info" "$GROUP_NAME does not exist - creating with GID $GROUP_GID"
+    if ! create_group  "$GROUP_NAME" "$GROUP_GID"; then
         FAILURE='true'
     fi
 fi
 
-oracle_valid="true"
-log "info" "Verifying oracle user exists and has proper UID"
-if grep -q ^oracle: /etc/passwd; then
-    log "info" "oracle user exists - checking UID"
-    oracle_uid=$(grep ^oracle: /etc/passwd | cut -d ":" -f 3)
-    if [[ "$oracle_uid" == "$ORACLE_UID" ]]; then 
-        log "info" "oracle user has proper UID ($ORACLE_UID)"
+user_valid="true"
+log "info" "Verifying $USER_NAME user exists and has proper UID"
+if grep -q "^$USER_NAME:" /etc/passwd; then
+    log "info" "$USER_NAME user exists - checking UID"
+    local_user_uid=$(grep "^$USER_NAME:" /etc/passwd | cut -d ":" -f 3)
+    if [[ "$local_user_uid" == "$USER_UID" ]]; then 
+        log "info" "$USER_NAME user has proper UID ($USER_UID)"
     else 
-        log "warn" "oracle user has different UID - changing" 
-        if ! change_user_id "oracle" "$ORACLE_UID"; then 
+        log "warn" "$USER_NAME user has different UID - changing" 
+        if ! change_user_id "$USER_NAME" "$USER_UID"; then 
             FAILURE='true'
-            oracle_valid="false"
+            user_valid="false"
         fi
     fi 
 else 
-    log "info" "User oracle does not exist - creating with UID $ORACLE_UID"
-    if ! create_user "oracle" "$ORACLE_UID"; then 
+    log "info" "User $USER_NAME does not exist - creating with UID $USER_UID"
+    if ! create_user "$USER_NAME" "$USER_UID"; then 
         FAILURE='true'
-        oracle_valid="false"
+        user_valid="false"
     fi
 fi 
 
-if [[ "$oracle_valid" == "true" ]]; then
-    log "info" "Making sure user oracle has the proper groups associated"
-    log "info" "Running usermod oracle -g oinstall oracle" 
-    if ! usermod -g oinstall oracle >> "$LOG_FILE" 2>&1; then
+if [[ "$user_valid" == "true" ]]; then
+    log "info" "Making sure user $USER_NAME has the proper groups associated"
+    log "info" "Running usermod $USER_NAME -g $GROUP_NAME $USER_NAME" 
+    if ! usermod -g "$GROUP_NAME" "$USER_NAME" >> "$LOG_FILE" 2>&1; then
         FAILURE='true'
-        log "error" "Failed to associate proper groups to oracle user"
+        log "error" "Failed to associate proper groups to $USER_NAME user"
     else
-        log "info" "Proper groups associated to user oracle"
+        log "info" "Proper groups associated to user $USER_NAME"
     fi
 fi
 
-log "info" "Creating /home/oracle/.ssh directory"
-if ! mkdir -p /home/oracle/.ssh >> "$LOG_FILE" 2>&1; then
-    log "error" "Failed creating /home/oracle/.ssh directory"
+log "info" "Creating /home/$USER_NAME/.ssh directory"
+if ! mkdir -p "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1; then
+    log "error" "Failed creating /home/$USER_NAME/.ssh directory"
     FAILURE='true'
 else
-    log "info" "Adding ssh public key to 'oracle' authorized hosts"
-    echo "$SSH_PUB_KEY" >> /home/oracle/.ssh/authorized_keys
+    log "info" "Adding ssh public key to $USER_NAME authorized hosts"
+    echo "$SSH_PUB_KEY" >> "/home/$USER_NAME/.ssh/authorized_keys"
 fi 
 
 log "info" "Setting .ssh directory and contents correct permissions"
-chown -R oracle:oinstall /home/oracle/.ssh >> "$LOG_FILE" 2>&1
-chmod 700 /home/oracle/.ssh >> "$LOG_FILE" 2>&1
-chmod 600 /home/oracle/.ssh/authorized_keys >> "$LOG_FILE" 2>&1
+chown -R "$USER_NAME:$GROUP_NAME" "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1
+chmod 700 "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1
+chmod 600 "/home/$USER_NAME/.ssh/authorized_keys" >> "$LOG_FILE" 2>&1
 
 
 log "info" "Checking if nfs-utils is installed"
@@ -429,12 +437,12 @@ if [[ $valid == 'true' ]]; then
     log "info" "All filesystems successfully mounted"
 fi 
 
-log "info" "Setting mount points correct ownership (oracle:oinstall)" 
+log "info" "Setting mount points correct ownership ($USER_NAME:$GROUP_NAME)" 
 # using a kludge 'grep -v snapshot' below because of chown: changing ownership of ‘/u01/oracle/products/.snapshot’: Operation not permitted
 for mount in "$CONFIG_MOUNT" "$RUNTIME_MOUNT" "$PRODUCTS_MOUNT"; do
     # checking each mount is set because some are optional and can be empty
     if [[ -n "$mount" ]] && [[ ! "$mount" =~ "%%" ]]; then
-        if chown -R "oracle:oinstall" "$mount" 2>&1 | grep -v snapshot >> "$LOG_FILE" 2>&1; then 
+        if chown -R "$USER_NAME:$GROUP_NAME" "$mount" 2>&1 | grep -v snapshot >> "$LOG_FILE" 2>&1; then 
             log "error" "Failed setting correct ownership for mount point $mount"
             FAILURE='true'
         else 
@@ -525,12 +533,16 @@ if ! sed -i "s/^PRESERVE_HOSTINFO=0/PRESERVE_HOSTINFO=3/" /etc/oci-hostname.conf
     log "error" "Failed setting PRESERVE_HOSTINFO=3 in /etc/oci-hostnames.conf"
     FAILURE='true'
 fi
-log "info" "Adding LBR virtual hostname to /etc/hosts"
-if ! grep -q "^$LBR_IP\s$LBR_VIRT_HOSTNAME" /etc/hosts; then
-    printf '%s\t%s\n' "$LBR_IP" "$LBR_VIRT_HOSTNAME" >> /etc/hosts
-    log "info" "Added LBR virtual hostname to /etc/hosts"
+if [[ -n "$LBR_VIRT_HOSTNAME" ]] && [[ ! "$LBR_VIRT_HOSTNAME" =~ "%%" ]]; then
+    log "info" "Adding LBR virtual hostname to /etc/hosts"
+    if ! grep -q "^$LBR_IP\s$LBR_VIRT_HOSTNAME" /etc/hosts; then
+        printf '%s\t%s\n' "$LBR_IP" "$LBR_VIRT_HOSTNAME" >> /etc/hosts
+        log "info" "Added LBR virtual hostname to /etc/hosts"
+    else
+        log "info" "LBR virtual hostname already present in /etc/hosts"
+    fi
 else
-    log "info" "LBR virtual hostname already present in /etc/hosts"
+    log "info" "LBR virtual hostname not supplied."
 fi
 
 if [[ -n "$LBR_ADMIN_HOSTNAME" ]] && [[ ! "$LBR_ADMIN_HOSTNAME" =~ "%%" ]]; then

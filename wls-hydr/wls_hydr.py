@@ -17,7 +17,9 @@ try:
     from lib.OciManager import OciManager
     from lib.Utils import Utils
     from lib.Utils import Constants as CONSTANTS
+    from lib.Utils import Status as STATUS
     import configparser
+    import warnings
     import requests
     import paramiko
     import time
@@ -43,8 +45,11 @@ arg_parser.add_argument("-c", "--oci-config", required=False, type=pathlib.Path,
                       help="OCI config file path")
 
 args = arg_parser.parse_args()
-
-log_level = 'DEBUG' if args.debug else 'INFO'
+if args.debug:
+    log_level = 'DEBUG'
+else:
+    log_level = 'INFO'
+    warnings.filterwarnings("ignore")
 log_file = "wls_hydr.log"
 logger = Logger(log_file, log_level)
 basedir = os.path.dirname(os.path.realpath(__file__))
@@ -73,6 +78,13 @@ LBR_SSLHEADERS_RULE_SET = "SSLHeaders"
 LBR_HTTP_REDIRECT_RULE_SET = "HTTP_to_HTTPS_redirect"
 LBR_HTTP_PORT = 80
 DISCOVERY_RESULTS = CONSTANTS.DISCOVERY_RESULTS_FILE
+CLEANUP_SCRIPT = CONSTANTS.CLEANUP_SCRIPT
+
+def exit_failure(logger_instance, sys_file, exit_code):
+    logger_instance.writelog("info", "Any resources created so far can be deleted from OCI by running:\n{0}".format(
+        f"{basedir}/{CLEANUP_SCRIPT} -s {sys_file}"
+    ))
+    sys.exit(exit_code)
 
 def save_sysconfig(config, file):
     with open(file, "w") as f: 
@@ -196,10 +208,11 @@ def parse_input_file(file_path):
             logger.writelog("error", error)
         logger.writelog("error", "Correct errros and try again with new template file")
         sys.exit(1)
-
     logger.writelog("info", "Csv data validated - building sysconfig json")
 
 def main():
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+    sysconfig_file = f"{basedir}/config/sysconfig_{now}.json"
     logger.writelog("info", "Parsing input CSV file")
     parse_input_file(args.input_file)
     if args.auto_discovery:
@@ -211,10 +224,10 @@ def main():
             logger.writelog("error", "Public key file {0} exists but cannot be read - fix permissions and try again".format(
                 sysconfig['oci']['ssh_public_key'])
             )
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
     else:
         logger.writelog("error", f"Public key file {sysconfig['oci']['ssh_public_key']} does not exist")
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     # build the wls nodes, products fs, and block volumes arrays
     sysconfig['oci']['wls']['nodes'] = []
     sysconfig['oci']['storage']['fss']['products'] = []
@@ -238,13 +251,20 @@ def main():
                 "name" : f"{sysconfig['oci']['storage']['fss']['products_prefix_name']}{suffix}", 
                 "export_path" : f"{sysconfig['oci']['storage']['fss']['products_export_prefix']}{suffix}"
             })
-    # build the ohs nodes array    
-    sysconfig['oci']['ohs']['nodes'] = []
-    for count in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
-        sysconfig['oci']['ohs']['nodes'].append(
-            {
-                "name" : f"{sysconfig['oci']['ohs']['node_prefix']}{count + 1}"
-            })
+
+    # check if OHS is used
+    OHS_USED = True
+    if not sysconfig['oci']['ohs']['nodes_count'] or int(sysconfig['oci']['ohs']['nodes_count']) == 0:
+        OHS_USED = False
+        logger.writelog("info", "Number of OHS nodes not provided in input file - will not create OHS resurces")
+    # build the ohs nodes array if OHS is used
+    if OHS_USED:
+        sysconfig['oci']['ohs']['nodes'] = []
+        for count in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
+            sysconfig['oci']['ohs']['nodes'].append(
+                {
+                    "name" : f"{sysconfig['oci']['ohs']['node_prefix']}{count + 1}"
+                })
     # get domain from wls fqdn listen addresses
     sysconfig['prem']['network']['fqdn'] = re.match(r".*?\.(.*)", sysconfig['prem']['wls']['listen_addresses'][0])[1]
     # strip domain from listen addresses - expected format for creating private views
@@ -265,13 +285,13 @@ def main():
     except Exception as e:
         logger.writelog("info", "Failed to instantiate OciManager")
         logger.writelog("debug", repr(e))
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     # get availability domains
     success, ret = oci_manager.get_availability_domains()
     if not success:
         logger.writelog("error", "Could not query OCI for availability domains")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     # check if there are 2 ADs if round robin selected
     if sysconfig['oci']['round_robin'] == "Yes":
         if len(ret) < 2:
@@ -298,8 +318,6 @@ def main():
     logger.writelog("debug", "The following config has been extracted from " 
                     + f"the csv file:\n{json.dumps(sysconfig, indent=4)}")
 
-    now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
-    sysconfig_file = f"{basedir}/config/sysconfig_{now}.json"
     logger.writelog("debug", f"Saving sysconfig to {sysconfig_file}")
     save_sysconfig(sysconfig, sysconfig_file)
 
@@ -312,10 +330,10 @@ def main():
         if not success:
             logger.writelog("error", f"Could not check OCI if VCN {sysconfig['oci']['network']['vcn']['name']} already exists")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if ret is not None:
             logger.writelog("error", f"A VCN with the name [{sysconfig['oci']['network']['vcn']['name']}] already exists")
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if isinstance(sysconfig['oci']['network']['vcn']['cidr'], list):
             success, ret = oci_manager.create_vcn(
                 sysconfig['oci']['network']['vcn']['name'],
@@ -329,36 +347,39 @@ def main():
         if not success:
             logger.writelog("error", "Could not create VCN")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
+        sysconfig['oci']['network']['vcn']['status'] = STATUS.CREATED
     else:
+        sysconfig['oci']['network']['vcn']['status'] = STATUS.PREEXISTING
         logger.writelog("info", f"Retrieving information for VCN [{sysconfig['oci']['network']['vcn']['name']}]")
         success, ret = oci_manager.get_vcn_by_name(sysconfig['oci']['network']['vcn']['name'])
         if not success:
             logger.writelog("error", f"Could not Query OCI for VCN [{sysconfig['oci']['network']['vcn']['name']}]")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if ret is None:
             logger.writelog("error", f"No VCN named [{sysconfig['oci']['network']['vcn']['name']}] found in given compartment")
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
 
     # save required vcn details in sysconfig
     sysconfig['oci']['network']['vcn']['id'] = ret.id
     sysconfig['oci']['network']['vcn']['default_route_table_id'] = ret.default_route_table_id
     sysconfig['oci']['network']['vcn']['security_list_id'] = ret.default_security_list_id
-    sysconfig['oci']['network']['vcn']['status'] = "COMPLETED"
     save_sysconfig(sysconfig, sysconfig_file)
 
     # create internet gateway: if vcn already exists check first if internet gateway also exists and retrieve info
     CREATE_IG = True
+    sysconfig['oci']['network']['internet_gateway']['status'] = STATUS.CREATED
     if sysconfig['oci']['network']['vcn']['create'] == "No":
         logger.writelog("info", "Checking if Internet Gateway exists")
         success, ret = oci_manager.get_internet_gateway(vcn_id=sysconfig['oci']['network']['vcn']['id'])
         if not success:
             logger.writelog("error", "Failed querying OCI for Internet Gateway")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if ret is not None:
             CREATE_IG = False
+            sysconfig['oci']['network']['internet_gateway']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "Internet Gateway found - retrieved info")
         else:
             logger.writelog("info", "No Internet Gateway found - creating")
@@ -373,7 +394,7 @@ def main():
         if not success:
             logger.writelog("error", "Failed creating Internet Gateway")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created Internet Gateway")
     sysconfig['oci']['network']['internet_gateway']['id'] = ret.id
     sysconfig['oci']['network']['internet_gateway']['name'] = ret.display_name
@@ -393,7 +414,7 @@ def main():
             if not success:
                 logger.writelog("error", "Could not query OCI for VCN default route rules")
                 logger.writelog("debug", ret)
-                sys.exit(1)
+                exit_failure(logger, sysconfig_file, 1)
             for rule in ret.route_rules:
                 if rule.network_entity_id == sysconfig['oci']['network']['internet_gateway']['id']:
                     logger.writelog("info", "Internet Gateway already added to VCN default route table")
@@ -408,11 +429,12 @@ def main():
         if not success:
             logger.writelog("error", "Failed adding Internet Gateway to default route table")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully added Internet Gateway to VCN default route table")
 
     # create service gateway: if vcn already exists check first if service gateway also exists and retrieve info
     sysconfig['oci']['network']['service_gateway'] = {}
+    sysconfig['oci']['network']['service_gateway']['status'] = STATUS.CREATED
     CREATE_SG = True
     if sysconfig['oci']['network']['vcn']['create'] == "No":
         logger.writelog("info", "Checking if Service Gateway exists")
@@ -424,6 +446,7 @@ def main():
             logger.writelog("debug", ret)
         if ret is not None:
             CREATE_SG = False
+            sysconfig['oci']['network']['service_gateway']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "Service Gateway found - retrieved info")
         else:
             logger.writelog("info", "No Service Gateway found - creating")
@@ -438,7 +461,7 @@ def main():
         if not success:
             logger.writelog("error", "Failed creating Service Gateway")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created Service Gateway")
     sysconfig['oci']['network']['service_gateway']['id'] = ret.id
     sysconfig['oci']['network']['service_gateway']['name'] = ret.display_name
@@ -448,12 +471,13 @@ def main():
     if not success:
         logger.writelog("error", "Could not query OCI for OSN service details")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     sysconfig['oci']['network']['service_gateway']['cidr'] = ret.cidr_block
     save_sysconfig(sysconfig, sysconfig_file)
 
     # create NAT gateway: if vcn already exists check first if NAT gateway also exists and retrieve info
     sysconfig['oci']['network']['nat_gateway'] = {}
+    sysconfig['oci']['network']['nat_gateway']['status'] = STATUS.CREATED
     CREATE_NAT = True
     if sysconfig['oci']['network']['vcn']['create'] == "No":
         logger.writelog("info", "Checking if NAT Gateway exists")
@@ -465,6 +489,7 @@ def main():
             logger.writelog("debug", ret)
         if ret is not None:
             CREATE_NAT = False
+            sysconfig['oci']['network']['nat_gateway']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "NAT Gateway found - retrieved info")
         else:
             logger.writelog("info", "No NAT Gateway found - creating")
@@ -479,7 +504,7 @@ def main():
         if not success:
             logger.writelog("error", "Failed creating NAT Gateway")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created NAT Gateway")
     sysconfig['oci']['network']['nat_gateway']['id'] = ret.id
     sysconfig['oci']['network']['nat_gateway']['name'] = ret.display_name
@@ -487,6 +512,7 @@ def main():
     save_sysconfig(sysconfig, sysconfig_file)
 
     # create private subnets route table
+    sysconfig['oci']['network']['vcn']['route_tables'] = {}
     logger.writelog("info", "Creating private subnets route table")
     success, ret = oci_manager.create_private_route_table(
         vcn_id=sysconfig['oci']['network']['vcn']['id'],
@@ -497,9 +523,11 @@ def main():
     if not success:
         logger.writelog("info", "Failed to create private subnets route table")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Successfully created private subnets route table")
-    sysconfig['oci']['network']['vcn']['private_route_table_id'] = ret.id
+    sysconfig['oci']['network']['vcn']['route_tables']['private_route_table'] = {}
+    sysconfig['oci']['network']['vcn']['route_tables']['private_route_table']['id'] = ret.id
+    sysconfig['oci']['network']['vcn']['route_tables']['private_route_table']['status'] = STATUS.CREATED
     save_sysconfig(sysconfig, sysconfig_file)
 
     # create public subnets route table
@@ -512,9 +540,11 @@ def main():
     if not success:
         logger.writelog("info", "Failed to create public subnets route table")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Successfully created public subnets route table")
-    sysconfig['oci']['network']['vcn']['public_route_table_id'] = ret.id
+    sysconfig['oci']['network']['vcn']['route_tables']['public_route_table'] = {}
+    sysconfig['oci']['network']['vcn']['route_tables']['public_route_table']['id'] = ret.id
+    sysconfig['oci']['network']['vcn']['route_tables']['public_route_table']['status'] = STATUS.CREATED
     save_sysconfig(sysconfig, sysconfig_file)
 
 
@@ -531,12 +561,13 @@ def main():
         )
         if not success:
             logger.writelog("error", f"Could not create security list [{subnet_details['name']}_security_list]")
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
 
         if subnet_type not in sysconfig['oci']['network']['security_lists'].keys():
             sysconfig['oci']['network']['security_lists'][subnet_type] = {}
         sysconfig['oci']['network']['security_lists'][subnet_type]['name'] = ret.display_name
         sysconfig['oci']['network']['security_lists'][subnet_type]['id'] = ret.id
+        sysconfig['oci']['network']['security_lists'][subnet_type]['status'] = STATUS.CREATED
 
     save_sysconfig(sysconfig, sysconfig_file)
 
@@ -556,7 +587,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not open SSH port from bastion server to web-tier subnet")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened SSH port 22 from bastion server to web-tier subnet")
 
     # allow access to all inside webtier CIDR
@@ -569,7 +600,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating webtier security list to allow full ingress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all ingress inside webtier")
     logger.writelog("debug", "Allowing full egress access inside webtier CIDR")
     success, ret = oci_manager.open_egress_all(
@@ -580,7 +611,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating webtier security list to allow full egress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all egress inside webtier")
 
     logger.writelog("debug", "Opening ingress frontend and ssh ports from on-prem")
@@ -599,69 +630,71 @@ def main():
             if not success:
                 logger.writelog("error", f"Could not open port {port}")
                 logger.writelog("debug", reason)
-                sys.exit(1)
+                exit_failure(logger, sysconfig_file, 1)
             logger.writelog("debug", f"Opened port {port}")
 
-    logger.writelog("debug", "Opening ingress frontend ports from midtier")
-    for port in sysconfig['oci']['lbr']['https_port'], \
-                LBR_HTTP_PORT:
-        logger.writelog("debug", f"Opening port {port}")
-        success, reason = oci_manager.open_ingress_tcp_port(
-            security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
-            source=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
-            description=f"Allow access from mid-tier network to frontend {port} port",
-            port=port
-        )
-        if not success:
-            logger.writelog("error", f"Could not open port {port}")
-            logger.writelog("debug", reason)
-            sys.exit(1)
-        logger.writelog("debug", f"Opened port {port}")
+    if OHS_USED:
+        logger.writelog("debug", "Opening ingress frontend ports from midtier")
+        for port in sysconfig['oci']['lbr']['https_port'], \
+                    LBR_HTTP_PORT:
+            logger.writelog("debug", f"Opening port {port}")
+            success, reason = oci_manager.open_ingress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+                source=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
+                description=f"Allow access from mid-tier network to frontend {port} port",
+                port=port
+            )
+            if not success:
+                logger.writelog("error", f"Could not open port {port}")
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", f"Opened port {port}")
 
-    logger.writelog("info", "Opening ingress frontend HTTPS port {0} from NAT GW IP".format(
-        sysconfig['oci']['lbr']['https_port']
-    ))
-    success, reason = oci_manager.open_ingress_tcp_port(
-        security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
-        source=sysconfig['oci']['network']['nat_gateway']['ip'],
-        description="Allow access from NAT GW IP to frontend HTTPS port {0}".format(
+    if OHS_USED:
+        logger.writelog("info", "Opening ingress frontend HTTPS port {0} from NAT GW IP".format(
             sysconfig['oci']['lbr']['https_port']
-        ),
-        source_type='IP',
-        port=sysconfig['oci']['lbr']['https_port']
-    )
-    if not success:
-        logger.writelog("error", "Could not open frontend HTTPS port {0} from NAT GW IP".format(
-            sysconfig['oci']['lbr']['https_port']
-        ))
-        logger.writelog("debug", reason)
-        sys.exit(1)
-    logger.writelog("debug", "Opened frontend HTTPS port {0} from NAT GW IP".format(
-        sysconfig['oci']['lbr']['https_port']
-    ))
-
-    if sysconfig['oci']['lbr']['admin_port']:
-        logger.writelog("info", "Opening ingress frontend admin port {0} from NAT GW IP".format(
-            sysconfig['oci']['lbr']['admin_port']
         ))
         success, reason = oci_manager.open_ingress_tcp_port(
             security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
             source=sysconfig['oci']['network']['nat_gateway']['ip'],
-            description="Allow access from NAT GW IP to frontend admin port {0}".format(
-                sysconfig['oci']['lbr']['admin_port']
+            description="Allow access from NAT GW IP to frontend HTTPS port {0}".format(
+                sysconfig['oci']['lbr']['https_port']
             ),
             source_type='IP',
-            port=sysconfig['oci']['lbr']['admin_port']
+            port=sysconfig['oci']['lbr']['https_port']
         )
         if not success:
-            logger.writelog("error", "Could not open frontend admin port {0} from NAT GW IP".format(
-                sysconfig['oci']['lbr']['admin_port']
+            logger.writelog("error", "Could not open frontend HTTPS port {0} from NAT GW IP".format(
+                sysconfig['oci']['lbr']['https_port']
             ))
             logger.writelog("debug", reason)
-            sys.exit(1)
-        logger.writelog("debug", "Opened frontend admin port {0} from NAT GW IP".format(
-            sysconfig['oci']['lbr']['admin_port']
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("debug", "Opened frontend HTTPS port {0} from NAT GW IP".format(
+            sysconfig['oci']['lbr']['https_port']
         ))
+
+        if sysconfig['oci']['lbr']['admin_port']:
+            logger.writelog("info", "Opening ingress frontend admin port {0} from NAT GW IP".format(
+                sysconfig['oci']['lbr']['admin_port']
+            ))
+            success, reason = oci_manager.open_ingress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+                source=sysconfig['oci']['network']['nat_gateway']['ip'],
+                description="Allow access from NAT GW IP to frontend admin port {0}".format(
+                    sysconfig['oci']['lbr']['admin_port']
+                ),
+                source_type='IP',
+                port=sysconfig['oci']['lbr']['admin_port']
+            )
+            if not success:
+                logger.writelog("error", "Could not open frontend admin port {0} from NAT GW IP".format(
+                    sysconfig['oci']['lbr']['admin_port']
+                ))
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", "Opened frontend admin port {0} from NAT GW IP".format(
+                sysconfig['oci']['lbr']['admin_port']
+            ))
 
     logger.writelog("debug", "Updating webtier egress rules")
     logger.writelog("debug", "Opening outgoing admin server port")
@@ -675,7 +708,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not open outgoing port {0}".format(sysconfig['oci']['ohs']['console_port']))
             logger.writelog("debug", reason)
-            sys.exit(1)            
+            exit_failure(logger, sysconfig_file, 1)            
         logger.writelog("debug", "Opened outgoing port {0}".format(sysconfig['oci']['ohs']['console_port']))
 
     logger.writelog("debug", "Opening outgoing WLS servers ports")
@@ -690,7 +723,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open outgoing port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened outgoing port {port}")
 
     # GitLab #16 egress access for yum 
@@ -704,7 +737,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open web-tier egress 443 port to OSN")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened web-tier egress 443 port to OSN") 
 
     # midtier
@@ -721,7 +754,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not open SSH port from bastion server to midtier subnet")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened SSH port 22 from bastion server to midtier subnet")
     # allow access to all inside midtier CIDR
     logger.writelog("debug", "Allowing full ingress access inside midtier CIDR")
@@ -733,7 +766,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating midtier security list to allow full ingress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all ingress inside midtier")
     logger.writelog("debug", "Allowing full egress access inside midtier CIDR")
     success, ret = oci_manager.open_egress_all(
@@ -744,7 +777,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating midtier security list to allow full egress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all egress inside midtier")
 
     # allow from on-prem to different ports
@@ -761,7 +794,7 @@ def main():
             if not success:
                 logger.writelog("error", f"Could not open midtier ingress port {port}")
                 logger.writelog("debug", reason)
-                sys.exit(1)
+                exit_failure(logger, sysconfig_file, 1)
             logger.writelog("debug", f"Opened midtier ingress port {port}")
 
     # allow wls servers ports from on-prem
@@ -776,7 +809,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open midtier ingress port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened midtier ingress port {port}")
 
     # allow from webtier to admin server port - if admin server used
@@ -793,7 +826,7 @@ def main():
             logger.writelog("error", "Could not open midtier ingress admin port {0}".format(
                 sysconfig['oci']['ohs']['console_port']))
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", "Opened midtier ingress admin port {0}".format(
             sysconfig['oci']['ohs']['console_port']
         ))
@@ -810,7 +843,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open midtier ingress port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened midtier ingress port {port}")
 
     # rules to access to FSS subnet
@@ -826,7 +859,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open midtier ingress port 111 (TCP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened midtier ingress port 111 (TCP)")
 
     logger.writelog("debug", "Opening ports 2048, 2049, and 2050 from fss-tier to mid-tier")
@@ -840,7 +873,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open midtier ingress port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened midtier ingress port {port}")
 
     logger.writelog("debug", "Opening port 111 from fss-tier to mid-tier (UDP)")
@@ -853,7 +886,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open midtier ingress port 111 (UDP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened midtier ingress port 111 (UDP)")
 
     logger.writelog("debug", "Opening egress port 111 from mid-tier to fss-tier (TCP)")
@@ -866,7 +899,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open midtier egress port 111 (TCP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", f"Opened midtier to fss-tier egress port 111 (TCP)")
 
     logger.writelog("debug", "Opening egress port 111 from mid-tier to fss-tier (UDP)")
@@ -879,7 +912,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open midtier egress port 111 (UDP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", f"Opened midtier to fss-tier egress port 111 (UDP)")
 
     logger.writelog("debug", "Opening egress ports 2048, 2049, and 2050 from mid-tier to ffs-tier (TCP)")
@@ -893,7 +926,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open midtier egress port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened midtier egress port {port}")
 
     logger.writelog("debug", "Opening egress port 2048 from mid-tier to fss-tier (UDP)")
@@ -906,7 +939,7 @@ def main():
     if not success:
         logger.writelog("error", f"Could not open midtier to fss-tier egress port 2048 (UDP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened midtier to fss-tier egress port 2048 (UDP)")
 
     # egress rules from mid-tier to db-tier
@@ -930,7 +963,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open midtier to db-tier egress port {port} (TCP)")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened midtier to db-tier egress port {port} (TCP)")
 
     # egress rules from mid-tier to on-prem SSH
@@ -944,46 +977,47 @@ def main():
     if not success:
         logger.writelog("error", f"Could not open midtier to on-prem egress ssh port")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", f"Opened midtier to on-prem egress ssh port")
 
-    # Egress rules from mid-tier to HTTPS and admin ports (needed for potential application callbacks to LBR )
-    if sysconfig['oci']['network']['subnets']['webtier']['private'] == "Yes":
-        destination = sysconfig['oci']['network']['subnets']['webtier']['cidr']
-    else:
-        destination = "0.0.0.0/0"
-    logger.writelog("debug", "Opening egress HTTPS port from mid-tier to web-tier") 
-    success, reason = oci_manager.open_egress_tcp_port(
-        security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
-        destination_cidr=destination,
-        description="Allow outgoing access from mid-tier to web-tier HTTPS port",
-        port=sysconfig['oci']['lbr']['https_port']
-    )
-    if not success:
-        logger.writelog("error", "Could not open egress HTTPS port from mid-tier to web-tier")
-        logger.writelog("debug", reason)
-        sys.exit(1)
-    logger.writelog("debug", "Opened egress HTTPS port from mid-tier to web-tier") 
-
-    if sysconfig['oci']['lbr']['admin_port']:
-        logger.writelog("debug", "Opening egress admin port {0} from mid-tier to web-tier".format(
-            sysconfig['oci']['lbr']['admin_port']
-        )) 
+    # Egress rules from mid-tier to HTTPS and admin ports (needed for potential application callbacks to LBR) if OHS is used
+    if OHS_USED:
+        if sysconfig['oci']['network']['subnets']['webtier']['private'] == "Yes":
+            destination = sysconfig['oci']['network']['subnets']['webtier']['cidr']
+        else:
+            destination = "0.0.0.0/0"
+        logger.writelog("debug", "Opening egress HTTPS port from mid-tier to web-tier") 
         success, reason = oci_manager.open_egress_tcp_port(
             security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
             destination_cidr=destination,
-            description="Allow outgoing access from mid-tier to web-tier admin port",
-            port=sysconfig['oci']['lbr']['admin_port']
+            description="Allow outgoing access from mid-tier to web-tier HTTPS port",
+            port=sysconfig['oci']['lbr']['https_port']
         )
         if not success:
-            logger.writelog("error", "Could not open egress admin port {0} from mid-tier to web-tier".format(
-                sysconfig['oci']['lbr']['admin_port']
-            ))
+            logger.writelog("error", "Could not open egress HTTPS port from mid-tier to web-tier")
             logger.writelog("debug", reason)
-            sys.exit(1)
-        logger.writelog("debug", "Opened egress admin port {0} from mid-tier to web-tier".format(
-            sysconfig['oci']['lbr']['admin_port']
-        )) 
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("debug", "Opened egress HTTPS port from mid-tier to web-tier") 
+
+        if sysconfig['oci']['lbr']['admin_port']:
+            logger.writelog("debug", "Opening egress admin port {0} from mid-tier to web-tier".format(
+                sysconfig['oci']['lbr']['admin_port']
+            )) 
+            success, reason = oci_manager.open_egress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
+                destination_cidr=destination,
+                description="Allow outgoing access from mid-tier to web-tier admin port",
+                port=sysconfig['oci']['lbr']['admin_port']
+            )
+            if not success:
+                logger.writelog("error", "Could not open egress admin port {0} from mid-tier to web-tier".format(
+                    sysconfig['oci']['lbr']['admin_port']
+                ))
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", "Opened egress admin port {0} from mid-tier to web-tier".format(
+                sysconfig['oci']['lbr']['admin_port']
+            )) 
 
     # GitLab #16 egress access for yum 
     logger.writelog("debug", "Opening mid-tier egress 443 port to OSN") 
@@ -996,7 +1030,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open mid-tier egress 443 port to OSN")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened mid-tier egress 443 port to OSN") 
 
     # dbtier
@@ -1013,7 +1047,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not open SSH port from bastion server to dbtier subnet")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened SSH port 22 from bastion server to dbtier subnet")
     # allow access to all inside dbtier CIDR
     logger.writelog("debug", "Allowing full ingress access inside dbtier CIDR")
@@ -1025,7 +1059,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating dbtier security list to allow full ingress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all ingress inside dbtier")
     logger.writelog("debug", "Allowing full egress access inside dbtier CIDR")
     success, ret = oci_manager.open_egress_all(
@@ -1036,7 +1070,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating dbtier security list to allow full egress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all egress inside dbtier")
 
     # Allow access from on-prem to SSH and SQLNET port
@@ -1060,7 +1094,7 @@ def main():
         if not success:
             logger.writelog("error", f"Failed opening port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened port {port} from on-prem to dbtier")
 
     # Allow access from mid-tier to SQLNET and ONS ports
@@ -1084,7 +1118,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open port {port}")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened port {port}")
 
     # Egress rules from db-tier to on-prem
@@ -1120,7 +1154,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not open SSH port from bastion server to fsstier subnet")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened SSH port 22 from bastion server to fsstier subnet")
     # allow all inside fsstier
     logger.writelog("debug", "Allowing full ingress access inside fsstier CIDR")
@@ -1132,7 +1166,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating fsstier security list to allow full ingress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all ingress inside fsstier")
     logger.writelog("debug", "Allowing full egress access inside fsstier CIDR")
     success, ret = oci_manager.open_egress_all(
@@ -1143,7 +1177,7 @@ def main():
     if not success:
         logger.writelog("error", "Updating fsstier security list to allow full egress access inside failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened all egress inside fsstier")
 
     # Stateful ingress allow access from mid-tier to FSS (from ALL ports in the source instance CIDR block to TCP ports 111, 2048, 2049, and 2050)
@@ -1158,7 +1192,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open fsstier port 111 (TCP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened fsstier port 111(TCP)")
 
     logger.writelog("debug", "Opening ports 2048, 2049, and 2050 from midtier to fsstier")
@@ -1172,7 +1206,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open fsstier ingress port {port} (TCP)")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened fsstier ingress port {port} (TCP)")
 
     logger.writelog("debug", "Opening fsstier ports 111 and 2048 (UDP)")
@@ -1186,7 +1220,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open fsstier ingress port {port} (UDP)")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened fsstier ingress port {port} (UDP)")
 
     # Stateful egress from TCP ports 111, 2048, 2049, and 2050 to ALL ports in the destination instance CIDR block
@@ -1203,7 +1237,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not open fsstier egress port {port} (TCP)")
             logger.writelog("debug", reason)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened fsstier egress port {port} (TCP)")
 
     logger.writelog("debug", "Opening fsstier egress port 111 (UDP)")
@@ -1216,7 +1250,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not open fsstier egress port 111 (UDP)")
         logger.writelog("debug", reason)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("debug", "Opened fsstier egress port 111 (UDP)")
 
     ### CREATE SUBNETS
@@ -1225,6 +1259,7 @@ def main():
     if sysconfig['oci']['network']['vcn']['create'] == "Yes":
         logger.writelog("info", "Creating webtier subnet")
         CREATE_WEBTIER = True
+        sysconfig['oci']['network']['subnets']['webtier']['status'] = STATUS.CREATED
     else:
         logger.writelog("info", "Checking if webtier subnet {0} exists".format(
             sysconfig['oci']['network']['subnets']['webtier']['name']
@@ -1236,14 +1271,16 @@ def main():
         if not success:
             logger.writelog("error", "Failed querying OCI for webtier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if ret is None:
             CREATE_WEBTIER = True
+            sysconfig['oci']['network']['subnets']['webtier']['status'] = STATUS.CREATED
             logger.writelog("info", "Webtier subnet {0} does not exist - creating".format(
                 sysconfig['oci']['network']['subnets']['webtier']['name']
             ))
         else:
             CREATE_WEBTIER = False
+            sysconfig['oci']['network']['subnets']['webtier']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "Webtier subnet {0} already exists - retrieved details".format(
                 sysconfig['oci']['network']['subnets']['webtier']['name']
             ))
@@ -1252,7 +1289,6 @@ def main():
                 sysconfig['oci']['network']['security_lists']['webtier']['name']
             ))
             success, ret = oci_manager.add_sec_list_subnet(
-                vcn_id=sysconfig['oci']['network']['vcn']['id'], 
                 subnet_id=sysconfig['oci']['network']['subnets']['webtier']['id'], 
                 security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id']
             )
@@ -1264,10 +1300,10 @@ def main():
     if CREATE_WEBTIER:
         if sysconfig['oci']['network']['subnets']['webtier']['private'] == "Yes":
             is_private = True
-            route_table = sysconfig['oci']['network']['vcn']['private_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['private_route_table']['id']
         else:
             is_private = False
-            route_table = sysconfig['oci']['network']['vcn']['public_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['public_route_table']['id']
         success, ret = oci_manager.create_subnet(
             vcn_id=sysconfig['oci']['network']['vcn']['id'],
             cidr_block=sysconfig['oci']['network']['subnets']['webtier']['cidr'],
@@ -1279,7 +1315,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not create webtier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created webtier subnet")
         sysconfig['oci']['network']['subnets']['webtier']['id'] = ret.id
     save_sysconfig(sysconfig, sysconfig_file)
@@ -1289,6 +1325,7 @@ def main():
     if sysconfig['oci']['network']['vcn']['create'] == "Yes":
         logger.writelog("info", "Creating midtier subnet")
         CREATE_MIDTIER = True
+        sysconfig['oci']['network']['subnets']['midtier']['status'] = STATUS.CREATED
     else:
         logger.writelog("info", "Checking if midtier subnet {0} exists".format(
             sysconfig['oci']['network']['subnets']['midtier']['name']
@@ -1300,14 +1337,16 @@ def main():
         if not success:
             logger.writelog("error", "Failed querying OCI for midtier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)           
+            exit_failure(logger, sysconfig_file, 1)           
         if ret is None:
             CREATE_MIDTIER = True
+            sysconfig['oci']['network']['subnets']['midtier']['status'] = STATUS.CREATED
             logger.writelog("info", "Midtier subnet {0} does not exist - creating".format(
                 sysconfig['oci']['network']['subnets']['midtier']['name']
             ))
         else:
             CREATE_MIDTIER = False
+            sysconfig['oci']['network']['subnets']['midtier']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "Midtier subnet {0} already exists - retrieved details".format(
                 sysconfig['oci']['network']['subnets']['midtier']['name']
             ))
@@ -1316,7 +1355,6 @@ def main():
                 sysconfig['oci']['network']['security_lists']['midtier']['name']
             ))
             success, ret = oci_manager.add_sec_list_subnet(
-                vcn_id=sysconfig['oci']['network']['vcn']['id'], 
                 subnet_id=sysconfig['oci']['network']['subnets']['midtier']['id'], 
                 security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id']
             )
@@ -1328,10 +1366,10 @@ def main():
     if CREATE_MIDTIER:
         if sysconfig['oci']['network']['subnets']['midtier']['private'] == "Yes":
             is_private = True
-            route_table = sysconfig['oci']['network']['vcn']['private_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['private_route_table']['id']
         else:
             is_private = False
-            route_table = sysconfig['oci']['network']['vcn']['public_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['public_route_table']['id']
         success, ret = oci_manager.create_subnet(
             vcn_id=sysconfig['oci']['network']['vcn']['id'],
             cidr_block=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
@@ -1343,7 +1381,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not create midtier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created midtier subnet")
         sysconfig['oci']['network']['subnets']['midtier']['id'] = ret.id
     save_sysconfig(sysconfig, sysconfig_file)
@@ -1353,6 +1391,7 @@ def main():
     if sysconfig['oci']['network']['vcn']['create'] == "Yes":
         logger.writelog("info", "Creating dbtier subnet")
         CREATE_DBTIER = True
+        sysconfig['oci']['network']['subnets']['dbtier']['status'] = STATUS.CREATED
     else:
         logger.writelog("info", "Checking if dbtier subnet {0} exists".format(
             sysconfig['oci']['network']['subnets']['dbtier']['name']
@@ -1364,14 +1403,16 @@ def main():
         if not success:
             logger.writelog("error", "Failed querying OCI for dbtier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if ret is None:
             CREATE_DBTIER = True
+            sysconfig['oci']['network']['subnets']['dbtier']['status'] = STATUS.CREATED
             logger.writelog("info", "Dbtier subnet {0} does not exist - creating".format(
                 sysconfig['oci']['network']['subnets']['dbtier']['name']
             ))
         else:
             CREATE_DBTIER = False
+            sysconfig['oci']['network']['subnets']['dbtier']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "Dbtier subnet {0} already exists - retrieved details".format(
                 sysconfig['oci']['network']['subnets']['dbtier']['name']
             ))
@@ -1380,7 +1421,6 @@ def main():
                 sysconfig['oci']['network']['security_lists']['dbtier']['name']
             ))
             success, ret = oci_manager.add_sec_list_subnet(
-                vcn_id=sysconfig['oci']['network']['vcn']['id'], 
                 subnet_id=sysconfig['oci']['network']['subnets']['dbtier']['id'], 
                 security_list_id=sysconfig['oci']['network']['security_lists']['dbtier']['id']
             )
@@ -1392,10 +1432,10 @@ def main():
     if CREATE_DBTIER:
         if sysconfig['oci']['network']['subnets']['dbtier']['private'] == "Yes":
             is_private = True
-            route_table = sysconfig['oci']['network']['vcn']['private_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['private_route_table']['id']
         else:
             is_private = False
-            route_table = sysconfig['oci']['network']['vcn']['public_route_table_id']        
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['public_route_table']['id']  
         success, ret = oci_manager.create_subnet(
             vcn_id=sysconfig['oci']['network']['vcn']['id'],
             cidr_block=sysconfig['oci']['network']['subnets']['dbtier']['cidr'],
@@ -1407,7 +1447,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not create dbtier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created dbtier subnet")
         sysconfig['oci']['network']['subnets']['dbtier']['id'] = ret.id
     save_sysconfig(sysconfig, sysconfig_file)
@@ -1417,6 +1457,7 @@ def main():
     if sysconfig['oci']['network']['vcn']['create'] == "Yes":
         logger.writelog("info", "Creating fsstier subnet")
         CREATE_FSSTIER = True
+        sysconfig['oci']['network']['subnets']['fsstier']['status'] = STATUS.CREATED
     else:
         logger.writelog("info", "Checking if fsstier subnet {0} exists".format(
             sysconfig['oci']['network']['subnets']['fsstier']['name']
@@ -1428,14 +1469,16 @@ def main():
         if not success:
             logger.writelog("error", "Failed querying OCI for fsstier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         if ret is None:
             CREATE_FSSTIER = True
+            sysconfig['oci']['network']['subnets']['fsstier']['status'] = STATUS.CREATED
             logger.writelog("info", "Fsstier subnet {0} does not exist - creating".format(
                 sysconfig['oci']['network']['subnets']['fsstier']['name']
             ))
         else:
             CREATE_FSSTIER = False
+            sysconfig['oci']['network']['subnets']['fsstier']['status'] = STATUS.PREEXISTING
             logger.writelog("info", "Fsstier subnet {0} already exists - retrieved details".format(
                 sysconfig['oci']['network']['subnets']['fsstier']['name']
             ))
@@ -1444,7 +1487,6 @@ def main():
                 sysconfig['oci']['network']['security_lists']['fsstier']['name']
             ))
             success, ret = oci_manager.add_sec_list_subnet(
-                vcn_id=sysconfig['oci']['network']['vcn']['id'], 
                 subnet_id=sysconfig['oci']['network']['subnets']['fsstier']['id'], 
                 security_list_id=sysconfig['oci']['network']['security_lists']['fsstier']['id']
             )
@@ -1456,10 +1498,10 @@ def main():
     if CREATE_FSSTIER:
         if sysconfig['oci']['network']['subnets']['fsstier']['private'] == "Yes":
             is_private = True
-            route_table = sysconfig['oci']['network']['vcn']['private_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['private_route_table']['id']
         else:
             is_private = False
-            route_table = sysconfig['oci']['network']['vcn']['public_route_table_id']
+            route_table = sysconfig['oci']['network']['vcn']['route_tables']['public_route_table']['id']
         success, ret = oci_manager.create_subnet(
             vcn_id=sysconfig['oci']['network']['vcn']['id'],
             cidr_block=sysconfig['oci']['network']['subnets']['fsstier']['cidr'],
@@ -1471,7 +1513,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not create fsstier subnet")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Successfully created fsstier subnet")
         sysconfig['oci']['network']['subnets']['fsstier']['id'] = ret.id
     save_sysconfig(sysconfig, sysconfig_file)
@@ -1486,11 +1528,12 @@ def main():
     if not success:
         logger.writelog("error", "Could not create DHCP search domain option")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Created DHCP search domain option")
     sysconfig['oci']['network']['dhcp'] = {}
     sysconfig['oci']['network']['dhcp']['name'] = DHCP_OPT_NAME
     sysconfig['oci']['network']['dhcp']['id'] = ret.id
+    sysconfig['oci']['network']['dhcp']['status'] = STATUS.CREATED
 
     # Update midtier and webtier subnets DHCP option
     logger.writelog("info", "Updating midtier subnet DHCP option")
@@ -1501,7 +1544,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not update midtier subnet DHCP option")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
 
     logger.writelog("info", "Updating webtier subnet DHCP option")
     success, ret = oci_manager.add_dhcp_opt_to_subnet(
@@ -1511,7 +1554,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not update webtier subnet DHCP option")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
 
     # CREATE BLOCK VOLUMES
     logger.writelog("info", "Creating block volumes")
@@ -1527,9 +1570,10 @@ def main():
         if not success:
             logger.writelog("error", f"Could not create block volume [{sysconfig['oci']['storage']['block_volumes'][idx]['name']}] in AD [{availability_domain}]")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         # save block volume details in sysconfig
         sysconfig['oci']['storage']['block_volumes'][idx]['id'] = ret.id
+        sysconfig['oci']['storage']['block_volumes'][idx]['status'] = STATUS.CREATED
         logger.writelog("info", f"Created block volume [{sysconfig['oci']['storage']['block_volumes'][idx]['name']}] in AD [{availability_domain}]")
 
     save_sysconfig(sysconfig, sysconfig_file)
@@ -1546,9 +1590,10 @@ def main():
         if not success:
             logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['sharedconfig']['name']}]")
         sysconfig['oci']['storage']['fss']['sharedconfig']['id'] = ret.id
+        sysconfig['oci']['storage']['fss']['sharedconfig']['status'] = STATUS.CREATED
     else:
         logger.writelog("info", "WLS shared config not supplied - will not create")
     # runtime - only if supplied in input file
@@ -1561,9 +1606,10 @@ def main():
         if not success:
             logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
         sysconfig['oci']['storage']['fss']['runtime']['id'] = ret.id
+        sysconfig['oci']['storage']['fss']['runtime']['status'] = STATUS.CREATED
     else:
         logger.writelog("info", "WLS shared runtime not supplied - will not create")
     # products
@@ -1577,9 +1623,10 @@ def main():
         if not success:
             logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['products'][idx]['name']}]")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['products'][idx]['name']}]")
         sysconfig['oci']['storage']['fss']['products'][idx]['id'] = ret.id       
+        sysconfig['oci']['storage']['fss']['products'][idx]['status'] = STATUS.CREATED
 
     save_sysconfig(sysconfig, sysconfig_file)
 
@@ -1595,16 +1642,17 @@ def main():
         if not success:
             logger.writelog("error", f"Could not create mount target [{sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx]['name']}]")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", f"Created mount target [{sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx]['name']}]")
         sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx]['id'] = ret.id
         sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx]['export_set_id'] = ret.export_set_id
+        sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx]['status'] = STATUS.CREATED
         # now get the private ip to use later on to edit /etc/fstab on nodes
         success, ret = oci_manager.get_private_ip_by_id(ip_id=ret.private_ip_ids[0])
         if not success:
             logger.writelog("error", "Could not retrieve mount target IP")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx]['ip'] = ret
         save_sysconfig(sysconfig, sysconfig_file)
 
@@ -1621,7 +1669,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not export shared config filesystem")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Succesfully exported shared config filesystem")
         sysconfig['oci']['storage']['fss']['sharedconfig']['export_id'] = ret.id
         sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['ip']
@@ -1640,7 +1688,7 @@ def main():
         if not success:
             logger.writelog("error", "Could not export runtime filesystem")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Succesfully exported runtime filesystem")
         sysconfig['oci']['storage']['fss']['runtime']['export_id'] = ret.id
         sysconfig['oci']['storage']['fss']['runtime']['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][0]['ip']
@@ -1660,7 +1708,7 @@ def main():
         if not success:
             logger.writelog("error", f"Could not export {sysconfig['oci']['storage']['fss']['products'][idx]['name']} filesystem")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", f"Succesfully exported {sysconfig['oci']['storage']['fss']['products'][idx]['name']} filesystem")
         sysconfig['oci']['storage']['fss']['products'][idx]['export_id'] = ret.id
         sysconfig['oci']['storage']['fss']['products'][idx]['export_ip'] = sysconfig['oci']['storage']['fss']['mounttargets']['targets'][idx % ad_modulo]['ip']
@@ -1674,8 +1722,8 @@ def main():
     if sysconfig['oci']['network']['subnets']['webtier']['private'] == "Yes":
         lbr_private = True
     success, ret = oci_manager.provision_lbr(
-        min_bandwith_mbs=sysconfig['oci']['lbr']['min_bandwidth'],
-        max_bandwith_mbs=sysconfig['oci']['lbr']['max_bandwidth'],
+        min_bandwidth_mbs=sysconfig['oci']['lbr']['min_bandwidth'],
+        max_bandwidth_mbs=sysconfig['oci']['lbr']['max_bandwidth'],
         name=sysconfig['oci']['lbr']['name'],
         subnet_id=sysconfig['oci']['network']['subnets']['webtier']['id'],
         is_private=lbr_private
@@ -1683,10 +1731,11 @@ def main():
     if not success:
         logger.writelog("error", "LBR provisioning failed")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Successfully provisioned LBR")
     sysconfig['oci']['lbr']['id'] = ret.id
     sysconfig['oci']['lbr']['ip'] = ret.ip_addresses[0].ip_address
+    sysconfig['oci']['lbr']['status'] = STATUS.CREATED
     save_sysconfig(sysconfig, sysconfig_file)
 
     # CREATE WLS INSTANCES 
@@ -1702,7 +1751,7 @@ def main():
         coherence_ports = sysconfig['oci']['network']['ports']['coherence']
     else:
         coherence_ports = [sysconfig['oci']['network']['ports']['coherence']]
-    # check if shared config filesystem is used otherwise leave vars black
+    # check if shared config and runtime filesystems are used otherwise leave vars blank
     config_fs = ""
     config_mount = ""
     runtime_fs = ""
@@ -1721,23 +1770,23 @@ def main():
             with open(node_init_script, "w") as outfile:
                 for line in infile:
                     if re.match('.*%%"?$', line):
-                        line = line.replace("%%OINSTALL_GID%%", 
-                                            sysconfig['prem']['wls']['oinstall_gid'])
-                        line = line.replace("%%ORACLE_UID%%", 
-                                            sysconfig['prem']['wls']['oracle_uid'])
+                        line = line.replace("%%USER_NAME%%", 
+                                            sysconfig['prem']['wls']['user_name'])
+                        line = line.replace("%%USER_UID%%", 
+                                            sysconfig['prem']['wls']['user_uid'])
+                        line = line.replace("%%GROUP_NAME%%", 
+                                            sysconfig['prem']['wls']['group_name'])
+                        line = line.replace("%%GROUP_GID%%", 
+                                            sysconfig['prem']['wls']['group_gid'])
                         line = line.replace("%%CONFIG_FS%%", 
-                                            #f"{sysconfig['oci']['storage']['fss']['sharedconfig']['export_ip']}:{sysconfig['oci']['storage']['fss']['sharedconfig']['export_path']}")
                                             config_fs)
                         line = line.replace("%%RUNTIME_FS%%", 
-                                            # f"{sysconfig['oci']['storage']['fss']['runtime']['export_ip']}:{sysconfig['oci']['storage']['fss']['runtime']['export_path']}")
                                             runtime_fs)
                         line = line.replace("%%PRODUCTS_FS%%", 
-                                            f"{sysconfig['oci']['storage']['fss']['products'][idx % ad_modulo]['export_ip']}:{sysconfig['oci']['storage']['fss']['products'][idx % ad_modulo]['export_path']}")
+                                            f"{sysconfig['oci']['storage']['fss']['products'][idx % 2]['export_ip']}:{sysconfig['oci']['storage']['fss']['products'][idx % 2]['export_path']}")
                         line = line.replace("%%CONFIG_MOUNT%%", 
-                                            #f"{sysconfig['prem']['wls']['mountpoints']['config']}")
                                             config_mount)
                         line = line.replace("%%RUNTIME_MOUNT%%", 
-                                            # f"{sysconfig['prem']['wls']['mountpoints']['runtime']}")
                                             runtime_mount)
                         line = line.replace("%%PRODUCTS_MOUNT%%", 
                                             f"{sysconfig['prem']['wls']['mountpoints']['products']}")
@@ -1748,8 +1797,9 @@ def main():
                         line = line.replace("%%SSH_PUB_KEY%%", ssh_key)
                         line = line.replace("%%LBR_IP%%", 
                                             f"{sysconfig['oci']['lbr']['ip']}")
-                        line = line.replace("%%LBR_VIRT_HOSTNAME%%", 
-                                            f"{sysconfig['oci']['lbr']['virtual_hostname_value']}")
+                        if OHS_USED:
+                            line = line.replace("%%LBR_VIRT_HOSTNAME%%", 
+                                                f"{sysconfig['oci']['lbr']['virtual_hostname_value']}")
                         if sysconfig['oci']['lbr']['admin_hostname_value']:
                             line = line.replace("%%LBR_ADMIN_HOSTNAME%%", 
                                                 f"{sysconfig['oci']['lbr']['admin_hostname_value']}")
@@ -1772,74 +1822,81 @@ def main():
         if not success:
             logger.writelog("error", "Failed provisioning WLS instance")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", f"Created WLS node {sysconfig['oci']['wls']['nodes'][idx]['name']}")
         sysconfig['oci']['wls']['nodes'][idx]['id'] = ret.id
+        sysconfig['oci']['wls']['nodes'][idx]['status'] = STATUS.CREATED
         save_sysconfig(sysconfig, sysconfig_file)
         logger.writelog("info", "Retrieving assigned IP address")
         success, ret = oci_manager.get_instance_ip(instance_id=sysconfig['oci']['wls']['nodes'][idx]['id'])
         if not success:
             logger.writelog("error", "Failed retrieving instance IP address")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         sysconfig['oci']['wls']['nodes'][idx]['ip'] = ret
         save_sysconfig(sysconfig, sysconfig_file)
 
-    # CREATE OHS instances
-    logger.writelog("info", "Creating OHS instances")
-    with open(sysconfig['oci']['ssh_public_key'], "r") as f:
-        ssh_key = f.read()
-    for idx in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
-        logger.writelog("info", f"Building OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']} init script")
-        node_init_script = f"{basedir}/lib/{sysconfig['oci']['ohs']['nodes'][idx]['name']}_init.sh"
-        with open(OHS_INIT_SCRIPT, "r") as infile:
-            with open(node_init_script, "w") as outfile:
-                for line in infile:
-                    if re.match('.*%%"?$', line):
-                        line = line.replace("%%OINSTALL_GID%%", 
-                                            sysconfig['prem']['ohs']['oinstall_gid'])
-                        line = line.replace("%%ORACLE_UID%%", 
-                                            sysconfig['prem']['ohs']['oracle_uid'])
-                        line = line.replace("%%PORTS%%", "({0} {1} {2})".format(
-                                                            sysconfig['oci']['ohs']['console_port'],
-                                                            sysconfig['oci']['ohs']['http_port'],
-                                                            sysconfig['oci']['lbr']['virt_host_ohs_port']
-                                                            ))
-                        line = line.replace("%%HOSTNAME_ALIAS%%", 
-                                            sysconfig['prem']['ohs']['listen_addresses'][idx])
-                        line = line.replace("%%PRODUCTS_PATH%%",
-                                            sysconfig['prem']['ohs']['products_path'])
-                        line = line.replace("%%PRIVATE_CFG_PATH%%",
-                                            sysconfig['prem']['ohs']['config_path'])
-                        line = line.replace("%%SSH_PUB_KEY%%", ssh_key)
-                    outfile.write(line)
-        logger.writelog("info", f"Creating OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
-        success, ret = oci_manager.provision_instance(
-            type="ohs",
-            name=sysconfig['oci']['ohs']['nodes'][idx]['name'],
-            os_version=sysconfig['oci']['ohs']['os_version'],
-            ocpu_count=sysconfig['oci']['ohs']['ocpu'],
-            memory=sysconfig['oci']['ohs']['memory'],
-            ssh_pub_key=ssh_key,
-            subnet_id=sysconfig['oci']['network']['subnets']['webtier']['id'],
-            availability_domain=sysconfig['oci']['availability_domains'][idx % ad_modulo],   
-            init_script_path=node_init_script
-        )
-        if not success:
-            logger.writelog("error", "Failed provisioning OHS instance")
-            logger.writelog("debug", ret)
-            sys.exit(1)
-        logger.writelog("info", f"Created OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
-        sysconfig['oci']['ohs']['nodes'][idx]['id'] = ret.id
-        save_sysconfig(sysconfig, sysconfig_file)
-        logger.writelog("info", "Retrieving assigned IP address")
-        success, ret = oci_manager.get_instance_ip(instance_id=sysconfig['oci']['ohs']['nodes'][idx]['id'])
-        if not success:
-            logger.writelog("error", "Failed retrieving instance IP address")
-            logger.writelog("debug", ret)
-            sys.exit(1)
-        sysconfig['oci']['ohs']['nodes'][idx]['ip'] = ret
-        save_sysconfig(sysconfig, sysconfig_file)
+    # CREATE OHS instances if OHS is used
+    if OHS_USED:
+        logger.writelog("info", "Creating OHS instances")
+        with open(sysconfig['oci']['ssh_public_key'], "r") as f:
+            ssh_key = f.read()
+        for idx in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
+            logger.writelog("info", f"Building OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']} init script")
+            node_init_script = f"{basedir}/lib/{sysconfig['oci']['ohs']['nodes'][idx]['name']}_init.sh"
+            with open(OHS_INIT_SCRIPT, "r") as infile:
+                with open(node_init_script, "w") as outfile:
+                    for line in infile:
+                        if re.match('.*%%"?$', line):
+                            line = line.replace("%%USER_NAME%%", 
+                                                sysconfig['prem']['ohs']['user_name'])
+                            line = line.replace("%%USER_UID%%", 
+                                                sysconfig['prem']['ohs']['user_uid'])
+                            line = line.replace("%%GROUP_NAME%%", 
+                                                sysconfig['prem']['ohs']['group_name'])
+                            line = line.replace("%%GROUP_GID%%", 
+                                                sysconfig['prem']['ohs']['group_gid'])
+                            line = line.replace("%%PORTS%%", "({0} {1} {2})".format(
+                                                                sysconfig['oci']['ohs']['console_port'],
+                                                                sysconfig['oci']['ohs']['http_port'],
+                                                                sysconfig['oci']['lbr']['virt_host_ohs_port']
+                                                                ))
+                            line = line.replace("%%HOSTNAME_ALIAS%%", 
+                                                sysconfig['prem']['ohs']['listen_addresses'][idx])
+                            line = line.replace("%%PRODUCTS_PATH%%",
+                                                sysconfig['prem']['ohs']['products_path'])
+                            line = line.replace("%%PRIVATE_CFG_PATH%%",
+                                                sysconfig['prem']['ohs']['config_path'])
+                            line = line.replace("%%SSH_PUB_KEY%%", ssh_key)
+                        outfile.write(line)
+            logger.writelog("info", f"Creating OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
+            success, ret = oci_manager.provision_instance(
+                type="ohs",
+                name=sysconfig['oci']['ohs']['nodes'][idx]['name'],
+                os_version=sysconfig['oci']['ohs']['os_version'],
+                ocpu_count=sysconfig['oci']['ohs']['ocpu'],
+                memory=sysconfig['oci']['ohs']['memory'],
+                ssh_pub_key=ssh_key,
+                subnet_id=sysconfig['oci']['network']['subnets']['webtier']['id'],
+                availability_domain=sysconfig['oci']['availability_domains'][idx % ad_modulo],   
+                init_script_path=node_init_script
+            )
+            if not success:
+                logger.writelog("error", "Failed provisioning OHS instance")
+                logger.writelog("debug", ret)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("info", f"Created OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
+            sysconfig['oci']['ohs']['nodes'][idx]['id'] = ret.id
+            sysconfig['oci']['ohs']['nodes'][idx]['status'] = STATUS.CREATED
+            save_sysconfig(sysconfig, sysconfig_file)
+            logger.writelog("info", "Retrieving assigned IP address")
+            success, ret = oci_manager.get_instance_ip(instance_id=sysconfig['oci']['ohs']['nodes'][idx]['id'])
+            if not success:
+                logger.writelog("error", "Failed retrieving instance IP address")
+                logger.writelog("debug", ret)
+                exit_failure(logger, sysconfig_file, 1)
+            sysconfig['oci']['ohs']['nodes'][idx]['ip'] = ret
+            save_sysconfig(sysconfig, sysconfig_file)
 
     logger.writelog("info", "Waiting 3 minutes for instances to initialize")
     time.sleep(60 * 3)
@@ -2058,61 +2115,73 @@ def main():
             ssh.close()
             continue
         logger.writelog("info", "Block volume succesfully mounted")
-        logger.writelog("info", "Changing {0} mountpoint ownership to oracle:oinstall".format(
-            sysconfig['prem']['wls']['mountpoints']['private']
+        logger.writelog("info", "Changing {0} mountpoint ownership to {1}:{2}".format(
+            sysconfig['prem']['wls']['mountpoints']['private'],
+            sysconfig['prem']['wls']['user_name'],
+            sysconfig['prem']['wls']['group_name']
+
         ))
-        cmd = f"sudo chown oracle:oinstall {sysconfig['prem']['wls']['mountpoints']['private']}"
+        cmd = "sudo chown {0}:{1} {2}".format(
+            sysconfig['prem']['wls']['user_name'],
+            sysconfig['prem']['wls']['group_name'],
+            sysconfig['prem']['wls']['mountpoints']['private']
+        )
         logger.writelog("debug", f"Running {cmd} on remote host")
         stdin, stdout, stderr = ssh.exec_command(cmd)
         err = stderr.read().decode()
         if err:
-            logger.writelog("warn", "Failed changing mountpoint {0} ownership to oracle:oinstall: {1}".format(
+            logger.writelog("warn", "Failed changing mountpoint {0} ownership to {1}:{2}: {3}".format(
                 sysconfig['prem']['wls']['mountpoints']['private'],
+                sysconfig['prem']['wls']['user_name'],
+                sysconfig['prem']['wls']['group_name'],
                 err
             ))
             logger.writelog("warn", "Check locally on node")
         else:
-            logger.writelog("info", "Successfully changed {0} mountpoint ownership to oracle:oinstall".format(
-                sysconfig['prem']['wls']['mountpoints']['private']
+            logger.writelog("info", "Successfully changed {0} mountpoint ownership to {1}:{2}".format(
+                sysconfig['prem']['wls']['mountpoints']['private'],
+                sysconfig['prem']['wls']['user_name'],
+                sysconfig['prem']['wls']['group_name']
         ))
         ssh.close()
 
 
-    # check init script execution status on OHS nodes
-    for idx in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
-        logger.writelog("info", f"Checking init script execution status on OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            ssh.connect(username='opc',
-                        hostname=sysconfig['oci']['ohs']['nodes'][idx]['ip'],
-                        key_filename=sysconfig['oci']['ssh_private_key'])
-        except Exception as e:
-            logger.writelog("error", f"Could not connect to instance {sysconfig['oci']['ohs']['nodes'][idx]['name']}: {str(e)}")
-            continue
-        cmd = 'tail -1 /var/log/ohs_init.log'
-        logger.writelog("debug", f"Running {cmd} on {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
-        stdin, stdout, stderr = ssh.exec_command(cmd)
-        out = stdout.read().decode()
-        err = stderr.read().decode()
-        ssh.close()
-        logger.writelog("debug", f"stdout: {out}")
-        logger.writelog("debug", f"stderr: {err}")
-        if err:
-            logger.writelog("error", f"Could not check init script execution: {err}")
-            logger.writelog("error", "Check local logs on {0}, log path {1}".format(
-                sysconfig['oci']['ohs']['nodes'][idx]['name'],
-                "/var/log/ohs_init.log"
-            ))
-            continue
-        if 'SUCCESS' not in out:
-            logger.writelog("warn", "Errors encountered when executing init script")
-            logger.writelog("warn", "Check local logs on {0}, log path {1}".format(
-                sysconfig['oci']['ohs']['nodes'][idx]['name'],
-                "/var/log/ohs_init.log"
-            ))
-        else:
-            logger.writelog("info", "Init script executed successfully")
+    # check init script execution status on OHS nodes if OHS is used
+    if OHS_USED:
+        for idx in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
+            logger.writelog("info", f"Checking init script execution status on OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                ssh.connect(username='opc',
+                            hostname=sysconfig['oci']['ohs']['nodes'][idx]['ip'],
+                            key_filename=sysconfig['oci']['ssh_private_key'])
+            except Exception as e:
+                logger.writelog("error", f"Could not connect to instance {sysconfig['oci']['ohs']['nodes'][idx]['name']}: {str(e)}")
+                continue
+            cmd = 'tail -1 /var/log/ohs_init.log'
+            logger.writelog("debug", f"Running {cmd} on {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            out = stdout.read().decode()
+            err = stderr.read().decode()
+            ssh.close()
+            logger.writelog("debug", f"stdout: {out}")
+            logger.writelog("debug", f"stderr: {err}")
+            if err:
+                logger.writelog("error", f"Could not check init script execution: {err}")
+                logger.writelog("error", "Check local logs on {0}, log path {1}".format(
+                    sysconfig['oci']['ohs']['nodes'][idx]['name'],
+                    "/var/log/ohs_init.log"
+                ))
+                continue
+            if 'SUCCESS' not in out:
+                logger.writelog("warn", "Errors encountered when executing init script")
+                logger.writelog("warn", "Check local logs on {0}, log path {1}".format(
+                    sysconfig['oci']['ohs']['nodes'][idx]['name'],
+                    "/var/log/ohs_init.log"
+                ))
+            else:
+                logger.writelog("info", "Init script executed successfully")
 
 
     # CREATE HOST NAME ALIASES
@@ -2123,11 +2192,12 @@ def main():
     if not success:
         logger.writelog("error", "Could not create private view")
         logger.writelog("debug", f"Exception encountered: {ret}")
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     sysconfig['oci']['dns'] = {}
     sysconfig['oci']['dns']['private_view'] = {}
     sysconfig['oci']['dns']['private_view']['name'] = ret.display_name
     sysconfig['oci']['dns']['private_view']['id'] = ret.id
+    sysconfig['oci']['dns']['private_view']['status'] = STATUS.CREATED
     save_sysconfig(sysconfig, sysconfig_file)
 
     # create zone
@@ -2137,10 +2207,11 @@ def main():
     if not success:
         logger.writelog("error", "Could not create zone")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     sysconfig['oci']['dns']['zone'] = {}
     sysconfig['oci']['dns']['zone']['name'] = ret.name
     sysconfig['oci']['dns']['zone']['id'] = ret.id
+    sysconfig['oci']['dns']['zone']['status'] = STATUS.CREATED
     save_sysconfig(sysconfig, sysconfig_file)
 
     # create records in new zone with primary wls virtual hosts
@@ -2158,7 +2229,7 @@ def main():
         if not success:
             logger.writelog("info", "Failed adding record to zone")
             logger.writelog("debug", f"Exception encountered: {ret}")
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
 
     # attach view to VCN resolver
     logger.writelog("info", f"Attaching view to VCN {sysconfig['oci']['network']['vcn']['name']} resolver")
@@ -2169,7 +2240,7 @@ def main():
     if not success:
         logger.writelog("error", "Could not attach view to VCN resolver")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Successfully attached view to VCN resolver")
 
     # upload certificate to LBR
@@ -2193,7 +2264,7 @@ def main():
     if not success:
         logger.writelog("error", "Failed uploading certificate to LBR")
         logger.writelog("debug", ret)
-        sys.exit(1)
+        exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Certificate uploaded to LBR")
     sysconfig['oci']['lbr']['cert_name'] = LBR_CERT_NAME
 
@@ -2208,43 +2279,46 @@ def main():
         if not success:
             logger.writelog("error", "Could not create admin backend set")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Created admin backend set")
         sysconfig['oci']['lbr']['admin_backend_set'] = LBR_ADMIN_BACKEND_SET_NAME
         save_sysconfig(sysconfig, sysconfig_file)
 
-    logger.writelog("info", "Creating LBR HTTP backend set")
-    success, ret = oci_manager.lbr_create_backend_set(
-        load_balancer_id=sysconfig['oci']['lbr']['id'],
-        backend_set_name=LBR_HTTP_BACKEND_SET_NAME,
-        cookie_name=LBR_HTTP_COOKIE_NAME,
-        healthcheck_port=sysconfig['oci']['ohs']['http_port'],
-        cookie_is_secure=True
-    )
-    if not success:
-        logger.writelog("error", "Could not create HTTP backend set")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Created HTTP backend set")
-    sysconfig['oci']['lbr']['http_backend_set'] = LBR_HTTP_BACKEND_SET_NAME
-    save_sysconfig(sysconfig, sysconfig_file)
+    # LBR HTTP and empty backend sets if OHS is used
+    if OHS_USED:
+        logger.writelog("info", "Creating LBR HTTP backend set")
+        success, ret = oci_manager.lbr_create_backend_set(
+            load_balancer_id=sysconfig['oci']['lbr']['id'],
+            backend_set_name=LBR_HTTP_BACKEND_SET_NAME,
+            cookie_name=LBR_HTTP_COOKIE_NAME,
+            healthcheck_port=sysconfig['oci']['ohs']['http_port'],
+            cookie_is_secure=True
+        )
+        if not success:
+            logger.writelog("error", "Could not create HTTP backend set")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("info", "Created HTTP backend set")
+        sysconfig['oci']['lbr']['http_backend_set'] = LBR_HTTP_BACKEND_SET_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
 
-    logger.writelog("info", "Creating empty backend set")
-    success, ret = oci_manager.lbr_create_backend_set(
-        load_balancer_id=sysconfig['oci']['lbr']['id'],
-        healthcheck_port=1,
-        backend_set_name=LBR_EMPTY_BACKEND_SET_NAME
-    )
-    if not success:
-        logger.writelog("error", "Could not create empty backend set")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Created empty backend set")
-    sysconfig['oci']['lbr']['empty_backend_set'] = LBR_EMPTY_BACKEND_SET_NAME
-    save_sysconfig(sysconfig, sysconfig_file)
+        logger.writelog("info", "Creating empty backend set")
+        success, ret = oci_manager.lbr_create_backend_set(
+            load_balancer_id=sysconfig['oci']['lbr']['id'],
+            healthcheck_port=1,
+            backend_set_name=LBR_EMPTY_BACKEND_SET_NAME
+        )
+        if not success:
+            logger.writelog("error", "Could not create empty backend set")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("info", "Created empty backend set")
+        sysconfig['oci']['lbr']['empty_backend_set'] = LBR_EMPTY_BACKEND_SET_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
 
     # Create internal backend set if required values are supplied in sysconfig csv input file
-    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+    if OHS_USED \
+        and sysconfig['oci']['lbr']['virt_host_ohs_port'] \
         and sysconfig['oci']['lbr']['virt_host_hostname'] \
         and sysconfig['oci']['lbr']['virt_host_lbr_port']:
         logger.writelog("info", "Creating LBR internal backend set")
@@ -2257,14 +2331,14 @@ def main():
         if not success:
             logger.writelog("error", "Could not create LBR internal backend set")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Created LBR internal backend set")
         sysconfig['oci']['lbr']['internal_backend_set'] = LBR_INTERNAL_BACKEND_SET_NAME
         save_sysconfig(sysconfig, sysconfig_file)
 
     # add LBR backends to backend sets
-    # admin backend - if used
-    if sysconfig['oci']['ohs']['console_port']:
+    # admin backend - if OHS is used and admin backend is used
+    if OHS_USED and sysconfig['oci']['ohs']['console_port']:
         logger.writelog("info", "Adding backends to admin backend set")
         for node in sysconfig['oci']['ohs']['nodes']:
             logger.writelog("info", f"Adding backend {node['ip']} to admin backend set")
@@ -2277,26 +2351,28 @@ def main():
             if not success:
                 logger.writelog("error", f"Failed adding backend {node['ip']} to admin backend set")
                 logger.writelog("debug", ret)
-                sys.exit(1)
+                exit_failure(logger, sysconfig_file, 1)
             logger.writelog("info", f"Successfully added backend {node['ip']} to admin backend set")
 
-    # http backend
-    logger.writelog("info", "Adding backends to http backend set")
-    for node in sysconfig['oci']['ohs']['nodes']:
-        logger.writelog("info", f"Adding backend {node['ip']} to http backend set")
-        success, ret = oci_manager.add_backend_to_set(
-            lbr_id=sysconfig['oci']['lbr']['id'],
-            backend_set_name=sysconfig['oci']['lbr']['http_backend_set'],
-            backend_ip=node['ip'],
-            backend_port=sysconfig['oci']['ohs']['http_port']
-        )
-        if not success:
-            logger.writelog("error", f"Failed adding backend {node['ip']} to http backend set")
-            logger.writelog("debug", ret)
-            sys.exit(1)
-        logger.writelog("info", f"Successfully added backend {node['ip']} to http backend set")
+    # http backend if OHS is used
+    if OHS_USED:
+        logger.writelog("info", "Adding backends to http backend set")
+        for node in sysconfig['oci']['ohs']['nodes']:
+            logger.writelog("info", f"Adding backend {node['ip']} to http backend set")
+            success, ret = oci_manager.add_backend_to_set(
+                lbr_id=sysconfig['oci']['lbr']['id'],
+                backend_set_name=sysconfig['oci']['lbr']['http_backend_set'],
+                backend_ip=node['ip'],
+                backend_port=sysconfig['oci']['ohs']['http_port']
+            )
+            if not success:
+                logger.writelog("error", f"Failed adding backend {node['ip']} to http backend set")
+                logger.writelog("debug", ret)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("info", f"Successfully added backend {node['ip']} to http backend set")
 
-    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+    if OHS_USED \
+        and sysconfig['oci']['lbr']['virt_host_ohs_port'] \
         and sysconfig['oci']['lbr']['virt_host_hostname'] \
         and sysconfig['oci']['lbr']['virt_host_lbr_port']:
         logger.writelog("info", "Adding backends to internal backend set")
@@ -2311,25 +2387,26 @@ def main():
             if not success:
                 logger.writelog("error", f"Failed adding backend {node['ip']} to internal backend set")
                 logger.writelog("debug", ret)
-                sys.exit(1)
+                exit_failure(logger, sysconfig_file, 1)
             logger.writelog("info", f"Successfully added backend {node['ip']} to internal backend set")
 
-    # create LBR virtual hostname
-    logger.writelog("info", f"Creating LBR virtual hostname {sysconfig['oci']['lbr']['virtual_hostname_value']}")
-    success, ret = oci_manager.create_lbr_virtual_hostname(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        hostname_name=LBR_HOSTNAME_NAME,
-        hostname=sysconfig['oci']['lbr']['virtual_hostname_value']
-    )
-    if not success:
-        logger.writelog("error", "Failed creating LBR virtual hostname")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    sysconfig['oci']['lbr']['hostname_name'] = LBR_HOSTNAME_NAME
-    save_sysconfig(sysconfig, sysconfig_file)
+    # create LBR virtual hostname if OHS is used
+    if OHS_USED:
+        logger.writelog("info", f"Creating LBR virtual hostname {sysconfig['oci']['lbr']['virtual_hostname_value']}")
+        success, ret = oci_manager.create_lbr_virtual_hostname(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            hostname_name=LBR_HOSTNAME_NAME,
+            hostname=sysconfig['oci']['lbr']['virtual_hostname_value']
+        )
+        if not success:
+            logger.writelog("error", "Failed creating LBR virtual hostname")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        sysconfig['oci']['lbr']['hostname_name'] = LBR_HOSTNAME_NAME
+        save_sysconfig(sysconfig, sysconfig_file)
 
-    # create LBR admin hostname - if used
-    if sysconfig['oci']['lbr']['admin_hostname_value']:
+    # create LBR admin hostname - if OHS is used and admin hostname is used
+    if OHS_USED and sysconfig['oci']['lbr']['admin_hostname_value']:
         logger.writelog("info", f"Creating LBR admin hostname {sysconfig['oci']['lbr']['admin_hostname_value']}")
         success, ret = oci_manager.create_lbr_virtual_hostname(
             lbr_id=sysconfig['oci']['lbr']['id'],
@@ -2339,12 +2416,13 @@ def main():
         if not success:
             logger.writelog("error", "Failed creating LBR admin hostname")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         sysconfig['oci']['lbr']['admin_hostname_name'] = LBR_ADMIN_HOSTNAME_NAME
         save_sysconfig(sysconfig, sysconfig_file)
 
-    # create LBR internal hostname if required values are supplied in sysconfig input csv file
-    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+    # create LBR internal hostname if required values are supplied in sysconfig input csv file and OHS is used
+    if OHS_USED \
+        and sysconfig['oci']['lbr']['virt_host_ohs_port'] \
         and sysconfig['oci']['lbr']['virt_host_hostname'] \
         and sysconfig['oci']['lbr']['virt_host_lbr_port']:
         logger.writelog("info", f"Creating LBR internal hostname {sysconfig['oci']['lbr']['virt_host_hostname']}")
@@ -2356,39 +2434,41 @@ def main():
         if not success:
             logger.writelog("error", "Failed creating LBR internal hostname")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         sysconfig['oci']['lbr']['virt_hostname_name'] = LBR_VIRT_HOST_HOSTNAME_NAME
         save_sysconfig(sysconfig, sysconfig_file)
 
-    # create rulesets
-    logger.writelog("info", "Creating SSL headers ruleset")
-    success, ret = oci_manager.lbr_create_ssl_headers_ruleset(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        ruleset_name=LBR_SSLHEADERS_RULE_SET
-    )
-    if not success:
-        logger.writelog("error", "Failed creating SSL headers ruleset")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    sysconfig['oci']['lbr']['ssl_headers_ruleset'] = LBR_SSLHEADERS_RULE_SET
-    save_sysconfig(sysconfig, sysconfig_file)
+    # create rulesets if OHS is used
+    if OHS_USED:
+        logger.writelog("info", "Creating SSL headers ruleset")
+        success, ret = oci_manager.lbr_create_ssl_headers_ruleset(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            ruleset_name=LBR_SSLHEADERS_RULE_SET
+        )
+        if not success:
+            logger.writelog("error", "Failed creating SSL headers ruleset")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        sysconfig['oci']['lbr']['ssl_headers_ruleset'] = LBR_SSLHEADERS_RULE_SET
+        save_sysconfig(sysconfig, sysconfig_file)
 
-    logger.writelog("info", "Creating HTTP redirect ruleset")
-    success, ret = oci_manager.lbr_create_http_redirect_ruleset(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        ruleset_name=LBR_HTTP_REDIRECT_RULE_SET
-    )
-    if not success:
-        logger.writelog("error", "Failed creating HTTP redirect ruleset")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    sysconfig['oci']['lbr']['http_redirect_ruleset'] = LBR_HTTP_REDIRECT_RULE_SET
-    save_sysconfig(sysconfig, sysconfig_file) 
+        logger.writelog("info", "Creating HTTP redirect ruleset")
+        success, ret = oci_manager.lbr_create_http_redirect_ruleset(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            ruleset_name=LBR_HTTP_REDIRECT_RULE_SET
+        )
+        if not success:
+            logger.writelog("error", "Failed creating HTTP redirect ruleset")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        sysconfig['oci']['lbr']['http_redirect_ruleset'] = LBR_HTTP_REDIRECT_RULE_SET
+        save_sysconfig(sysconfig, sysconfig_file) 
     
     # create LBR listeners
     logger.writelog("info", "Creating listeners")
-    # create admin listener - if used
-    if sysconfig['oci']['lbr']['admin_port']:
+    # create admin listener - if used and OHS is used
+    if OHS_USED \
+        and sysconfig['oci']['lbr']['admin_port']:
         logger.writelog("info", "Creating admin listener")
         success, ret = oci_manager.lbr_create_listener(
             lbr_id=sysconfig['oci']['lbr']['id'],
@@ -2400,70 +2480,74 @@ def main():
         if not success:
             logger.writelog("error", "Failed creating admin listener")
             logger.writelog("debug", ret)
-            sys.exit(1)
+            exit_failure(logger, sysconfig_file, 1)
         logger.writelog("info", "Created admin listener")
 
-    logger.writelog("info", "Creating HTTPS listener")
-    success, ret = oci_manager.lbr_create_listener(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        listener_name=LBR_HTTPS_LISTENER,
-        backend_set_name=sysconfig['oci']['lbr']['http_backend_set'],
-        hostname_name=sysconfig['oci']['lbr']['hostname_name'],
-        port=sysconfig['oci']['lbr']['https_port'],
-        use_ssl=True,
-        certificate_name=sysconfig['oci']['lbr']['cert_name'],
-        ruleset_names=[sysconfig['oci']['lbr']['ssl_headers_ruleset']]
-    )
-    if not success:
-        logger.writelog("error", "Failed creating HTTPS listener")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Created HTTPS listener")
-
-    logger.writelog("info", "Creating HTTP listener")
-    success, ret = oci_manager.lbr_create_listener(
-        lbr_id=sysconfig['oci']['lbr']['id'],
-        listener_name=LBR_HTTP_LISTENER,
-        backend_set_name=sysconfig['oci']['lbr']['empty_backend_set'],
-        hostname_name=sysconfig['oci']['lbr']['hostname_name'],
-        port=LBR_HTTP_PORT,
-        ruleset_names=[sysconfig['oci']['lbr']['http_redirect_ruleset']]
-    )
-    if not success:
-        logger.writelog("error", "Failed creating HTTP listener")
-        logger.writelog("debug", ret)
-        sys.exit(1)
-    logger.writelog("info", "Created HTTP listener")
-
-    # create internal listener if required values are supplied in sysconfig csv input file
-    if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
-        and sysconfig['oci']['lbr']['virt_host_hostname'] \
-        and sysconfig['oci']['lbr']['virt_host_lbr_port']:
-        logger.writelog("info", "Creating internal listener")
+    if OHS_USED:
+        logger.writelog("info", "Creating HTTPS listener")
         success, ret = oci_manager.lbr_create_listener(
             lbr_id=sysconfig['oci']['lbr']['id'],
-            listener_name=LBR_VIRT_HOST_LISTENER,
-            backend_set_name=sysconfig['oci']['lbr']['internal_backend_set'],
-            hostname_name=sysconfig['oci']['lbr']['virt_hostname_name'],
-            port=sysconfig['oci']['lbr']['virt_host_lbr_port']
+            listener_name=LBR_HTTPS_LISTENER,
+            backend_set_name=sysconfig['oci']['lbr']['http_backend_set'],
+            hostname_name=sysconfig['oci']['lbr']['hostname_name'],
+            port=sysconfig['oci']['lbr']['https_port'],
+            use_ssl=True,
+            certificate_name=sysconfig['oci']['lbr']['cert_name'],
+            ruleset_names=[sysconfig['oci']['lbr']['ssl_headers_ruleset']]
         )
         if not success:
-            logger.writelog("error", "Failed creating internal listener")
+            logger.writelog("error", "Failed creating HTTPS listener")
             logger.writelog("debug", ret)
-            sys.exit(1)
-        logger.writelog("info", "Created internal listener")
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("info", "Created HTTPS listener")
+
+        logger.writelog("info", "Creating HTTP listener")
+        success, ret = oci_manager.lbr_create_listener(
+            lbr_id=sysconfig['oci']['lbr']['id'],
+            listener_name=LBR_HTTP_LISTENER,
+            backend_set_name=sysconfig['oci']['lbr']['empty_backend_set'],
+            hostname_name=sysconfig['oci']['lbr']['hostname_name'],
+            port=LBR_HTTP_PORT,
+            ruleset_names=[sysconfig['oci']['lbr']['http_redirect_ruleset']]
+        )
+        if not success:
+            logger.writelog("error", "Failed creating HTTP listener")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("info", "Created HTTP listener")
+
+        # create internal listener if required values are supplied in sysconfig csv input file
+        if sysconfig['oci']['lbr']['virt_host_ohs_port'] \
+            and sysconfig['oci']['lbr']['virt_host_hostname'] \
+            and sysconfig['oci']['lbr']['virt_host_lbr_port']:
+            logger.writelog("info", "Creating internal listener")
+            success, ret = oci_manager.lbr_create_listener(
+                lbr_id=sysconfig['oci']['lbr']['id'],
+                listener_name=LBR_VIRT_HOST_LISTENER,
+                backend_set_name=sysconfig['oci']['lbr']['internal_backend_set'],
+                hostname_name=sysconfig['oci']['lbr']['virt_hostname_name'],
+                port=sysconfig['oci']['lbr']['virt_host_lbr_port']
+            )
+            if not success:
+                logger.writelog("error", "Failed creating internal listener")
+                logger.writelog("debug", ret)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("info", "Created internal listener")
 
     logger.writelog("info", "All OCI resources provisioned")
     if Utils.confirm("Update OCI environment configuration file?"):
         logger.writelog("info", "Updating OCI environment configuration file")
         config = configparser.ConfigParser()
         config.read(CONSTANTS.OCI_ENV_FILE)
-        # update oci ohs IP's
-        config['OCI_ENV']['ohs_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['ohs']['nodes'])
-        # update oci wls IP's
+        # update oci ohs IP's and public key path if OHS is used
+        if OHS_USED:
+            config['OCI_ENV']['ohs_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['ohs']['nodes'])
+            config['OCI_ENV']['ohs_ssh_key'] = sysconfig['oci']['ssh_private_key']
+        else:
+            config['OCI_ENV']['ohs_nodes'] = ""
+            config['OCI_ENV']['ohs_ssh_key'] = ""
+        # update oci wls IP's and public key paths
         config['OCI_ENV']['wls_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['wls']['nodes'])
-        # update public key paths
-        config['OCI_ENV']['ohs_ssh_key'] = sysconfig['oci']['ssh_private_key']
         config['OCI_ENV']['wls_ssh_key'] = sysconfig['oci']['ssh_private_key']
         with open(CONSTANTS.OCI_ENV_FILE, "w") as cfg_file:
             config.write(cfg_file)

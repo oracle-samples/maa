@@ -64,7 +64,9 @@ try:
     import errno
     import argparse
     import configparser
+    import warnings
     import subprocess
+    import threading
     import shlex
     import pathlib
     import paramiko
@@ -104,6 +106,21 @@ def myexit(code):
     if CALLER == 'cli':
         sys.exit(code)
     raise Exception(code)
+
+def animate(play, stop):
+    char_idx = 0
+    animation_characters = ['|', '/', '-', '\\']
+    while True:
+        if stop():
+            break
+        should_play = play.is_set()
+        if should_play:
+            print(f"This may take a while... {animation_characters[char_idx]}", end="\r")
+            time.sleep(0.2)
+            char_idx = (char_idx + 1) % len(animation_characters)
+            sys.stdout.flush() 
+        else:
+            should_play = play.wait()
 
 def check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only):
     # work out what directories need to be created and check for them 
@@ -159,7 +176,7 @@ def check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only)
 def check_connectivity(config_env):
     success = True
     errors = []
-    ohs_nodes = config_env['ohs_nodes'].split("\n")
+    ohs_nodes = config_env['ohs_nodes'].split("\n") if config_env['ohs_nodes'] else []
     for ohs_node in ohs_nodes:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -193,6 +210,14 @@ def check_connectivity(config_env):
 
 
 def transfer_data(transfer_type, use_delete, username, host, key_path, origin_path, destination_path, logger, retries, exclude_list=[]):
+    # set up animation thread 
+    animation_play = threading.Event()
+    stop_animation = False
+    animation = threading.Thread(target=animate, args=(animation_play, lambda: stop_animation))
+    animation.daemon = True
+    # start displaying animation during rsync process
+    animation.start()
+    animation_play.set()
     delete = "--delete" if use_delete else ""
     exclude_list = " ".join([f'--exclude "{item}"' for item in exclude_list if item])
     username = username
@@ -218,25 +243,32 @@ def transfer_data(transfer_type, use_delete, username, host, key_path, origin_pa
             return False, f"rsync command encountered exception: {str(e)}"
     if run.returncode != 0:
         return False, "rsync command exited with non-zero return code"
-    
+    animation_play.clear()
+    print("")
     logger.writelog("info", "Data transferred - validating")
+    animation_play.set()
     rsync_diff_cmd = f'rsync -e "ssh -o StrictHostKeyChecking=no -i {key_path}" -niaHc --no-times {exclude_list} {origin} {destination} --modify-window=1'
     logger.writelog("debug", f"rsync diff command: {rsync_diff_cmd}")
     logger.writelog("debug", f"rsync diff subprocess cmd:\n{shlex.split(rsync_diff_cmd)}")
     run = subprocess.Popen(shlex.split(rsync_diff_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     pending_files, err = run.communicate()
     if run.returncode != 0:
+        stop_animation = True
         return False, f"rsync diff command exited with non-zero return code: {err}"
     
     pending_files = pending_files.decode().splitlines()
     pending_files = [x.split()[1] for x in pending_files if x and "log" not in x and "DAT" not in x]
-
+    animation_play.clear()
+    print("")
     logger.writelog("info", f"Number of differences found: {len(pending_files)}")
     if pending_files:
         still_diff = True
         if int(retries) > 0:
             retry_count = 0
+            animation_play.clear()
+            print("")
             logger.writelog("info", "Attempting to resync differences")
+            animation_play.set()
             now = time.strftime("%Y_%m_%d_%H_%M_%S")
             diff_file = f"{BASEDIR}/log/replication_diffs_{now}.log"
             rsync_pending_cmd = f'rsync -e "ssh -o StrictHostKeyChecking=no -i {key_path}" --stats --modify-window=1 --files-from={diff_file} {origin} {destination}'
@@ -245,9 +277,14 @@ def transfer_data(transfer_type, use_delete, username, host, key_path, origin_pa
             while still_diff:
                 retry_count += 1
                 if retry_count > int(retries):
+                    stop_animation = True
                     return False, f"Max rsync retries [{retries}] exhausted and there are still differences between source and target\n" \
                                   f"List of differences can be found in {diff_file}"
+                animation_play.clear()
+                print("")
                 logger.writelog("info", f"Attempt #{retry_count}")
+                stop_animation = False
+                animation_play.set()
                 with open(diff_file, "w") as f:
                     f.write("\n".join(pending_files))
                 try:
@@ -255,28 +292,42 @@ def transfer_data(transfer_type, use_delete, username, host, key_path, origin_pa
                     run = subprocess.Popen(shlex.split(rsync_diff_cmd))
                     run.communicate()
                 except Exception as e:
+                    stop_animation = True
                     return False, f"rsync pending command encountered exception: {str(e)}"
                 if run.returncode != 0:
+                    stop_animation = True
                     return False, f"rsync pending command exited with non-zero return code"
+                animation_play.clear()
+                print("")
                 logger.writelog("info", "Checking if pending items have been synced")
+                animation_play.set()
                 run = subprocess.Popen(shlex.split(rsync_diff_cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 pending_files, err = run.communicate()
                 if run.returncode != 0:
+                    stop_animation = True
                     return False, f"rsync diff command exited with non-zero return code: {err}"
                 pending_files = pending_files.decode().splitlines()
                 pending_files = [x.split()[1] for x in pending_files if x and "log" not in x and "DAT" not in x]
                 if pending_files:
+                    stop_animation = True
                     logger.writelog("warn", "Differences remain")
                 else:
+                    stop_animation = True
                     logger.writelog("info", "Differences have been sorted - source and target directories are in sync")
                     if os.path.exists(diff_file):
                         os.remove(diff_file)
                     still_diff = False
         else:
+            stop_animation = True
+            print("")
             return False, "There are differences between source and target"
     else:
+        stop_animation = True
+        print("")
         logger.writelog("info", "Source and target directories are in sync")
         return True, ""
+    print("")
+    stop_animation = True
     return True, ""
 
 
@@ -285,7 +336,7 @@ def pull(logger, config, data, instance):
     # pull wls data from primary
     # parse config for nodes 
     primary_wls_nodes = config[PRIMARY]['wls_nodes'].split("\n")
-    primary_ohs_nodes = config[PRIMARY]['ohs_nodes'].split("\n")
+    primary_ohs_nodes = config[PRIMARY]['ohs_nodes'].split("\n") if config[PRIMARY]['ohs_nodes'] else []
     # pull wls if requested
     if any(ins in instance for ins in ['wls', 'all']):
         # pull wls products - 1 and 2 - if requested
@@ -465,63 +516,66 @@ def pull(logger, config, data, instance):
                         logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                         pull_successful = False
 
-    # pull ohs products - if requested
+    # pull ohs products - if requested and if OHS is used
     if any(ins in instance for ins in ['ohs', 'all']):
-        if any(dta in data for dta in ['products', 'all']):
-            logger.writelog("info", f"Pulling OHS products1 from primary [{PRIMARY}]")
-            pull_success, reason = transfer_data(
-                transfer_type='pull',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[PRIMARY]['ohs_osuser'],
-                host=primary_ohs_nodes[0],
-                key_path=config[PRIMARY]["ohs_ssh_key"],
-                origin_path=config[DIRECTORIES]['OHS_PRODUCTS'],
-                destination_path=config[DIRECTORIES]['STAGE_OHS_PRODUCTS1'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
-            )
-            if not pull_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                pull_successful = False
-            logger.writelog("info", f"Pulling OHS products2 from primary [{PRIMARY}]")
-            pull_success, reason = transfer_data(
-                transfer_type='pull',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[PRIMARY]['ohs_osuser'],
-                host=primary_ohs_nodes[1],
-                key_path=config[PRIMARY]["ohs_ssh_key"],
-                origin_path=config[DIRECTORIES]['OHS_PRODUCTS'],
-                destination_path=config[DIRECTORIES]['STAGE_OHS_PRODUCTS2'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
-            )
-            if not pull_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                pull_successful = False
-        # pull ohs private config - if requested
-        if any(dta in data for dta in ['private_config', 'all']):
-            for index in range(len(primary_ohs_nodes)):
-                logger.writelog("info", f"Pulling OHS node {index + 1} private config from primary [{PRIMARY}]")
+        if len(primary_ohs_nodes) == 0:
+            logger.writelog("info", "OHS not used - will not attempt any OHS related pull")
+        else:
+            if any(dta in data for dta in ['products', 'all']):
+                logger.writelog("info", f"Pulling OHS products1 from primary [{PRIMARY}]")
                 pull_success, reason = transfer_data(
                     transfer_type='pull',
                     use_delete=config.getboolean(OPTIONS, 'delete'),
                     username=config[PRIMARY]['ohs_osuser'],
-                    host=primary_ohs_nodes[index],
+                    host=primary_ohs_nodes[0],
                     key_path=config[PRIMARY]["ohs_ssh_key"],
-                    origin_path=config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'],
-                    destination_path=f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{index + 1}_private_config",
+                    origin_path=config[DIRECTORIES]['OHS_PRODUCTS'],
+                    destination_path=config[DIRECTORIES]['STAGE_OHS_PRODUCTS1'],
                     logger=logger,
                     retries=config[OPTIONS]['rsync_retries'],
-                    exclude_list=config[OPTIONS]['exclude_ohs_private_config'].split("\n")
+                    exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
                 )
                 if not pull_success:
                     logger.writelog("error", f"Pull failed: {reason}")
                     logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     pull_successful = False
+                logger.writelog("info", f"Pulling OHS products2 from primary [{PRIMARY}]")
+                pull_success, reason = transfer_data(
+                    transfer_type='pull',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[PRIMARY]['ohs_osuser'],
+                    host=primary_ohs_nodes[1],
+                    key_path=config[PRIMARY]["ohs_ssh_key"],
+                    origin_path=config[DIRECTORIES]['OHS_PRODUCTS'],
+                    destination_path=config[DIRECTORIES]['STAGE_OHS_PRODUCTS2'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
+                )
+                if not pull_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    pull_successful = False
+            # pull ohs private config - if requested
+            if any(dta in data for dta in ['private_config', 'all']):
+                for index in range(len(primary_ohs_nodes)):
+                    logger.writelog("info", f"Pulling OHS node {index + 1} private config from primary [{PRIMARY}]")
+                    pull_success, reason = transfer_data(
+                        transfer_type='pull',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[PRIMARY]['ohs_osuser'],
+                        host=primary_ohs_nodes[index],
+                        key_path=config[PRIMARY]["ohs_ssh_key"],
+                        origin_path=config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'],
+                        destination_path=f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{index + 1}_private_config",
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries'],
+                        exclude_list=config[OPTIONS]['exclude_ohs_private_config'].split("\n")
+                    )
+                    if not pull_success:
+                        logger.writelog("error", f"Pull failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        pull_successful = False
     return pull_successful
 
 
@@ -530,7 +584,7 @@ def push(logger, config, data, instance):
     # push wls data from primary
     # parse config for nodes 
     standby_wls_nodes = config[STANDBY]['wls_nodes'].split("\n")
-    standby_ohs_nodes = config[STANDBY]['ohs_nodes'].split("\n")
+    standby_ohs_nodes = config[STANDBY]['ohs_nodes'].split("\n") if config[STANDBY]['ohs_nodes'] else []
     # push wls if requested
     if any(ins in instance for ins in ['wls', 'all']):
         # push wls products - 1 and 2 - if requested
@@ -755,48 +809,51 @@ def push(logger, config, data, instance):
                 sftp_client.close()
                 ssh_client.close()
 
-    # push ohs products - if requested
+    # push ohs products - if requested and if OHS used
     if any(ins in instance for ins in ['ohs', 'all']):
-        if any(dta in data for dta in ['products', 'all']):
-            logger.writelog("info", "Pushing ohs products to standby")
-            for index in range(len(standby_ohs_nodes)):
-                logger.writelog("info", f"Pushing OHS node {index + 1} products")
-                push_success, reason = transfer_data(
-                    transfer_type='push',
-                    use_delete=config.getboolean(OPTIONS, 'delete'),
-                    username=config[STANDBY]['ohs_osuser'],
-                    host=standby_ohs_nodes[index],
-                    key_path=config[STANDBY]["ohs_ssh_key"],
-                    origin_path=config[DIRECTORIES][f'STAGE_OHS_PRODUCTS{index % 2 + 1}'],
-                    destination_path=config[DIRECTORIES]['OHS_PRODUCTS'],
-                    logger=logger,
-                    retries=config[OPTIONS]['rsync_retries'],
-                    exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
-                )
-                if not push_success:
-                    logger.writelog("error", f"Push failed: {reason}")
-                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                    push_successful = False
-        # push ohs private config - if requested
-        if any(dta in data for dta in ['private_config', 'all']):
-            for index in range(len(standby_ohs_nodes)):
-                logger.writelog("info", f"Pushing OHS node {index + 1} private config")
-                push_success, reason = transfer_data(
-                    transfer_type='push',
-                    use_delete=config.getboolean(OPTIONS, 'delete'),
-                    username=config[STANDBY]['ohs_osuser'],
-                    host=standby_ohs_nodes[index],
-                    key_path=config[STANDBY]["ohs_ssh_key"],
-                    origin_path=f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{index + 1}_private_config",
-                    destination_path=config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'],
-                    logger=logger,
-                    retries=config[OPTIONS]['rsync_retries'],
-                    exclude_list=config[OPTIONS]['exclude_ohs_private_config'].split("\n")
-                )
-                if not push_success:
-                    logger.writelog("error", f"Pull failed: {reason}")
-                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                    push_successful = False
+        if len(standby_ohs_nodes) == 0:
+            logger.writelog("info", "OHS not used - will not attempt any OHS related push")
+        else:
+            if any(dta in data for dta in ['products', 'all']):
+                logger.writelog("info", "Pushing ohs products to standby")
+                for index in range(len(standby_ohs_nodes)):
+                    logger.writelog("info", f"Pushing OHS node {index + 1} products")
+                    push_success, reason = transfer_data(
+                        transfer_type='push',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[STANDBY]['ohs_osuser'],
+                        host=standby_ohs_nodes[index],
+                        key_path=config[STANDBY]["ohs_ssh_key"],
+                        origin_path=config[DIRECTORIES][f'STAGE_OHS_PRODUCTS{index % 2 + 1}'],
+                        destination_path=config[DIRECTORIES]['OHS_PRODUCTS'],
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries'],
+                        exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
+                    )
+                    if not push_success:
+                        logger.writelog("error", f"Push failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        push_successful = False
+            # push ohs private config - if requested
+            if any(dta in data for dta in ['private_config', 'all']):
+                for index in range(len(standby_ohs_nodes)):
+                    logger.writelog("info", f"Pushing OHS node {index + 1} private config")
+                    push_success, reason = transfer_data(
+                        transfer_type='push',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[STANDBY]['ohs_osuser'],
+                        host=standby_ohs_nodes[index],
+                        key_path=config[STANDBY]["ohs_ssh_key"],
+                        origin_path=f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{index + 1}_private_config",
+                        destination_path=config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'],
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries'],
+                        exclude_list=config[OPTIONS]['exclude_ohs_private_config'].split("\n")
+                    )
+                    if not push_success:
+                        logger.writelog("error", f"Pull failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        push_successful = False
     return push_successful
 
 def tnsnames(logger, config):
@@ -861,8 +918,12 @@ def tnsnames(logger, config):
         logger.writelog("info", f"Pushed updated tns file to OCI WLS node {idx +1}")
     return True
 
-def run(log_level, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None, **kwargs):
-    log_level = 'DEBUG' if log_level else 'INFO'
+def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None, **kwargs):
+    if debug:
+        log_level = 'DEBUG'
+    else:
+        log_level = 'INFO'
+        warnings.filterwarnings("ignore")
     logger = Logger(LOG_FILE, log_level)
     logger.writelog("info", f"Data replication started - action set to {action}")
     logger.writelog("info", f"Primary environment set to {PRIMARY}")
@@ -992,7 +1053,7 @@ Get action help by running the following:\n \
 {os.path.basename(__file__)} ACTION [-h, --help]")
     
     arg_parser.add_argument("--debug", action="store_true",
-                            dest="log_level",
+                            dest="debug",
                             help="set logging to debug")
     arg_parser.add_argument("-v", "--version", action='version', version=__version__)
     push_pull_parser = argparse.ArgumentParser(add_help=False)

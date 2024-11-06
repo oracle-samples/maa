@@ -11,6 +11,7 @@ class Constants:
     INTERNAL_CONFIG_FILE = f"{BASEDIR}/lib/replication.internals"
     OCI_ENV_FILE = f"{BASEDIR}/config/oci.env"
     PREM_ENV_FILE = f"{BASEDIR}/config/prem.env"
+    CLEANUP_SCRIPT = f"{BASEDIR}/cleanup.py"
 
     DIRECTORIES_CFG_TAG = "DIRECTORIES"
     OCI_CFG_TAG = "OCI_ENV"
@@ -18,6 +19,12 @@ class Constants:
     OPTIONS_CFG_TAG = 'OPTIONS'
     DISCOVERY_RESULTS_FILE = f"{BASEDIR}/config/discovery_results.csv"
     TNS_TAG = "JDBC" 
+
+class Status:
+    CREATED = 'CREATED'
+    PREEXISTING = 'PREEXISTING'
+    DELETED = 'DELETED'
+    FAILED_DELETE = 'FAILED TO DELETE'
 
 class Utils:
     @staticmethod
@@ -117,6 +124,16 @@ class Utils:
         if 0 > bit or 31 <= bit:
             return False
         return Utils.validate_ip(octs)
+
+    @staticmethod
+    def validate_ocpu(val):
+        try:
+            int(val)
+        except ValueError:
+            return False
+        if int(val) < 1 or int(val) > 114:
+            return False
+        return True
     
     @staticmethod
     def validate_fqdn(fqdn):
@@ -165,6 +182,8 @@ class Utils:
             return Utils.validate_cidr(value)
         elif type == "fqdn":
             return Utils.validate_fqdn(value)
+        elif type == "ocpu":
+            return Utils.validate_ocpu(value)
         else:
             # TODO: placeholder for unimplemented type - FIX THIS
             return True
@@ -177,17 +196,10 @@ class Utils:
         STANDBY = standby
         MANDATORY_KEYS = {
             Constants.DIRECTORIES_CFG_TAG: [
-                'OHS_PRODUCTS',
-                'OHS_PRIVATE_CONFIG_DIR',
                 'WLS_PRODUCTS',
-                #'WLS_SHARED_CONFIG_DIR',
                 'WLS_PRIVATE_CONFIG_DIR',
                 'WLS_CONFIG_PATH',
                 'STAGE_GOLD_COPY_BASE',
-                'STAGE_OHS_PRODUCTS',
-                'STAGE_OHS_PRODUCTS1',
-                'STAGE_OHS_PRODUCTS2',
-                'STAGE_OHS_PRIVATE_CONFIG_DIR',
                 'STAGE_WLS_PRODUCTS',
                 'STAGE_WLS_PRODUCTS1',
                 'STAGE_WLS_PRODUCTS2',
@@ -205,12 +217,8 @@ class Utils:
         if validation_type in ['pull', 'lifecycle', 'tnsnames']:
             MANDATORY_KEYS.update({
                 PRIMARY: [
-                'ohs_osuser',
-                'ohs_osgroup',
                 'wls_osuser',
                 'wls_osgroup',
-                'ohs_ssh_key',
-                'ohs_nodes',
                 'wls_ssh_key',
                 'wls_nodes'                
                 ]
@@ -218,12 +226,8 @@ class Utils:
         if validation_type in ['push', 'lifecycle', 'tnsnames']:
             MANDATORY_KEYS.update({
                 STANDBY: [
-                'ohs_osuser',
-                'ohs_osgroup',
                 'wls_osuser',
                 'wls_osgroup',
-                'ohs_ssh_key',
-                'ohs_nodes',
                 'wls_ssh_key',
                 'wls_nodes'                
                 ]
@@ -249,12 +253,6 @@ class Utils:
                     errors.append(f"Item {item} missing from section {section}")
         # check that all items have a value
         try:
-            # for section in config.sections():
-            #     for key, value in config[section].items():
-            #         # only exclude lists can be empty
-            #         if not key.startswith("exclude") and not value:
-            #             valid = False
-            #             errors.append(f"{key.upper()} value cannot be empty in section {section}")
             for section in MANDATORY_KEYS.keys():
                 for item in MANDATORY_KEYS[section]:
                     # only exclude lists can be empty
@@ -270,10 +268,10 @@ class Utils:
             return valid, errors
         
         if validation_type in ['pull', 'lifecycle', 'tnsnames']:
-            primary_ohs_nodes = config[PRIMARY]['ohs_nodes'].split("\n")
+            primary_ohs_nodes = config[PRIMARY]['ohs_nodes'].split("\n") if config[PRIMARY]['ohs_nodes'] else []
             primary_wls_nodes = config[PRIMARY]['wls_nodes'].split("\n")
-            # check that we have at least 2 wls and 2 ohs nodes
-            if len(primary_ohs_nodes) < 2:
+            # check that we have at least 2 wls and 2 ohs nodes if ohs is used
+            if len(primary_ohs_nodes) < 2 and len(primary_ohs_nodes) != 0:
                 valid = False
                 errors.append(f"A minimum of 2 primary OHS nodes required - [{len(primary_ohs_nodes)}] present in config file")
             if len(primary_wls_nodes) < 2:
@@ -287,15 +285,16 @@ class Utils:
                 if not Utils.validate_ip(ip):
                     valid = False
                     errors.append(f"Primary WLS node IP [{ip}] is invalid")
-            if not os.path.isfile(config[PRIMARY]['ohs_ssh_key']):
-                valid = False
-                errors.append(f"Primary OHS private key file [{config[PRIMARY]['ohs_ssh_key']}] does not exist")
-            else:
-                ohs_key_perms = os.stat(config[PRIMARY]['ohs_ssh_key'])
-                ohs_key_perms = oct(ohs_key_perms.st_mode)[-3:]
-                if ohs_key_perms != '600':
+            if len(primary_ohs_nodes) != 0:
+                if not os.path.isfile(config[PRIMARY]['ohs_ssh_key']):
                     valid = False
-                    errors.append(f"Primary OHS private key file [{config[PRIMARY]['ohs_ssh_key']}] has incorrect premissions: [{ohs_key_perms}] as opposed to [600]")
+                    errors.append(f"Primary OHS private key file [{config[PRIMARY]['ohs_ssh_key']}] does not exist")
+                else:
+                    ohs_key_perms = os.stat(config[PRIMARY]['ohs_ssh_key'])
+                    ohs_key_perms = oct(ohs_key_perms.st_mode)[-3:]
+                    if ohs_key_perms != '600':
+                        valid = False
+                        errors.append(f"Primary OHS private key file [{config[PRIMARY]['ohs_ssh_key']}] has incorrect premissions: [{ohs_key_perms}] as opposed to [600]")
             if not os.path.isfile(config[PRIMARY]['wls_ssh_key']):
                 valid = False
                 errors.append(f"Primary WLS private key file [{config[PRIMARY]['ohs_ssh_key']}] does not exist")
@@ -307,9 +306,9 @@ class Utils:
                     errors.append(f"Primary WLS private key file [{config[PRIMARY]['wls_ssh_key']}] has incorrect premissions: [{wls_key_perms}] as opposed to [600]")
 
         if validation_type in ['push', 'lifecycle', 'tnsnames']:
-            standby_ohs_nodes = config[STANDBY]['ohs_nodes'].split("\n")
+            standby_ohs_nodes = config[STANDBY]['ohs_nodes'].split("\n") if config[STANDBY]['ohs_nodes'] else []
             standby_wls_nodes = config[STANDBY]['wls_nodes'].split("\n")
-            if len(standby_ohs_nodes) < 2:
+            if len(standby_ohs_nodes) < 2 and len(standby_ohs_nodes) != 0:
                 valid = False
                 errors.append(f"A minimum of 2 standby OHS nodes required - [{len(standby_ohs_nodes)}] present in config file")
             if len(standby_wls_nodes) < 2:
@@ -323,15 +322,16 @@ class Utils:
                 if not Utils.validate_ip(ip):
                     valid = False
                     errors.append(f"Standby WLS node IP [{ip}] is invalid")
-            if not os.path.isfile(config[STANDBY]['ohs_ssh_key']):
-                valid = False
-                errors.append(f"Standby OHS private key file [{config[STANDBY]['ohs_ssh_key']}] does not exist")
-            else:
-                ohs_key_perms = os.stat(config[STANDBY]['ohs_ssh_key'])
-                ohs_key_perms = oct(ohs_key_perms.st_mode)[-3:]
-                if ohs_key_perms != '600':
+            if len(standby_ohs_nodes) != 0:
+                if not os.path.isfile(config[STANDBY]['ohs_ssh_key']):
                     valid = False
-                    errors.append(f"Standby OHS private key file [{config[STANDBY]['ohs_ssh_key']}] has incorrect premissions: [{ohs_key_perms}] as opposed to [600]")
+                    errors.append(f"Standby OHS private key file [{config[STANDBY]['ohs_ssh_key']}] does not exist")
+                else:
+                    ohs_key_perms = os.stat(config[STANDBY]['ohs_ssh_key'])
+                    ohs_key_perms = oct(ohs_key_perms.st_mode)[-3:]
+                    if ohs_key_perms != '600':
+                        valid = False
+                        errors.append(f"Standby OHS private key file [{config[STANDBY]['ohs_ssh_key']}] has incorrect premissions: [{ohs_key_perms}] as opposed to [600]")
             if not os.path.isfile(config[STANDBY]['wls_ssh_key']):
                 valid = False
                 errors.append(f"Standby WLS private key file [{config[STANDBY]['wls_ssh_key']}] does not exist")
@@ -375,3 +375,25 @@ class Utils:
                 return False
             else:
                 print("Invalid choice. Please enter yes/y or no/n")
+
+    @staticmethod
+    def get_user_input(prompt, help="", value_type=""):
+        separator_width = len(prompt)
+        print(f"\n{'-' * separator_width}\n{prompt}")
+        if help.strip():
+            print("*" * separator_width)
+            print(f"Help: {help}")
+        print("*" * separator_width)
+        valid_input = False
+        while not valid_input:
+            user_input = input("-> ").strip().lower()
+            if not user_input:
+                print("Please provide a value")
+                continue
+            if value_type.strip():
+                if not Utils.validate_by_type(value_type, user_input):
+                    print(f"Value provided [{user_input}] is invalid.")
+                    continue
+            valid_input = True
+        return user_input
+

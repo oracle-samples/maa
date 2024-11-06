@@ -151,7 +151,7 @@ class OciManager:
     
     def _is_valid_zone_name(self, zone_name):
         """Checks if given zone name is valid:
-            - must consist of minimum 2 valid dot seperated domains 
+            - must consist of minimum 2 valid dot separated domains 
             - no sequential dots
             - must not start or end with '.' or '-'
 
@@ -170,7 +170,7 @@ class OciManager:
     
     def _is_valid_record_name(self, record_name):
         """Checks if given record name is valid:
-            - must consist of 1 or more valid dot seperated domains 
+            - must consist of 1 or more valid dot separated domains 
             - no sequential dots
             - must not start or end with '.' or '-'
 
@@ -242,9 +242,9 @@ class OciManager:
         """Queries OCI for availability domains
 
         Returns:
-            - (True, list[str]): Touple consisting of bool True and list of 
+            - (True, list[str]): Tuple consisting of bool True and list of 
                     availability domains
-            - (False, str): If query failed - touple consisting of bool False 
+            - (False, str): If query failed - tuple consisting of bool False 
                     and exception encountered
         """
         try:
@@ -259,11 +259,11 @@ class OciManager:
         """Queries OCI for VCNs
 
         Returns:
-            - (True, list[oci.core.models.Vcn]): Touple consisting of bool True and 
+            - (True, list[oci.core.models.Vcn]): Tuple consisting of bool True and 
                     list of oci.core.models.Vcn objects of found VCNs
-            - (False, str): If query failed - touple consisting of bool False and 
+            - (False, str): If query failed - tuple consisting of bool False and 
                     exception encountered
-            - (True, None): If query succeeded, but no VCNs found - touple consisting of
+            - (True, None): If query succeeded, but no VCNs found - tuple consisting of
                     bool True and None object
         """
         try:
@@ -283,11 +283,11 @@ class OciManager:
             vcn_name (str): Name of VCN to query for
 
         Returns:
-            - (True, oci.core.models.Vcn): Touple consisting of bool True and 
+            - (True, oci.core.models.Vcn): Tuple consisting of bool True and 
                      oci.core.models.Vcn object of found VCN
-            - (False, str): If query failed - touple consisting of bool False and 
+            - (False, str): If query failed - tuple consisting of bool False and 
                     exception encountered
-            - (True, None): If query succeeded, but no VCN found with given name - touple 
+            - (True, None): If query succeeded, but no VCN found with given name - tuple 
                     consisting of bool True and None object
         """
         if not self._is_valid_name(vcn_name):
@@ -308,11 +308,11 @@ class OciManager:
             vcn_id (str): OCID of VCN to query for
 
         Returns:
-            - (True, oci.core.models.Vcn): Touple consisting of bool True and 
+            - (True, oci.core.models.Vcn): Tuple consisting of bool True and 
                      oci.core.models.Vcn object of found VCN
-            - (False, str): If query failed - touple consisting of bool False and 
+            - (False, str): If query failed - tuple consisting of bool False and 
                     exception encountered
-            - (True, None): If query succeeded, but no VCN found with given OCID - touple 
+            - (True, None): If query succeeded, but no VCN found with given OCID - tuple 
                     consisting of bool True and None object
         """
         if not self._is_valid_ocid(vcn_id):
@@ -334,9 +334,9 @@ class OciManager:
             cidr_blocks (list[str]): List of CIDR blocks to assign to VCN    
 
         Returns:
-            - (True, oci.core.models.Vcn): Touple consisting of bool True and 
+            - (True, oci.core.models.Vcn): Tuple consisting of bool True and 
                      oci.core.models.Vcn object of newly created VCN
-            - (False, str): If creation failed - touple consisting of bool False and 
+            - (False, str): If creation failed - tuple consisting of bool False and 
                     exception encountered
         """
         if not self._is_valid_name(vcn_name):
@@ -373,28 +373,29 @@ class OciManager:
             return False, repr(e)
         return True, new_vcn_resp.data
     
-    def get_subnets(self, vcn_id):
+    def get_subnets(self, vcn_id=""):        
         """Queries OCI for all subnets in a given VCN
 
         Args:
-            vcn_id (str): OCID of VCN in which to query
+            vcn_id (str, optional): OCID of VCN in which to query. Defaults to blank in which
+                        case the whole compartment is queried
 
         Returns:
-            - (True, list[oci.core.models.Subnet]): Touple consisting of bool True and 
-                        list of all oci.core.models.Subnet objects found in given VCN
-            - (False, str): If query failed - touple consisting of bool False
+            - (True, list[oci.core.models.Subnet]): Tuple consisting of bool True and 
+                        list of all oci.core.models.Subnet objects found in given VCN or compartment
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query succeeded, 
-                        but no subnets found in VCN 
+            - (True, None): Tuple consisting of bool True and None object if query succeeded, 
+                        but no subnets found in VCN or compartment
         """
-        if not self._is_valid_ocid(vcn_id):
-            return False, f"VCN ID {vcn_id} is not a valid OCID"
-        
+        kwargs = {}
+        kwargs['compartment_id'] = self.compartment
+        if vcn_id.strip():
+            if not self._is_valid_ocid(vcn_id):
+                return False, f"VCN ID {vcn_id} is not a valid OCID"
+            kwargs['vcn_id'] = vcn_id
         try:
-            subnets_result = self.virtual_network_client.list_subnets(
-                compartment_id=self.compartment,
-                vcn_id=vcn_id
-            )
+            subnets_result = self.virtual_network_client.list_subnets(**kwargs)
         except oci.exceptions.ServiceError as e:
             return False, e.message
         except Exception as e:
@@ -411,11 +412,11 @@ class OciManager:
             subnet_name (str): Name of subnet to query for
 
         Returns:
-            - (True, oci.core.models.Subnet): Touple consisting of bool True and 
+            - (True, oci.core.models.Subnet): Tuple consisting of bool True and 
                         oci.core.models.Subnet object of found subnet
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query succeeded, 
+            - (True, None): Tuple consisting of bool True and None object if query succeeded, 
                         but given subnet not found in VCN 
         """
         if not self._is_valid_ocid(vcn_id):
@@ -433,56 +434,47 @@ class OciManager:
                 return True, subnet
         return True, None
     
-    def get_subnet_by_id(self, vcn_id, subnet_id):
+    def get_subnet_by_id(self, subnet_id):
         """Queries OCI for a subnet with a given OCID
 
         Args:
-            vcn_id (str): VCN OCID where to query for subnet
             subnet_id (str): Subnet OCID to query for
 
         Returns:
             - oci.core.models.Subnet: oci.core.models.Subnet object with subnet details if found
             - None: if no subnet with given ID found in given VCN
         """
-        if not self._is_valid_ocid(vcn_id):
-            return False, f"VCN ID {vcn_id} is not a valid OCID"
         if not self._is_valid_ocid(subnet_id):
             return False, f"Subnet ID {subnet_id} is not a valid OCID"
-        
-        success, ret = self.get_subnets(vcn_id)
-        if not success:
-            return False, ret
-        if ret is None:
-            return None
-        for subnet in ret:
-            if subnet.id == subnet_id:
-                return subnet
-        return None
+        try:
+            subnet_result = self.virtual_network_client.get_subnet(subnet_id=subnet_id)
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, subnet_result.data
     
-    def add_sec_list_subnet(self, vcn_id, subnet_id, security_list_id):
+    def add_sec_list_subnet(self, subnet_id, security_list_id):
         """Adds a given security list to a subnet
 
         Args:
-            vcn_id (str): VCN OCID of subnet
             subnet_id (str): OCID of subnet to update
             security_list_id (str): OCID of security list to add to subnet
 
         Returns:
-            - (True, oci.core.models.Subnet): Touple consisting of bool True and 
+            - (True, oci.core.models.Subnet): Tuple consisting of bool True and 
                         oci.core.models.Subnet object of updated subnet
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
-        if not self._is_valid_ocid(vcn_id):
-            return False, f"VCN ID {vcn_id} is not a valid OCID"
         if not self._is_valid_ocid(subnet_id):
             return False, f"Subnet ID {subnet_id} is not a valid OCID"
         if not self._is_valid_ocid(security_list_id):
             return False, f"Security list ID {security_list_id} is not a valid OCID"
-        
-        subnet = self.get_subnet_by_id(vcn_id, subnet_id)
-        if subnet is None:
-            return False, f"No subnet with OCID {subnet_id} found"
+        success, ret = self.get_subnet_by_id(subnet_id)
+        if not success:
+            return False, ret
+        subnet = ret
         sec_list_ids = subnet.security_list_ids
         sec_list_ids.append(security_list_id)
         update_model = oci.core.models.UpdateSubnetDetails(security_list_ids=sec_list_ids)
@@ -499,6 +491,50 @@ class OciManager:
             return False, repr(e)
         return True, update_resp.data
     
+    def remove_sec_list_from_subnet(self, subnet_id, security_list_id):
+        """Removes a given security list from a subnet
+
+        Args:
+            subnet_id (str): OCID of subnet to update
+            security_list_id (str): OCID of security list to remove from subnet
+
+        Returns:
+            - (True, oci.core.models.Subnet): Tuple consisting of bool True and 
+                        oci.core.models.Subnet object of updated subnet
+            - (False, str): If update failed - tuple consisting of bool False
+                        and reason of failure
+        """
+
+        if not self._is_valid_ocid(subnet_id):
+            return False, f"Subnet ID {subnet_id} is not a valid OCID"
+        if not self._is_valid_ocid(security_list_id):
+            return False, f"Security list ID {security_list_id} is not a valid OCID"
+        
+        success, ret = self.get_subnet_by_id(subnet_id)
+        if not success:
+            return False, ret
+        subnet = ret
+        sec_list_ids = subnet.security_list_ids
+        if len(sec_list_ids) < 2:
+            return False, "Cannot remove the only security list of a subnet"
+        if security_list_id not in sec_list_ids:
+            return False, f"Security list ID {security_list_id} is not associated with subnet ID {subnet_id}"
+        sec_list_ids.remove(security_list_id)
+        update_model = oci.core.models.UpdateSubnetDetails(security_list_ids=sec_list_ids)
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            update_resp = composite_operation.update_subnet_and_wait_for_state(
+                subnet_id=subnet_id,
+                update_subnet_details=update_model,
+                wait_for_states=[oci.core.models.Subnet.LIFECYCLE_STATE_AVAILABLE]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, update_resp.data
+
+    
     def get_internet_gateway(self, vcn_id):
         """Queries OCI for Internet Gateway in a given VCN
 
@@ -506,11 +542,11 @@ class OciManager:
             vcn_id (str): OCID of VCN in which to query
 
         Returns:
-            - (True, oci.core.models.InternetGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.InternetGateway): Tuple consisting of bool True and 
                         oci.core.models.InternetGateway object of found Internet Gateway
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query succeeded, 
+            - (True, None): Tuple consisting of bool True and None object if query succeeded, 
                         but no Internet Gateway found in VCN 
         """
         if not self._is_valid_ocid(vcn_id):
@@ -537,9 +573,9 @@ class OciManager:
             internet_gateway_name (str): Name to assign to Internet Gateway
 
         Returns:
-            - (True, oci.core.models.InternetGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.InternetGateway): Tuple consisting of bool True and 
                         oci.core.models.InternetGateway object of newly created Internet Gateway
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -573,9 +609,9 @@ class OciManager:
             internet_gateway_id (str): OCID of Internet Gateway to add
 
         Returns:
-            - (True, oci.core.models.InternetGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.InternetGateway): Tuple consisting of bool True and 
                         oci.core.models.RouteTable object of updated route table
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_route_table_id):
@@ -615,11 +651,11 @@ class OciManager:
             vcn_id (str): OCID of VCN in which to query
 
         Returns:
-            - (True, oci.core.models.ServiceGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.ServiceGateway): Tuple consisting of bool True and 
                         oci.core.models.ServiceGateway object of found Service Gateway
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query succeeded, 
+            - (True, None): Tuple consisting of bool True and None object if query succeeded, 
                         but no Service Gateway found in VCN 
         """        
         if not self._is_valid_ocid(vcn_id):
@@ -645,11 +681,11 @@ class OciManager:
             osn_service_id (str): OCID of OSN service
 
         Returns:
-            - (True, oci.core.models.Service): Touple consisting of bool True and 
+            - (True, oci.core.models.Service): Tuple consisting of bool True and 
                         oci.core.models.Service object of OSN service ID
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query succeeded, 
+            - (True, None): Tuple consisting of bool True and None object if query succeeded, 
                         but no Service Gateway found in VCN 
         """        
         if not self._is_valid_ocid(osn_service_id):
@@ -673,9 +709,9 @@ class OciManager:
             service_gw_name (str): Name to assign to service gateway
 
         Returns:
-            - (True, oci.core.models.ServiceGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.ServiceGateway): Tuple consisting of bool True and 
                         oci.core.models.ServiceGateway object of newly created Service Gateway
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -720,11 +756,11 @@ class OciManager:
             vcn_id (str): OCID of VCN in which to query
 
         Returns:
-            - (True, oci.core.models.NatGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.NatGateway): Tuple consisting of bool True and 
                         oci.core.models.NatGateway object of found NAT Gateway
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query 
+            - (True, None): Tuple consisting of bool True and None object if query 
                         succeeded, but no NAT Gateway found in VCN 
         """
         if not self._is_valid_ocid(vcn_id):
@@ -750,9 +786,9 @@ class OciManager:
             nat_gw_name (str): Name to assign to new NAT Gateway
 
         Returns:
-            - (True, oci.core.models.NatGateway): Touple consisting of bool True and 
+            - (True, oci.core.models.NatGateway): Tuple consisting of bool True and 
                         oci.core.models.NatGateway object of newly created NAT Gateway
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -784,9 +820,9 @@ class OciManager:
             route_table_id (str): OCID of Route Table to query for
 
         Returns:
-            - (True, oci.core.models.RouteTable): Touple consisting of bool True and 
+            - (True, oci.core.models.RouteTable): Tuple consisting of bool True and 
                         oci.core.models.RouteTable object of found route table
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(route_table_id):
@@ -813,9 +849,9 @@ class OciManager:
             nat_gateway_id (str): OCID of NAT Gateway to be used
 
         Returns:
-            - (True, oci.core.models.RouteTable): Touple consisting of bool True and 
+            - (True, oci.core.models.RouteTable): Tuple consisting of bool True and 
                         oci.core.models.RouteTable object of newly created route table
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -882,9 +918,9 @@ class OciManager:
             internet_gateway_id (str): OCID of Internet Gateway to be used
 
         Returns:
-            - (True, oci.core.models.RouteTable): Touple consisting of bool True and 
+            - (True, oci.core.models.RouteTable): Tuple consisting of bool True and 
                         oci.core.models.RouteTable object of newly created route table
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -927,9 +963,9 @@ class OciManager:
             display_name (str): Name to assign to security list
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of newly created security list
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -963,11 +999,11 @@ class OciManager:
             security_list_id (str): OCID of security list to query 
 
         Returns:
-            - (True, list[oci.core.models.IngressSecurityRule]): Touple consisting of bool True and 
+            - (True, list[oci.core.models.IngressSecurityRule]): Tuple consisting of bool True and 
                         list of oci.core.models.IngressSecurityRule objects found for given security list
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query 
+            - (True, None): Tuple consisting of bool True and None object if query 
                         succeeded, but no given security list could not be found
         """
         if not self._is_valid_ocid(security_list_id):
@@ -991,11 +1027,11 @@ class OciManager:
             security_list_id (str): OCID of security list to query 
 
         Returns:
-            - (True, list[oci.core.models.EgressSecurityRule]): Touple consisting of bool True and 
+            - (True, list[oci.core.models.EgressSecurityRule]): Tuple consisting of bool True and 
                         list of oci.core.models.EgressSecurityRule objects found for given security list
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): Touple consisting of bool True and None object if query 
+            - (True, None): Tuple consisting of bool True and None object if query 
                         succeeded, but no given security list could not be found
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1023,9 +1059,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1078,9 +1114,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1145,9 +1181,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1204,9 +1240,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - Tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1258,9 +1294,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1317,9 +1353,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1374,9 +1410,9 @@ class OciManager:
                     the source and destination. Defaults to False.
 
         Returns:
-            - (True, oci.core.models.SecurityList): Touple consisting of bool True and 
+            - (True, oci.core.models.SecurityList): Tuple consisting of bool True and 
                         oci.core.models.SecurityList object of updated security list
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(security_list_id):
@@ -1435,9 +1471,9 @@ class OciManager:
             route_table_id (str): OCID of route table to attach to subnet
 
         Returns:
-            - (True, oci.core.models.Subnet): Touple consisting of bool True and 
+            - (True, oci.core.models.Subnet): Tuple consisting of bool True and 
                         oci.core.models.Subnet object of newly created subnet
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(vcn_id):
@@ -1487,7 +1523,7 @@ class OciManager:
         return True, create_subnet_ret.data
 
     def create_dhcp_search_domain(self, vcn_id, search_domains, display_name):
-        """Creates a new DHCP options of type Custome Search Domain in a given VCN
+        """Creates a new DHCP options of type Custom Search Domain in a given VCN
 
         Args:
             vcn_id (str): OCID of VCN in which to create DHCP option
@@ -1495,9 +1531,9 @@ class OciManager:
             display_name (str): Name to assign to DHCP option
 
         Returns:
-            - (True, oci.core.models.DhcpOptions): Touple consisting of bool True and 
+            - (True, oci.core.models.DhcpOptions): Tuple consisting of bool True and 
                         oci.core.models.DhcpOptions object of newly created DHCP option
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         
@@ -1540,9 +1576,9 @@ class OciManager:
             dhcp_opt_id (str): OCID of DHCP option to add
 
         Returns:
-            - (True, oci.core.models.Subnet): Touple consisting of bool True and 
+            - (True, oci.core.models.Subnet): Tuple consisting of bool True and 
                         oci.core.models.Subnet object of updated subnet
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(subnet_id):
@@ -1573,12 +1609,12 @@ class OciManager:
         Args:
             availability_domain (str): Availability domain in which to create block volume
             name (str): Name to assign to block volume
-            size_in_gb (int): Size of block volume in GB - must be bewtween 50 and 32768
+            size_in_gb (int): Size of block volume in GB - must be between 50 and 32768
 
         Returns:
-            - (True, oci.core.models.Volume): Touple consisting of bool True and 
+            - (True, oci.core.models.Volume): Tuple consisting of bool True and 
                         oci.core.models.Volume object of newly created block volume
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if availability_domain not in self.availability_domains:
@@ -1617,9 +1653,9 @@ class OciManager:
             name (str): Name to assign to filesystem
 
         Returns:
-            - (True, oci.file_storage.models.FileSystem): Touple consisting of bool True and 
+            - (True, oci.file_storage.models.FileSystem): Tuple consisting of bool True and 
                         oci.file_storage.models.FileSystem object of newly created filesystem
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if availability_domain not in self.availability_domains:
@@ -1652,9 +1688,9 @@ class OciManager:
             name (str): Name to assign to mount target
 
         Returns:
-            - (True, oci.file_storage.models.MountTarget): Touple consisting of bool True and 
+            - (True, oci.file_storage.models.MountTarget): Tuple consisting of bool True and 
                         oci.file_storage.models.MountTarget object of newly created mount target
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if availability_domain not in self.availability_domains:
@@ -1689,8 +1725,8 @@ class OciManager:
             ip_id (str): OCID of private IP to query
 
         Returns:
-            - (True, str): Touple consisting of bool True and IP address of private IP ID
-            - (False, str): If query failed - touple consisting of bool False
+            - (True, str): Tuple consisting of bool True and IP address of private IP ID
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(ip_id):
@@ -1713,9 +1749,9 @@ class OciManager:
             path (str): Export path
 
         Returns:
-            - (True, oci.file_storage.models.Export): Touple consisting of bool True and 
+            - (True, oci.file_storage.models.Export): Tuple consisting of bool True and 
                         oci.file_storage.models.Export object of newly created export
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(export_set_id):
@@ -1749,10 +1785,10 @@ class OciManager:
             name (str): Name of listing to query for
 
         Returns:
-            - (True, str): Touple consisting of bool True and OCID of found listing
-            - (False, str): If query failed - touple consisting of bool False 
+            - (True, str): Tuple consisting of bool True and OCID of found listing
+            - (False, str): If query failed - tuple consisting of bool False 
                         and exception encountered
-            - (True, None): If query succeeded, but no listing found: touple 
+            - (True, None): If query succeeded, but no listing found: tuple 
                         consisting of bool True and None object
         """
         if not isinstance(name, str):
@@ -1775,10 +1811,10 @@ class OciManager:
             os_version (str): OS version to query for
 
         Returns:
-            - (True, str): Touple consisting of bool True and package version found
-            - (False, str): If query failed - touple consisting of bool False 
+            - (True, str): Tuple consisting of bool True and package version found
+            - (False, str): If query failed - tuple consisting of bool False 
                         and exception encountered
-            - (True, None): If query succeeded, but no package version found: touple 
+            - (True, None): If query succeeded, but no package version found: tuple 
                         consisting of bool True and None object
         """
         if not self._is_valid_os_version(os_version):
@@ -1805,9 +1841,9 @@ class OciManager:
             package_version (str): Package version
 
         Returns:
-            - (True, oci.marketplace.models.ListingPackage): Touple consisting of bool True and 
+            - (True, oci.marketplace.models.ListingPackage): Tuple consisting of bool True and 
                         oci.marketplace.models.ListingPackage object of package details
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered   
         """
         try:
@@ -1825,11 +1861,11 @@ class OciManager:
             shape_name (str): Name of shape to query for
 
         Returns:
-            - (True, oci.core.models.Shape): Touple consisting of bool True and 
+            - (True, oci.core.models.Shape): Tuple consisting of bool True and 
                         oci.core.models.Shape object of shape found
-            - (False, str): If query failed - touple consisting of bool False
+            - (False, str): If query failed - tuple consisting of bool False
                         and exception encountered
-            - (True, None): If query succeeded, but no shape found: touple consisting
+            - (True, None): If query succeeded, but no shape found: tuple consisting
                         of bool True and None object    
         """
         try:
@@ -1858,9 +1894,9 @@ class OciManager:
             init_script_path (str, optional): Absolute path of cloud init script to be used. Defaults to None.
 
         Returns:
-            - (True, oci.core.models.Instance): Touple consisting of bool True and 
+            - (True, oci.core.models.Instance): Tuple consisting of bool True and 
                         oci.core.models.Instance object of newly provisioned compute instance 
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered 
         """
         if type.lower() == 'wls':
@@ -1982,8 +2018,8 @@ class OciManager:
             instance_id (str): OCID of compute instance
 
         Returns:
-            - (True, str): Touple consisting of bool True and IP address of compute instance
-            - (False, str): If query failed - touple consisting of bool False 
+            - (True, str): Tuple consisting of bool True and IP address of compute instance
+            - (False, str): If query failed - tuple consisting of bool False 
                         and exception encountered
         """
         try:
@@ -2009,9 +2045,9 @@ class OciManager:
             volume_id (str): OCID of volume to attach
 
         Returns:
-            - (True, oci.core.models.VolumeAttachment): Touple consisting of bool True 
+            - (True, oci.core.models.VolumeAttachment): Tuple consisting of bool True 
                         and oci.core.models.VolumeAttachment object of newly created attachment
-            - (False, str): If attach operation failed - touple consisting of bool False 
+            - (False, str): If attach operation failed - tuple consisting of bool False 
                         and exception encountered
         """
         attachment_model = oci.core.models.AttachIScsiVolumeDetails(
@@ -2037,9 +2073,9 @@ class OciManager:
             view_name (str): Name of new view
 
         Returns:
-            - (True, oci.dns.models.View): Touple consisting of bool True and 
+            - (True, oci.dns.models.View): Tuple consisting of bool True and 
                         oci.dns.models.View object with newly created view details
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_name(view_name):
@@ -2069,9 +2105,9 @@ class OciManager:
             view_id (str): OCID of the view in which the zone will be created
 
         Returns:
-            - (True, oci.dns.models.Zone): Touple consisting of bool True and 
+            - (True, oci.dns.models.Zone): Tuple consisting of bool True and 
                         oci.dns.models.Zone object with newly created zone details
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_zone_name(zone_name):
@@ -2114,10 +2150,10 @@ class OciManager:
             ip (str): IPv4 address where <host> should be routed 
 
         Returns:
-            - (True, list[oci.dns.models.Record]): Touple consisting of bool True and 
+            - (True, list[oci.dns.models.Record]): Tuple consisting of bool True and 
                         list of oci.dns.models.Record objects of all records in given zone 
                         including the newly created one
-            - (False, str): If creation failed - touple consisting of bool False
+            - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(zone_id):
@@ -2171,9 +2207,9 @@ class OciManager:
             vcn_id (str): OCID of VCN to which to attach the view
 
         Returns:
-            - (True, oci.dns.models.resolver.Resolver): Touple consisting of bool True and 
+            - (True, oci.dns.models.resolver.Resolver): Tuple consisting of bool True and 
                         oci.dns.models.resolver.Resolver object of updated resolver 
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(view_id):
@@ -2211,32 +2247,32 @@ class OciManager:
         return True, update_response.data
 
  
-    def provision_lbr(self, min_bandwith_mbs, max_bandwith_mbs, name, subnet_id, is_private):
+    def provision_lbr(self, min_bandwidth_mbs, max_bandwidth_mbs, name, subnet_id, is_private):
         """Creates a Load Balancer in a given subnet
 
         Args:
-            min_bandwith_mbs (str|int): Minimum LBR bandwidth value (10-4800)
-            max_bandwith_mbs (str|int): Maximum LBR bandwidth (10-4800)
+            min_bandwidth_mbs (str|int): Minimum LBR bandwidth value (10-4800)
+            max_bandwidth_mbs (str|int): Maximum LBR bandwidth (10-4800)
             name (str): Name of LBR to create
             subnet_id (str): OCID of subnet in which to create LBR
             is_private (bool): Specify if LBR is private or public (if subnet is private, LBR must be private as well)
 
         Returns:
-            - (True, oci.load_balancer.models.LoadBalancer): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.LoadBalancer): Tuple consisting of bool True and 
                         oci.load_balancer.models.LoadBalancer object of newly created LBR
-            - (False, str): If update failed - touple consisting of bool False
+            - (False, str): If update failed - tuple consisting of bool False
                         and exception encountered
         """
         try:
-            if int(min_bandwith_mbs) < 10 or int(min_bandwith_mbs) > 4800:
+            if int(min_bandwidth_mbs) < 10 or int(min_bandwidth_mbs) > 4800:
                 raise Exception
         except Exception:
-            return False, "min_bandwith_mbs needs to be a number between 10 and 4800"
+            return False, "min_bandwidth_mbs needs to be a number between 10 and 4800"
         try:
-            if int(max_bandwith_mbs) < 10 or int(max_bandwith_mbs) > 4800:
+            if int(max_bandwidth_mbs) < 10 or int(max_bandwidth_mbs) > 4800:
                 raise Exception
         except Exception:
-            return False, "max_bandwith_mbs needs to be a number between 10 and 4800"
+            return False, "max_bandwidth_mbs needs to be a number between 10 and 4800"
         if not self._is_valid_name(name):
             return False, f"LBR name {name} is not valid"
         if not self._is_valid_ocid(subnet_id):
@@ -2245,8 +2281,8 @@ class OciManager:
             return False, f"is_private expected to be bool, received {type(is_private).__name__}"
         
         lbr_shape_model = oci.load_balancer.models.ShapeDetails(
-            minimum_bandwidth_in_mbps=int(min_bandwith_mbs),
-            maximum_bandwidth_in_mbps=int(max_bandwith_mbs)
+            minimum_bandwidth_in_mbps=int(min_bandwidth_mbs),
+            maximum_bandwidth_in_mbps=int(max_bandwidth_mbs)
         )
 
         lbr_model = oci.load_balancer.models.CreateLoadBalancerDetails(
@@ -2271,7 +2307,7 @@ class OciManager:
 
 
     def load_lbr_certificate(self, load_balancer_id, name, public_certificate, private_key, ca_certificate="", passphrase=""):
-        """Uploads and assigns a certifiate to a given LBR
+        """Uploads and assigns a certificate to a given LBR
 
         Args:
             load_balancer_id (str): OCID of load balancer
@@ -2283,9 +2319,9 @@ class OciManager:
             passphrase (str, optional): Certificate passphrase. Defaults to "" in which case no passphrase is used.
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request to upload and assign certificate
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(load_balancer_id):
@@ -2360,9 +2396,9 @@ class OciManager:
                         Defaults to '/'.
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request to create a backend set
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(load_balancer_id):
@@ -2449,10 +2485,10 @@ class OciManager:
             backend_port (int|str): The communication port for the backend server. Number between 1 and 65536
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request to 
                         add a backend server to a backend set
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(lbr_id):
@@ -2488,10 +2524,10 @@ class OciManager:
             hostname (str): Virtual hostname
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request 
                         to create a virtual hostname
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(lbr_id):
@@ -2533,9 +2569,9 @@ class OciManager:
                         Required if use_ssl is True. Defaults to None.
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request to create a listener
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(lbr_id):
@@ -2597,9 +2633,9 @@ class OciManager:
             ruleset_name (str): Rule set name
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request to create rule set
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(lbr_id):
@@ -2639,9 +2675,9 @@ class OciManager:
             ruleset_name (str): Rule set name
 
         Returns:
-            - (True, oci.load_balancer.models.WorkRequest): Touple consisting of bool True and 
+            - (True, oci.load_balancer.models.WorkRequest): Tuple consisting of bool True and 
                         oci.load_balancer.models.WorkRequest object of successful work request to create rule set
-            - (False, str): If operation failed - touple consisting of bool False
+            - (False, str): If operation failed - tuple consisting of bool False
                         and exception encountered
         """
         if not self._is_valid_ocid(lbr_id):
@@ -2684,3 +2720,454 @@ class OciManager:
         except Exception as e:
             return False, repr(e)
         return True, create_ruleset_response.data
+
+    def delete_instance(self, instance_ocid):
+        """Deletes a compute instance
+
+        Args:
+            instance_ocid (str): OCID of the compute instance to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(instance_ocid):
+            return False, f"Instance ID {instance_ocid} is not a valid OCID"
+        composite_operation = oci.core.ComputeClientCompositeOperations(self.compute_client)
+        try:
+            delete_instance_response = composite_operation.terminate_instance_and_wait_for_state(
+                instance_id=instance_ocid, 
+                wait_for_states=[oci.core.models.Instance.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Instance with OCID {instance_ocid} deleted from compartment {self.compartment}"
+        
+    def delete_volume(self, volume_ocid):
+        """Deletes a block volume
+
+        Args:
+            volume_ocid (str): OCID of the block volume to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(volume_ocid):
+            return False, f"Volume ID {volume_ocid} is not a valid OCID"
+        composite_operation = oci.core.BlockstorageClientCompositeOperations(self.block_volume_client)
+        try:
+            delete_volume_response = composite_operation.delete_volume_and_wait_for_state(
+                volume_id=volume_ocid,
+                wait_for_states=[oci.core.models.Volume.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Block volume with OCID {volume_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_export(self, export_ocid):
+        """Deletes a filesystem export
+
+        Args:
+            export_ocid (str): OCID of the export to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(export_ocid):
+            return False, f"Volume ID {export_ocid} is not a valid OCID"
+        composite_operation = oci.file_storage.FileStorageClientCompositeOperations(self.file_storage_client)
+        try:
+            delete_export_response = composite_operation.delete_export_and_wait_for_state(
+                export_id=export_ocid,
+                wait_for_states=[oci.file_storage.models.Export.LIFECYCLE_STATE_DELETED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"FS export with OCID {export_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_filesystem(self, fs_ocid):
+        """Deletes a filesystem
+
+        Args:
+            fs_ocid (str): OCID of the filesystem to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(fs_ocid):
+            return False, f"Filesystem ID {fs_ocid} is not a valid OCID"
+        composite_operation = oci.file_storage.FileStorageClientCompositeOperations(self.file_storage_client)
+        try:
+            delete_filesystem_response = composite_operation.delete_file_system_and_wait_for_state(
+                file_system_id=fs_ocid,
+                wait_for_states=[oci.file_storage.models.FileSystem.LIFECYCLE_STATE_DELETED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Filesystem with OCID {fs_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_mounttarget(self, mounttarget_ocid):
+        """Deletes a mount target
+
+        Args:
+            mounttarget_ocid (str): OCID of the mount target to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(mounttarget_ocid):
+            return False, f"Mount target ID {mounttarget_ocid} is not a valid OCID"
+        composite_operation = oci.file_storage.FileStorageClientCompositeOperations(self.file_storage_client)
+        try:
+            delete_mounttarget_response = composite_operation.delete_mount_target_and_wait_for_state(
+                mount_target_id=mounttarget_ocid,
+                wait_for_states=[oci.file_storage.models.MountTarget.LIFECYCLE_STATE_DELETED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Mount target with OCID {mounttarget_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_dnsview(self, dnsview_ocid, remove_from_resolver=True):
+        """Deletes a DNS view
+
+        Args:
+            dnsview_ocid (str): OCID of the DNS view to delete
+            remove_from_resolver (bool, optional): Whether to check if DNS view is attached to any resolver and attempt
+                    to remove it before deletion. If a DNS view is attached to any resolver, it cannot be deleted. 
+                    Defaults to True.
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(dnsview_ocid):
+            return False, f"DNS View ID {dnsview_ocid} is not a valid OCID"
+        composite_operation = oci.dns.DnsClientCompositeOperations(self.dns_client)
+        resolvers = self.dns_client.list_resolvers(compartment_id=self.compartment)
+        resolvers = resolvers.data
+        resolvers_details = []
+        for resolver in resolvers:
+            resolvers_details.append(self.dns_client.get_resolver(resolver_id=resolver.id).data)
+        for resolver in resolvers_details:
+            for view in resolver.attached_views:
+                if dnsview_ocid == view.view_id:
+                    if not remove_from_resolver:
+                        return False, f"Cannot delete DNS view [{dnsview_ocid}] - it is attached to resolver [{resolver.id}]"
+        for resolver in resolvers_details:
+            for view in resolver.attached_views:
+                if dnsview_ocid == view.view_id:
+                    updated_view = resolver.attached_views
+                    updated_view.remove(view)
+                    try:
+                        remove_view_response = composite_operation.update_resolver_and_wait_for_state(
+                            resolver_id=resolver.id,
+                            update_resolver_details=oci.dns.models.UpdateResolverDetails(attached_views=updated_view),
+                            wait_for_states=[oci.dns.models.View.LIFECYCLE_STATE_ACTIVE]
+                        )
+                    except oci.exceptions.ServiceError as e:
+                        return False, f"Could not remove view ID [{dnsview_ocid}] from resolver ID [{resolver.id}]: {e.message}"
+                    except Exception as e:
+                        return False, f"Could not remove view ID [{dnsview_ocid}] from resolver ID [{resolver.id}]: {repr(e)}"
+        try:
+            delete_dnsview_response = self.dns_client.delete_view(
+                view_id=dnsview_ocid
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, f"Could not delete view ID [{dnsview_ocid}]: {e.message}"
+        except Exception as e:
+            return False, f"Could not delete view ID [{dnsview_ocid}]: {repr(e)}"
+        return True, f"DNS View with OCID {dnsview_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_dns_zone(self, dns_zone_ocid):
+        """Deletes a DNS zone
+
+        Args:
+            dns_zone_ocid (str): OCID of the DNS zone to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(dns_zone_ocid):
+            return False, f"DNS zone ID {dns_zone_ocid} is not a valid OCID"
+        composite_operation = oci.dns.DnsClientCompositeOperations(self.dns_client)
+        try:
+            delete_dns_zone_response = composite_operation.delete_zone_and_wait_for_state(
+                zone_name_or_id=dns_zone_ocid,
+                wait_for_states=[oci.dns.models.Zone.LIFECYCLE_STATE_DELETED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"DNS zone with OCID {dns_zone_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_loadbalancer(self, load_balancer_ocid):
+        """Deletes a load balancer  
+
+        Args:
+            load_balancer_ocid (str): OCID of the load balancer to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(load_balancer_ocid):
+            return False, f"Loadbalancer ID {load_balancer_ocid} is not a valid OCID"
+        composite_operation = oci.load_balancer.LoadBalancerClientCompositeOperations(self.lbr_client)
+        try:
+            delete_lbr_response = composite_operation.delete_load_balancer_and_wait_for_state(
+                load_balancer_id=load_balancer_ocid,
+                wait_for_states=[oci.load_balancer.models.WorkRequest.LIFECYCLE_STATE_SUCCEEDED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Loadbalancer with OCID {load_balancer_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_subnet(self, subnet_ocid):
+        """Deletes a subnet
+
+        Args:
+            subnet_ocid (str): OCID of the subnet to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(subnet_ocid):
+            return False, f"Subnet ID {subnet_ocid} is not a valid OCID"
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_subnet_response = composite_operation.delete_subnet_and_wait_for_state(
+                subnet_id=subnet_ocid,
+                wait_for_states=[oci.core.models.Subnet.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Subnet with OCID {subnet_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_routetable(self, routetable_ocid):
+        """Deletes a route table
+
+        Args:
+            routetable_ocid (str): OCID of the route table to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(routetable_ocid):
+            return False, f"Route table ID {routetable_ocid} is not a valid OCID"
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_routetable_response = composite_operation.delete_route_table_and_wait_for_state(
+                rt_id=routetable_ocid,
+                wait_for_states=[oci.core.models.RouteTable.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Route table with OCID {routetable_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_securitylist(self, sec_list_ocid, remove_from_subnets=True):
+        """Deletes a security list
+
+        Args:
+            sec_list_ocid (str): OCID of the security list to delete
+            remove_from_subnets (bool, optional): Whether to check if the security list is attached to any 
+                    subnet and attempt to remove it. If the security list is the only security list of a subnet, 
+                    it cannot be removed. If a security list is attached to any subnet, it cannot be deleted. 
+                    Defaults to True.
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(sec_list_ocid):
+            return False, f"Security list ID {sec_list_ocid} is not a valid OCID"
+        success, ret = self.get_subnets()
+        if not success:
+            return False, f"Cannot query OCI for list of subnets to check if security list is in use: {ret}"
+        subnets = ret
+        for subnet in subnets:
+            if sec_list_ocid in subnet.security_list_ids:
+                if not remove_from_subnets:
+                    return False, f"Cannot delete security list {sec_list_ocid} - it is currently associated to subnet {subnet.id}"
+                if len(subnet.security_list_ids) == 1:
+                    return False, f"Cannot delete security list {sec_list_ocid} - it is currently the only security list of subnet {subnet.id}"
+        if remove_from_subnets:
+            for subnet in subnets:
+                if sec_list_ocid in subnet.security_list_ids:
+                    success, ret = self.remove_sec_list_from_subnet(subnet_id=subnet.id, security_list_id=sec_list_ocid)
+                    if not success:
+                        return False, ret
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_sec_list_response = composite_operation.delete_security_list_and_wait_for_state(
+                security_list_id=sec_list_ocid,
+                wait_for_states=[oci.core.models.RouteTable.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Security list with OCID {sec_list_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_dhcpoptions(self, dhcopt_ocid):
+        """Deletes a DHCP options
+
+        Args:
+            dhcopt_ocid (str): OCID of the DHCP options to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(dhcopt_ocid):
+            return False, f"DHC options ID {dhcopt_ocid} is not a valid OCID"
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_dhcopt_response = composite_operation.delete_dhcp_options_and_wait_for_state(
+                dhcp_id=dhcopt_ocid,
+                wait_for_states=[oci.core.models.DhcpOptions.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"DHC options with OCID {dhcopt_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_natgateway(self, natgw_ocid):
+        """Deletes a NAT gateway
+
+        Args:
+            dhconatgw_ocidpt_ocid (str): OCID of the NAT gateway to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(natgw_ocid):
+            return False, f"NAT gateway ID {natgw_ocid} is not a valid OCID"
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_natgw_response = composite_operation.delete_nat_gateway_and_wait_for_state(
+                nat_gateway_id=natgw_ocid,
+                wait_for_states=[oci.core.models.NatGateway.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"NAT gateway with OCID {natgw_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_servicegateway(self, servicegw_ocid):
+        """Deletes a service gateway
+
+        Args:
+            servicegw_ocid (str): OCID of the service gateway to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(servicegw_ocid):
+            return False, f"Service gateway ID {servicegw_ocid} is not a valid OCID"
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_servicegw_response = composite_operation.delete_service_gateway_and_wait_for_state(
+                service_gateway_id=servicegw_ocid,
+                wait_for_states=[oci.core.models.ServiceGateway.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Service gateway with OCID {servicegw_ocid} deleted from compartment {self.compartment}"
+
+    def delete_internetgateway(self, internetgw_ocid):
+        """Deletes a internet gateway
+
+        Args:
+            internetgw_ocid (str): OCID of the internet gateway to delete
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if not self._is_valid_ocid(internetgw_ocid):
+            return False, f"Internet gateway ID {internetgw_ocid} is not a valid OCID"
+        composite_operation = oci.core.VirtualNetworkClientCompositeOperations(self.virtual_network_client)
+        try:
+            delete_internetgw_response = composite_operation.delete_internet_gateway_and_wait_for_state(
+                ig_id=internetgw_ocid,
+                wait_for_states=[oci.core.models.InternetGateway.LIFECYCLE_STATE_TERMINATED]
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, f"Internet gateway with OCID {internetgw_ocid} deleted from compartment {self.compartment}"
+    
+    def delete_resource_by_type(self, resource_ocid, resource_type):
+        """Deletes on OCI resource based on it's type
+
+        Args:
+            resource_ocid (str): OCID of resource
+            resource_type (str): Type of resource. Valid options are:
+                                    instance
+                                    volume
+                                    export
+                                    filesystem
+                                    mounttarget
+                                    dnsview
+                                    loadbalancer
+                                    subnet
+                                    routetable
+                                    securitylist
+                                    dhcpoptions
+                                    natgateway
+                                    servicegateway
+                                    internetgateway
+                                    dns-zone
+
+        Returns:
+            (bool, str): Success status and resource status (failure message if not success)
+        """
+        if resource_type == "instance":
+            return self.delete_instance(resource_ocid)
+        elif resource_type == "volume":
+            return self.delete_volume(resource_ocid)
+        elif resource_type == "export":
+            return self.delete_export(resource_ocid)
+        elif resource_type == "filesystem":
+            return self.delete_filesystem(resource_ocid)
+        elif resource_type == "mounttarget":
+            return self.delete_mounttarget(resource_ocid)
+        elif resource_type == "dnsview":
+            return self.delete_dnsview(resource_ocid)
+        elif resource_type == "loadbalancer":
+            return self.delete_loadbalancer(resource_ocid)
+        elif resource_type == "subnet":
+            return self.delete_subnet(resource_ocid)
+        elif resource_type == "routetable":
+            return self.delete_routetable(resource_ocid)
+        elif resource_type == "securitylist":
+            return self.delete_securitylist(resource_ocid)
+        elif resource_type == "dhcpoptions":
+            return self.delete_dhcpoptions(resource_ocid)
+        elif resource_type == "natgateway":
+            return self.delete_natgateway(resource_ocid)
+        elif resource_type == "servicegateway":
+            return self.delete_servicegateway(resource_ocid)
+        elif resource_type == "internetgateway":
+            return self.delete_internetgateway(resource_ocid)
+        elif resource_type == "dns-zone":
+            return self.delete_dns_zone(resource_ocid)
+        else:
+            return True, "Unknown resource type, not doing anything"
+        
