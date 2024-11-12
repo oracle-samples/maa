@@ -132,7 +132,7 @@ Run the following steps as preparation for the execution of the required scripts
 1. Create the Virtual Cloud Network (VCN) for the resources in OCI in the region where you want to create the resources.
 2. Create a subnet in the VCN for the bastion. 
 3. Provision a bastion host in the subnet. The bastion host must use OEL8 or OEL9. A "VM.Standard.E4.Flex with 1 OCPU and 16GB memory" shape is enough to run the framework. The amount of information that is copied to the bastion can be high (around 40GB for the typical FMW SOA Product and Config directories), so you can attach an additional block volume of this size during the bastion creation process itself. You can use this formula for a rough estimate of the required storage size: _[2xFMW products] + [WLS_domain_size x (nº wls nodes + 1)] + [2xOHS products] + [OHS domain_size x (nº of OHS nodes)]_
-4. For the "COMPLETE HYBRID DR SETUP" use case setup connectivity between primary hosts and bastion host (FastConnect, VPN, Peering).
+4. For the "COMPLETE HYBRID DR SETUP" use case, setup connectivity between primary hosts and bastion host (FastConnect, VPN, Peering). This is not required if you are performing a "MIGRATION FROM COPY".
 5. Prepare the bastion host to run the framework:
     1. Make sure the following python modules are installed:  
     oci sdk (this package should come pre-installed on OCI OL9 images):  `rpm -qa | grep -i python.*oci `   
@@ -147,7 +147,7 @@ Run the following steps as preparation for the execution of the required scripts
 9. (Optional) Create a DB system and configure Oracle Data Guard between the primary and the OCI DB. You can do this before or after executing the framework (refer to https://docs.oracle.com/en/solutions/configure-standby-db/index.html).
 
 
-## Pull (initial replication from primary)
+## Replication/Pull (initial replication from primary)
 ### Using the framework
 In the initial pull step, the file system contents from the primary hosts are copied to an stage folder in the bastion host. You provide, in the _prem.env_ configuration file, the connection details to the primary hosts and the folders names (nodes IPs, users etc. Then, the tool copies the contents from the OHS and the WebLogic hosts to the bastion node. In the next phases, the tool will introspect this information and push it to the OCI compute instances once they are created.
 
@@ -166,7 +166,7 @@ The following table summarizes how each item is copied to the stage folder.
 
 | Item    | Pull | Location of the copy under the STAGE_GOLD_COPY_BASE folder |
 | -------- | ------- | ------- |
-| OHS_PRODUCTS | Regardless the number of OHS nodes, it performs just 2 copies (one copy from OHS node 1 and another copy from OHS node 2). This is doen to provide redundancy and minimize storage size.  |  webtier/ohs_products_home/ohs_products_home1 <br>webtier/ohs_products_home/ohs_products_home2  |
+| OHS_PRODUCTS | Regardless the number of OHS nodes, it performs just 2 copies (one copy from OHS node 1 and another copy from OHS node 2). This is done to provide redundancy and minimize storage size.  |  webtier/ohs_products_home/ohs_products_home1 <br>webtier/ohs_products_home/ohs_products_home2  |
 | OHS_PRIVATE_CONFIG_DIR   | One copy per OHS node.    |  webtier/ohs_private_config/ohsnodeN_private_config  |
 | WLS_PRODUCTS  | Regardless the number of WLS nodes, it performs 2 copies (one from node 1 and other from node 2). This approach provides redundancy and minimizea storage size. It is valid for cases where redundant shared products folders are used and for cases where each node has private products folder |  midtier/wls_products_home/wls_products_home1<br> midtier/wls_products_home/wls_products_home2  |
 | WLS_PRIVATE_CONFIG_DIR    | One copy from per WLS node.     |  midtier/wls_private_config/wlsnodeN_private_config/  |
@@ -176,7 +176,7 @@ The following table summarizes how each item is copied to the stage folder.
 | WLS_DP_DIR    | Copied only from the first WLS node. Assumed it is shared.     |  appropriate subfolder under midtier/wls_shared_config  |
 | WLS_ADDITIONAL_SHARED_DIRS    | Additional shared dirs that need to be copied. They are copied from node 1    |  The complete path is stored under midtier/wls_shared_config/additional_dirs/  |
 
-### Manual copy
+## Manual upload/copy (migration from copy use case)
 If you don't have SSH connectivity between the bastion to the on-premises hosts, you can manually copy the items to the bastion's stage folder. In this case you must honor the following staging directory structure:
 
 ├── midtier
@@ -227,21 +227,41 @@ If you don't have SSH connectivity between the bastion to the on-premises hosts,
 
 
 ## Discovery
-As part of the discovery phase process, the tool automatically finds relevant information of the system. It obtains this information in two ways: by introspecting the pulled information and by connecting via SSH to the primary hosts. It will use this information to create the resources in OCI in the next phases.
+As part of the discovery phase process, the tool automatically finds relevant information of the system. 
+
+*In the "COMPLETE HYBRID DR SETUP" use case the framework obtains this information by a)introspecting the pulled information, b)connecting via SSH to the primary hosts and c)prompting the user to make some selections. 
+ 
+*In the "MIGRATION FROM COPY" use case, the framework introspects the local copy of domain and binaries, the .env files provided and prompts the user for remaining details.
+
+The tool will use this information to create the resources in OCI in the next phases.
 - Prepare:
-    - Edit `<WLS-HYDR_BASE>/config/prem.env`. If you ran the pull replication phase, this file should be already customized.
-- Run:
+    - Edit `<WLS-HYDR_BASE>/config/prem.env`. If you ran the pull replication phase, this file should be already customized. Even if you are running the "MIGRATION FROM COPY" use case, you need to provide this file since it is used to determine the IP mapping required as well as number of nodes etc.
+- For the "COMPLETE HYBRID DR SETUP" run:
     - `<WLS-HYDR_BASE>/lib/Discovery.py`
+- For the "MIGRATION FROM COPY" run:
+    - `<WLS-HYDR_BASE>/lib/Discovery.py -n`
+
+Provide the information requested in each case to generate the configuration that will be used to create resources in OCI. The script will ask for details about the configuration in the original system for this. Here are some guidelines for the most convoluted options provided:
+	
+| Prompt   | Details |
+| -------- | ------- |
+|  OS Version  |  The framework will prompt for selecting a main OS version (for example OEL 7 or OEL 8). The scripts will use the LATEST OCI image of that OS version to create the corresponding compute instances  |
+|  CPU count and memory for Compute Instances  |  Any value between 1 and 114 CPUs can be entered. The memory must be minimum 1 GB per CPU and maximum 64 GB per CPU with a total maximum value of 1776  |
+| OHS HTTP port |  This is the port used by the OHS listeners that expose the applications in this WebLogic domain. It may be the case that multiple domains are exposed through a unique OHS cluster. The port specified here is the one that is used by the mounts that expose the applications in the precise WebLogic domain being replicated| 
+| LBR virtual hostname |  This is the LBR frontend hostname used to access the applications exposed in this WebLogic domain being replicated. If the WebLogic domain being replicated uses more than one LBR frontend hostname for applications, select here one of them and add the rest hostnames manually in the LBR's OCI Console |
+
 - Validate:
-    - The discovery tool stores the results in the output file `<WLS-HYDR_BASE>/config/discovery_results.csv`. Review the file and check that the entries are correct for your environment.
+    - The discovery tool stores the results in the output file `<WLS-HYDR_BASE>/config/discovery_results.csv`. You can review the file (ideally in a CSV import from Excel) and check that the entries are correct for your environment.
     - If needed, you can re-run  discovery. The output file will be overriden with the new results.
 
 ## Provision in OCI 
 In the provisioning phase, the tool creates the resources in OCI. They are created according to the input properties provided by the user and the results obtained in the discovery phase. 
 - Prepare:
-    - If you have run the discovery phase, then you need to complete a few pending entries (those that are not already populated by discovery) in the excel file _sysconfig_discovery.xlsx_.
-    - If have have NOT run the discovery phase, then you need to complete the entries provided in the excel file _sysconfig.xlsx_.
-    - Export the excel to .CSV format and upload it to the bastion.
+    - If you have run the discovery phase, then you need to complete just a few pending entries (those that are not already populated by discovery) in the excel file _sysconfig_discovery.xlsx_. 
+    - If have have NOT run the discovery phase, then you need to complete all the entries listed in the excel file  _sysconfig.xlsx_ 
+	
+	Both files reside directly under `<WLS-HYDR_BASE>` (as copied from the GitHub repository). Transfer the file to a Windows node to facilitate its edition. it is mandatory to fill in the entries in the excel files marked as "needs custom input". Entires markes as "default cvalue can be used" can be customized or left in their default value.
+    - Once edited, ***save the excel as s CSV (Comma delimited) file format (do not use CSV UTF-8, use plain CSV format)*** and upload it to the bastion.
     - Upload the keys and certs files of the LBR to the bastion. Place them in the appropriate path, according with the inputs in the _sysconfig_ spreadsheet.
 - Run:
     - If you have run the discovery phase, execute the main script using the "-a" flag and provide the exported csv file as parameter: 
@@ -249,8 +269,40 @@ In the provisioning phase, the tool creates the resources in OCI. They are creat
     - If you have NOT run discovery, execute the main script by just providing the exported csv:
     `<WLS-HYDR_BASE>/wls_hydr.py -i <XXX.csv>`
 - Validate results:
-    - Verify that the appropriate OCI resources have been created. To get the complete list of the resources, [see the LIST OF THE RESOURCES](#list-of-the-resources).
+    - A log file with th operations performed is created at `<WLS-HYDR_BASE>/log/wls_hydr.log`. Verify that the appropriate OCI resources have been created using OCI's console. To get the complete list of the resources, [see the LIST OF THE RESOURCES](#list-of-the-resources). The list of resources created can be verified in the `<WLS-HYDR_BASE>/sysconfig_$date.json` file.
 
+## Cleaning up resources after a provision operation
+The WLS_HYDR framework provides an utility to clean up the resources created in the provisioning phase. The script removes the OCI resources listed in the sysconfig_$date.json (created when wls_hydr.py is executed) marked for possible deletion in the provisioning phase (the framework differentiates between pre-existing resources, such as the dbsubnet for example, and newly created ones). Resources are removed in a precise order to avoid errors caused by dependencies. The contents of the sysconfig_$date.json file are updated by the wls_hydr.py and clean.py scripts according to the different operations performed on resources. Do not manually edit/alter the contents of this file. To clean up resources from a failed or dismissible  execution of the wls_hydr framework, follow these steps: 
+
+- Prepare:
+    - Check the existence of the `<WLS-HYDR_BASE>/sysconfig_$date.json` file. It should contain a list of resources with different states depending on the results from previous executions of the   WLS_HYDR scripts.
+- Run:
+    - Execute the cleanup script providing the sysconfig_$date.json file as argument with the -s option:
+	`<WLS-HYDR_BASE>/cleanup.py -s <sysconfig_$date.json>`
+	For example:
+	`<WLS-HYDR_BASE>/cleanup.py -s /u01/config/sysconfig_2024-11-11_11\:46.json`
+	The script will report the state of the different respources and the result of the cleanup operation in the `<WLS-HYDR_BASE>/log/cleanup.log` file
+- Validate results:
+	- The cleanup.log and the output in the execution shell will report the resources that have been deleted as well as those that was not possible to delete (whether because of external dependencies or other errors)
+	- Use the OCI console to confirm that resources have been removed.
+The following is an ordered list of the resources that the cleanup scripts deletes:
+
+		- Compute Instances
+		- Block Volumes
+		- Exports
+		- Mount Targets
+		- File Systems
+		- Load Balancers
+		- Subnets
+		- Route Tables
+		- Security Lists
+		- DHCP Options
+		- NAT Gateways
+		- Service Gateways
+		- Internet Gateways
+		- DNS Zones
+		- DNS Views
+	
 ## Push (initial replication to OCI)
 In the push phase, the tool copies the contents from the bastion stage to the OCI compute instances. The following table describes how each item is copied to the OCI hosts.
 | Item    | Location of the copy under the STAGE_GOLD_COPY_BASE folder  | Push|
