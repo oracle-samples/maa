@@ -259,6 +259,7 @@ In the provisioning phase, the tool creates the resources in OCI. They are creat
 - Prepare:
     - If you have run the discovery phase, then you need to complete just a few pending entries (those that are not already populated by discovery) in the excel file _sysconfig_discovery.xlsx_. 
     - If have have NOT run the discovery phase, then you need to complete all the entries listed in the excel file  _sysconfig.xlsx_ 
+	
 	Both files reside directly under `<WLS-HYDR_BASE>` (as copied from the GitHub repository). Transfer the file to a Windows node to facilitate its edition. it is mandatory to fill in the entries in the excel files marked as "needs custom input". Entires markes as "default cvalue can be used" can be customized or left in their default value.
     - Once edited, ***save the excel as s CSV (Comma delimited) file format (do not use CSV UTF-8, use plain CSV format)*** and upload it to the bastion.
     - Upload the keys and certs files of the LBR to the bastion. Place them in the appropriate path, according with the inputs in the _sysconfig_ spreadsheet.
@@ -466,6 +467,7 @@ This table lists all the required OCI Policies for the user who runs the tool.
 | Allow group MyGroup to manage   mount-targets in compartment MyCompartment                 | To create mount targets and associate file systems to the mount targets | Compartment     |
 | Allow group MyGroup to manage   file-systems in compartment MyCompartment                  | To create a shared file system                                          | Compartment     |
 | Allow group MyGroup to manage   export-sets in compartment MyCompartment                   | To create export-sets                                                   | Compartment     |
+| Allow group MyGroup to manage   dns in compartment MyCompartment                   | To create DNS Private View and Zone                                                  | Compartment     |
          
 </details>                                                                                  
 
