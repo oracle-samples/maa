@@ -88,6 +88,12 @@ echo "**** ADDING THE FRONT-END ADDRESSES' CA/CERTIFICATES TO THE TRUST STORE **
 echo "***************************************************************************"
 
 num_of_fe=$(echo $list_of_fe | awk '{print NF}')
+if [[ $num_of_fe -lt 1 ]]; then
+	echo "No front ends have been set in the WLS domain!"
+	echo "At least one front end is required to add the certificate's SANs."
+	echo "Exiting..."
+	exit
+fi
 declare -A matrix
 
 for ((j=1;j<=num_of_fe;j++)) do
