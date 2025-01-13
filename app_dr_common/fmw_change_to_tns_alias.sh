@@ -9,9 +9,10 @@
 # This script can be used to replace the connect strings used by WLS datasources (under $DOMAIN_HOME}/config/jdbc)
 # and jps config files (under ${DOMAIN_HOME}/config/fmwconfig) with a tns alias
 # Note this performs replacements in the WLS configuration files, so it must be used conscientiously and requires restart of the WLS servers to take effect
+# The script uses fmw_get_ds_property.sh and fmw_get_connect_string.sh so make sure to place them together with this script
 
 # The script gathers the current connect string from the opss-datasource-jdbc.xml (can be executed multiple times
-# each with a different DS if different connect strings are used by other DS) and replaces them with the tnsalias  provided as parameter
+# each with a different DS if different connect strings are used by other DS) and replaces them with the tnsalias  provided as parameter.
 # If the tns alias exists already it is used. If not an appropriate entry is added in tnsnames.ora (which is created if does not exist before also)
 
 ### Usage:
