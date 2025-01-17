@@ -87,8 +87,8 @@ EOF
 
 echo "Importing SCHEMA REGISTRY INFO"
 
-impdp  \"sys/"${sys_pass}"@${tns_alias} as sysdba\" SCHEMAS=SYSTEM directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import.log PARALLEL=1 CLUSTER=N encryption_password=$passwd TABLE_EXISTS_ACTION=APPEND
-impdp  \"sys/"${sys_pass}"@${tns_alias} as sysdba\"  SCHEMAS=$schema_list directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import_schemas.log parallel=1 TABLE_EXISTS_ACTION=APPEND
+impdp  \"sys/"${sys_pass}"@${tns_alias} as sysdba\" SCHEMAS=SYSTEM directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import.log PARALLEL=1 CLUSTER=N encryption_password=${sys_passwd} TABLE_EXISTS_ACTION=APPEND
+impdp  \"sys/"${sys_pass}"@${tns_alias} as sysdba\"  SCHEMAS=$schema_list directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import_schemas.log PARALLEL=1 CLUSTER=N encryption_password=${sys_passwd} TABLE_EXISTS_ACTION=APPEND
 
 #Initial grants to schemas
 echo "Assigning tablespace and dump dir rights to schemas..."
@@ -105,7 +105,7 @@ echo "Real Schema list : $real_schema_list"
 echo "Importing schemas exports..."
 for schema in $schema_list;do
         echo "Importing $schema..."
-	impdp ${schema}/"${schem_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_import.log PARALLEL=1 CLUSTER=N encryption_password=$passwd;
+	impdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_import.log PARALLEL=1 CLUSTER=N encryption_password=${sys_pass};
 done
 
 echo "Re-assign roles to consolidate"

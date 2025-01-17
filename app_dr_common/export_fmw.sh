@@ -62,7 +62,7 @@ fi
 #export schema_list="WLS UMS IAU OPSS ESS SOAINFRA IAU_APPEND IAU_VIEWER WLS_RUNTIME STB MDS DBFS MFT"
 
 #Schemas for SOA on-prem
-export schema_list="WLS UMS IAU OPSS SOAINFRA IAU_APPEND IAU_VIEWER WLS_RUNTIME STB MDS"
+export schema_list="WLS UMS IAU OPSS SOAINFRA IAU_APPEND IAU_VIEWER WLS_RUNTIME STB MDS ESS"
 
 export beautify="
 set long 65536; 
@@ -119,13 +119,13 @@ for schema in $schema_list;do
 	spool off
 EOF
 
-	expdp ${real_schema}/"${schema_pass}"@${tns_alias} schemas=${real_schema} directory=DUMP_INFRA dumpfile=${real_schema}_export.dmp logfile=${real_schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=$sys_pass;
+	expdp ${real_schema}/"${schema_pass}"@${tns_alias} schemas=${real_schema} directory=DUMP_INFRA dumpfile=${real_schema}_export.dmp logfile=${real_schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass};
 done
 echo "$real_schema_list">${dumpdir}/schema_list.log
 
 #Excluding BUFFERED messages view grants cause IDS will be inalid on import
 for schema in $real_schema_list;do
-	cat ${dumpdir}/create_schema_${real_schema}.sql|  egrep -v "(QT.+BUFFER)" >>${dumpdir}/create_all_schemas.sql
+	cat ${dumpdir}/create_schema_${schema}.sql|  egrep -v "(QT.+BUFFER)" >>${dumpdir}/create_all_schemas.sql
 done
 
 #Using param file to avoid parsing errors with query
@@ -197,11 +197,11 @@ sed -i '/no rows/d' ${dumpdir}/create_all_*.sql
 sed -i '/ORA-/d' ${dumpdir}/create_all_*.sql
 sed -i '/Help/d' ${dumpdir}/create_all_*.sql
 sed -i 's/; ALTER/;\n ALTER/g' ${dumpdir}/create_all_*.sql
-
+sed -i "s/$sys_pass/****/g" ${dumpdir}/sysparam.cfg
 cd $dumpdir
-tar -czf  $dumpdir/complete_export_ddl.tgz ./*
+tar -czf  $dumpdir/complete_export_ddl_${dt}.tgz ./*
 
 echo "************************************* DONE! *************************************"
 echo "Results at:  $dumpdir"
-echo "Full zip at: $dumpdir/complete_export_ddl.tgz"
+echo "Full zip at: $dumpdir/complete_export_ddl_${dt}.tgz"
 echo "*********************************************************************************"
