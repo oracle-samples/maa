@@ -134,6 +134,7 @@ try:
     import pathlib
     import argparse
     import warnings
+    import datetime
     from lib.Logger import Logger
     from lib.OciManager import OciManager
     from lib.Utils import Status as STATUS
@@ -229,7 +230,9 @@ if args.debug:
 else:
     log_level = 'INFO'
     warnings.filterwarnings("ignore")
-log_file = "cleanup.log"
+
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+log_file = f"cleanup_{now}.log"
 logger = Logger(log_file, log_level)
 
 sysconfig_file = args.sysconfig_file

@@ -1804,7 +1804,11 @@ class OciManager:
         return True, listing.data[0].id
 
     def query_packages(self, listing_id, os_version):
-        """Queries OCI for package version of a given listing and of a given os version
+        """Queries OCI for package version of a given listing and of a given os version.
+            If the supplied os version is just the MAJOR version, the latest minor version 
+            for it will be returned. If it is MAJOR.minor, will attempt to search for that 
+            specific version; if none found, the latest minor for the supplied MAJOR will 
+            be returned.   
 
         Args:
             listing_id (str): Listing ID to query for
@@ -1829,6 +1833,8 @@ class OciManager:
         if not len(packages.data):
             return True, None
         filtered_pkgs = [pkg for pkg in packages.data if f"ol{os_version}" in pkg.package_version and "forms" not in pkg.package_version.lower()]
+        if not len(filtered_pkgs) and len(os_version.split(".")) == 2:
+            filtered_pkgs = [pkg for pkg in packages.data if f"ol{os_version.split('.')[0]}" in pkg.package_version and "forms" not in pkg.package_version.lower()]
         if not len(filtered_pkgs):
             return True, None
         return True, filtered_pkgs[0].package_version

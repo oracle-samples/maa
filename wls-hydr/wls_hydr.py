@@ -50,7 +50,9 @@ if args.debug:
 else:
     log_level = 'INFO'
     warnings.filterwarnings("ignore")
-log_file = "wls_hydr.log"
+
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+log_file = f"{CONSTANTS.BASEDIR}/log/wls_hydr_{now}.log"
 logger = Logger(log_file, log_level)
 basedir = os.path.dirname(os.path.realpath(__file__))
 sysconfig = {}
@@ -82,7 +84,7 @@ CLEANUP_SCRIPT = CONSTANTS.CLEANUP_SCRIPT
 
 def exit_failure(logger_instance, sys_file, exit_code):
     logger_instance.writelog("info", "Any resources created so far can be deleted from OCI by running:\n{0}".format(
-        f"{basedir}/{CLEANUP_SCRIPT} -s {sys_file}"
+        f"{CLEANUP_SCRIPT} -s {sys_file}"
     ))
     sys.exit(exit_code)
 
@@ -211,7 +213,6 @@ def parse_input_file(file_path):
     logger.writelog("info", "Csv data validated - building sysconfig json")
 
 def main():
-    now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
     sysconfig_file = f"{basedir}/config/sysconfig_{now}.json"
     logger.writelog("info", "Parsing input CSV file")
     parse_input_file(args.input_file)
@@ -2535,24 +2536,41 @@ def main():
             logger.writelog("info", "Created internal listener")
 
     logger.writelog("info", "All OCI resources provisioned")
-    if Utils.confirm("Update OCI environment configuration file?"):
-        logger.writelog("info", "Updating OCI environment configuration file")
-        config = configparser.ConfigParser()
-        config.read(CONSTANTS.OCI_ENV_FILE)
-        # update oci ohs IP's and public key path if OHS is used
-        if OHS_USED:
-            config['OCI_ENV']['ohs_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['ohs']['nodes'])
-            config['OCI_ENV']['ohs_ssh_key'] = sysconfig['oci']['ssh_private_key']
-        else:
-            config['OCI_ENV']['ohs_nodes'] = ""
-            config['OCI_ENV']['ohs_ssh_key'] = ""
-        # update oci wls IP's and public key paths
-        config['OCI_ENV']['wls_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['wls']['nodes'])
-        config['OCI_ENV']['wls_ssh_key'] = sysconfig['oci']['ssh_private_key']
-        with open(CONSTANTS.OCI_ENV_FILE, "w") as cfg_file:
-            config.write(cfg_file)
-    else:
-        logger.writelog("info", "Will not update OCI environment configuration file")
 
+    logger.writelog("info", "Updating OCI environment configuration file")
+    config = configparser.ConfigParser()
+    config.read(CONSTANTS.OCI_ENV_FILE)
+    # update oci ohs IP's and public key path if OHS is used
+    if OHS_USED:
+        config['OCI_ENV']['ohs_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['ohs']['nodes'])
+        config['OCI_ENV']['ohs_ssh_key'] = sysconfig['oci']['ssh_private_key']
+        config['OCI_ENV']['ohs_osuser'] = sysconfig['prem']['ohs']['user_name']
+        config['OCI_ENV']['ohs_osgroup'] = sysconfig['prem']['ohs']['group_name']
+    else:
+        config['OCI_ENV']['ohs_nodes'] = ""
+        config['OCI_ENV']['ohs_ssh_key'] = ""
+        config['OCI_ENV']['ohs_osuser'] = ""
+        config['OCI_ENV']['ohs_osgroup'] = ""
+    # update oci wls IP's and public key paths
+    config['OCI_ENV']['wls_nodes'] = "\n".join(i['ip'] for i in sysconfig['oci']['wls']['nodes'])
+    config['OCI_ENV']['wls_ssh_key'] = sysconfig['oci']['ssh_private_key']
+    config['OCI_ENV']['wls_osuser'] = sysconfig['prem']['wls']['user_name']
+    config['OCI_ENV']['wls_osgroup'] = sysconfig['prem']['wls']['group_name']
+    with open(CONSTANTS.OCI_ENV_FILE, "w") as cfg_file:
+        config.write(cfg_file)
+    
+    # Highlight any errors that might have occured during execution
+    errors = False
+    with open(log_file, "r") as f:
+        for line in f.readlines():
+            if "error" in line.lower() or "warning" in line.lower():
+                if not errors:
+                    print("The following errors occurred while executing the script:")
+                errors = True
+                print(line.strip())
+    if errors:
+        print(f"\nPlease check log file {log_file} for context and further details.\n")
+        print("Please check status of resources in the OCI console")
+ 
 if __name__ == "__main__":
     main()

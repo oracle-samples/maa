@@ -103,11 +103,12 @@ EXTERNAL_CONFIG_FILE = CONSTANTS.EXTERNAL_CONFIG_FILE
 INTERNAL_CONFIG_FILE = CONSTANTS.INTERNAL_CONFIG_FILE
 OCI_ENV_FILE = CONSTANTS.OCI_ENV_FILE
 PREM_ENV_FILE = CONSTANTS.PREM_ENV_FILE
-LOG_FILE = f"{BASEDIR}/log/discovery.log"
 DIRECTORIES = CONSTANTS.DIRECTORIES_CFG_TAG
 PREM = CONSTANTS.PREM_CFG_TAG
 RESULTS_FILE = CONSTANTS.DISCOVERY_RESULTS_FILE
 
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+LOG_FILE = f"{BASEDIR}/log/discovery_{now}.log"
 
 def myexit(code):
     """Exit script
@@ -437,7 +438,7 @@ add_info("wls_nodes_count", "oci-wls-nodes_count/int","Number of Weblogic nodes"
 if NO_CONNECTIVITY:
     # get information from user if we have no connectivity to on-prem
     wls_os_version = prompt_user_selection(options_list=[7, 8],
-                                           prompt="Please enter what OS version to be used in OCI WLS instances",
+                                           prompt="Please enter what OL/RH version to be used in OCI WLS instances",
                                            help="The framework will use the latest OCI image available for that release.")
     add_info("wls_os_version", "oci-wls-os_version/opt", "Weblogic OS version to be used in OCI (Oracle Linux)", wls_os_version, False)
     # get CPU count
@@ -646,7 +647,7 @@ if OHS_USED:
     if NO_CONNECTIVITY:
         # get ohs information from user if no connecticity to on prem
         ohs_os_version = prompt_user_selection(options_list=[7, 8],
-                                               prompt="Please enter what OS version to be used in OCI OHS instances",
+                                               prompt="Please enter what OL/RH version to be used in OCI OHS instances",
                                                help="The framework will use the latest OCI image available for that release.")
         add_info("ohs_os_version", "oci-ohs-os_version/opt", "OHS OS version to be used in OCI (Oracle Linux)", ohs_os_version, False)
         ohs_cpu_count = UTILS.get_user_input(prompt="Please enter CPU count for OCI OHS instances",
@@ -758,9 +759,9 @@ if OHS_USED:
         with open(mod_file, "r") as file:
             for line in file.readlines():
                 # ohs ports
-                match = re.search(r"^Listen", line)
+                match = re.search(r"^\s*Listen.*?(\d*)\s*?(?:$|[a-zA-Z]*?$)", line)
                 if match:
-                    ohs_http_ports.append(line.split(" ")[1].strip())
+                    ohs_http_ports.append(match[1])
                 # lbr virt hostnames
                 match = re.search(r"^\s*ServerName\s+(?:.*:\/\/)?(.*?)(?::|$)", line)
                 if match:
@@ -862,4 +863,16 @@ if OHS_USED:
 
 # write results to file
 write_results(discovery_sysinfo)
+
+# highlight any errors that might have occured during execution
+errors = False
+with open(LOG_FILE, "r") as f:
+    for line in f.readlines():
+        if "error" in line.lower() or "warning" in line.lower():
+            if not errors:
+                print("The following errors occurred while executing the script:")
+            errors = True
+            print(line.strip())
+if errors:
+    print(f"\nPlease check log file {LOG_FILE} for context and further details.\n")
 

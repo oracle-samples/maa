@@ -9,16 +9,19 @@
 ### This script should be executed in a bastion node with connectivity to both environments 
 ### Usage:
 ###
-###      ./DataReplication.py <ACTION> [-i/--instance INSTANCE] [-d/--data DATA]
+###      ./DataReplication.py <ACTION> [-i/--instance INSTANCE] [-d/--data DATA] [--pull/--push]
 ### Where:
 ###     ACTION:
 ###         Transfer actions to execute:
-###             init:       Check and create staging environment   
-###             pull:       Pull data from primary environment
-###             push:       Push data to secondary environment
-###             lifecycle:  Lifecycle operations (push and pull)
-###             tnsnames    Retrieve tnsnames file from on-prem, 
+###             1. init:       Check and create staging environment   
+###             2. pull:       Pull data from primary environment
+###             3. push:       Push data to secondary environment
+###             4. lifecycle:  Lifecycle operations (push and pull)
+###             5. tnsnames    Retrieve tnsnames file from on-prem, 
 ###                           update values with OCI details and push to all OCI WLS nodes
+###             5.1 tnsnames --pull     Will only retrieve tnsnames file from primary
+###             5.2 tnsnames --push     Will only update tnsnames with OCI details and push to all OCI WLS nodes
+###                     
 ###
 ###     INSTANCE:
 ###         Select what instance to replicate:
@@ -49,6 +52,12 @@
 ###     To replicate tnsnames.ora in OCI with OCI values (scan address and service name)
 ###         ./DataReplication.py tnsnames
 ###
+###     To only pull tnsnames.ora file from primary environment and store in staging environment
+###         ./DataReplication.py tnsnames --pull
+### 
+###     To only update tnsnames.ora file in staging environment with OCI details and push to all OCI WLS nodes
+###         ./DataReplication.py tnsnames --push
+###
 
 __version__= "1.0"
 __author__ = "mibratu"
@@ -70,6 +79,7 @@ try:
     import shlex
     import pathlib
     import paramiko
+    import datetime
     import time
     import io
 except ImportError as e:
@@ -82,7 +92,6 @@ EXTERNAL_CONFIG_FILE = CONSTANTS.EXTERNAL_CONFIG_FILE
 INTERNAL_CONFIG_FILE = CONSTANTS.INTERNAL_CONFIG_FILE
 OCI_ENV_FILE = CONSTANTS.OCI_ENV_FILE
 PREM_ENV_FILE = CONSTANTS.PREM_ENV_FILE
-LOG_FILE = f"{BASEDIR}/log/replication.log"
 WLS_PRODUCTS_INFO = f"{BASEDIR}/lib/wls_products.info"
 # config sections
 DIRECTORIES = CONSTANTS.DIRECTORIES_CFG_TAG
@@ -92,6 +101,9 @@ OPTIONS = CONSTANTS.OPTIONS_CFG_TAG
 TNS = CONSTANTS.TNS_TAG
 
 CALLER = 'cli' if __name__ == '__main__' else 'import'
+
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+LOG_FILE = f"{BASEDIR}/log/replication_{now}.log"
 
 #TODO: work out a way to check which is primary and which is standby, placeholder for now:
 if True:
@@ -856,66 +868,73 @@ def push(logger, config, data, instance):
                         push_successful = False
     return push_successful
 
-def tnsnames(logger, config):
-    logger.writelog("info", f"Retrieving tnsnames file from on-prem WLS node 1 [{config[TNS]['TNSNAMES_PATH']}]")
-    # we're always pulling the file from on-prem wls node 1, update it with oci details and pushing it to all oci wls nodes
+def tnsnames(logger, config, tnsnames_action="all"):
     prem_wls_nodes = config[PREM]['wls_nodes'].split("\n")
     oci_wls_nodes = config[OCI]['wls_nodes'].split("\n")
-    ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh_client.connect(username=config[PREM]['wls_osuser'], hostname=prem_wls_nodes[0], key_filename=config[PREM]["wls_ssh_key"])
-    sftp_client = ssh_client.open_sftp()
     tns_file_name = os.path.basename(config[TNS]['TNSNAMES_PATH'])
     tns_file_dir = os.path.dirname(config[TNS]['TNSNAMES_PATH'])
     tns_file_stage_path = f"{config[DIRECTORIES]['STAGE_WLS_VAR']}/{tns_file_name}"
-    # get the file from on-prem
-    try:
-        sftp_client.get(remotepath=config[TNS]['TNSNAMES_PATH'], localpath=tns_file_stage_path)
-    except Exception as e:
-        logger.writelog("error", f"Failed retrieving tnsnames file [{config[TNS]['TNSNAMES_PATH']}] from on-prem WLS node 1: {repr(e)}")
-        return False
-    sftp_client.close()
-    ssh_client.close()
-    # update file with oci details
-    logger.writelog("info", f"Updating tns file with OCI details")
-    updated_tns_content = ""
-    with open(tns_file_stage_path, "r") as f:
-        for line in f.readlines():
-            line = line.replace(config[TNS]['PREM_SERVICE_NAME'], config[TNS]['OCI_SERVICE_NAME'])
-            line = line.replace(config[TNS]['PREM_SCAN_ADDRESS'], config[TNS]['OCI_SCAN_ADDRESS'])
-            updated_tns_content += line
-    with open(tns_file_stage_path, "w") as f:
-        f.write(updated_tns_content)
-    # now push the file to all oci wls nodes
-    for idx in range(len(oci_wls_nodes)):
-        logger.writelog("info", f"Pushing updated tns file to OCI WLS node {idx +1}")
+    if tnsnames_action in ["pull", "all"]:
+        logger.writelog("info", f"Retrieving tnsnames file from on-prem WLS node 1 [{config[TNS]['TNSNAMES_PATH']}]")
+        # we're always pulling the file from on-prem wls node 1
         ssh_client = paramiko.SSHClient()
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh_client.connect(username=config[OCI]['wls_osuser'], hostname=oci_wls_nodes[idx], key_filename=config[OCI]["wls_ssh_key"])
+        ssh_client.connect(username=config[PREM]['wls_osuser'], hostname=prem_wls_nodes[0], key_filename=config[PREM]["wls_ssh_key"])
         sftp_client = ssh_client.open_sftp()
-        # make sure the destination directory exist - create if not
-        logger.writelog("info", f"Checking tns destination directory exists: {config[TNS]['TNSNAMES_PATH']}")
+        # get the file from on-prem
         try:
-            sftp_client.stat(config[TNS]['TNSNAMES_PATH'])
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {tns_file_dir}")
-                error = stderr.read().decode()
-                if error:
-                    logger.writelog("error", f"Failed creating tns directory on OCI WLS node {idx + 1}: {error}")
-                    return False
-            else:
-                logger.writelog("error", f"Cannot check if tns directory exists on OCI WLS node {idx +1}: {str(e)}")
-                return False
-        # push updated tns file
-        try:
-            sftp_client.put(localpath=tns_file_stage_path, remotepath=config[TNS]['TNSNAMES_PATH'])
+            sftp_client.get(remotepath=config[TNS]['TNSNAMES_PATH'], localpath=tns_file_stage_path)
         except Exception as e:
-            logger.writelog("error", f"Failed pushing tsn file to OCI WLS node {idx +1}: {str(e)}")
+            logger.writelog("error", f"Failed retrieving tnsnames file [{config[TNS]['TNSNAMES_PATH']}] from on-prem WLS node 1: {repr(e)}")
             return False
         sftp_client.close()
         ssh_client.close()
-        logger.writelog("info", f"Pushed updated tns file to OCI WLS node {idx +1}")
+        logger.writelog("info", f"Successfully retrieved tnsnames file [{config[TNS]['TNSNAMES_PATH']}] from on-prem WLS node 1")
+    if tnsnames_action in ["push", "all"]:
+        # check that tnsnames file exists in staging env
+        if not os.path.isfile(tns_file_stage_path):
+            logger.writelog("error", f"tnsnames file [{config[TNS]['TNSNAMES_PATH']}] does not exist in staging environment - consider running --pull first")
+            return False
+        # update file with oci details
+        logger.writelog("info", f"Updating tns file with OCI details")
+        updated_tns_content = ""
+        with open(tns_file_stage_path, "r") as f:
+            for line in f.readlines():
+                line = line.replace(config[TNS]['PREM_SERVICE_NAME'], config[TNS]['OCI_SERVICE_NAME'])
+                line = line.replace(config[TNS]['PREM_SCAN_ADDRESS'], config[TNS]['OCI_SCAN_ADDRESS'])
+                updated_tns_content += line
+        with open(tns_file_stage_path, "w") as f:
+            f.write(updated_tns_content)
+        # now push the file to all oci wls nodes
+        for idx in range(len(oci_wls_nodes)):
+            logger.writelog("info", f"Pushing updated tns file to OCI WLS node {idx +1}")
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh_client.connect(username=config[OCI]['wls_osuser'], hostname=oci_wls_nodes[idx], key_filename=config[OCI]["wls_ssh_key"])
+            sftp_client = ssh_client.open_sftp()
+            # make sure the destination directory exist - create if not
+            logger.writelog("info", f"Checking tns destination directory exists: {config[TNS]['TNSNAMES_PATH']}")
+            try:
+                sftp_client.stat(config[TNS]['TNSNAMES_PATH'])
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {tns_file_dir}")
+                    error = stderr.read().decode()
+                    if error:
+                        logger.writelog("error", f"Failed creating tns directory on OCI WLS node {idx + 1}: {error}")
+                        return False
+                else:
+                    logger.writelog("error", f"Cannot check if tns directory exists on OCI WLS node {idx +1}: {str(e)}")
+                    return False
+            # push updated tns file
+            try:
+                sftp_client.put(localpath=tns_file_stage_path, remotepath=config[TNS]['TNSNAMES_PATH'])
+            except Exception as e:
+                logger.writelog("error", f"Failed pushing tsn file to OCI WLS node {idx +1}: {str(e)}")
+                return False
+            sftp_client.close()
+            ssh_client.close()
+            logger.writelog("info", f"Pushed updated tns file to OCI WLS node {idx +1}")
     return True
 
 def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None, **kwargs):
@@ -1004,6 +1023,11 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
         action_successfull = push(logger, config, data, instance)
 
     elif action == "tnsnames":
+        tnsnames_action = "all"
+        if kwargs['push']:
+            tnsnames_action = "push"
+        elif kwargs['pull']:
+            tnsnames_action = "pull"
         logger.writelog("info", "Checking that all staging directories exist - creating if not")
         ohs_nodes = len(config[PREM]['ohs_nodes'].split("\n"))
         wls_nodes = len(config[PREM]['wls_nodes'].split("\n"))
@@ -1016,21 +1040,23 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
         if not check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only=False):
             logger.writelog("error", "Errors encountered checking/creating directories - exiting")
             myexit(1)
-        logger.writelog("info", f"Checking connectivity to on-prem environment")
-        conn_success, errors = check_connectivity(config[PREM])
-        if not conn_success:
-            logger.writelog("error", f"Errors encountered while checking connectivity to on-prem environment:")
-            for error in errors:
-                logger.writelog("error", error)
-            myexit(1)
-        logger.writelog("info", f"Checking connectivity to OCI environment")
-        conn_success, errors = check_connectivity(config[OCI])
-        if not conn_success:
-            logger.writelog("error", f"Errors encountered while checking connectivity to OCI environment:")
-            for error in errors:
-                logger.writelog("error", error)
-            myexit(1)
-        action_successfull = tnsnames(logger, config)
+        if tnsnames_action in ["all", "pull"]:
+            logger.writelog("info", f"Checking connectivity to on-prem environment")
+            conn_success, errors = check_connectivity(config[PREM])
+            if not conn_success:
+                logger.writelog("error", f"Errors encountered while checking connectivity to on-prem environment:")
+                for error in errors:
+                    logger.writelog("error", error)
+                myexit(1)
+        if tnsnames_action in ["all", "push"]:
+            logger.writelog("info", f"Checking connectivity to OCI environment")
+            conn_success, errors = check_connectivity(config[OCI])
+            if not conn_success:
+                logger.writelog("error", f"Errors encountered while checking connectivity to OCI environment:")
+                for error in errors:
+                    logger.writelog("error", error)
+                myexit(1)
+        action_successfull = tnsnames(logger, config, tnsnames_action)
     elif action == 'lifecycle':
         logger.writelog("info", "Feature not yet implemented")
 
@@ -1042,6 +1068,13 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
         logger.writelog("info", f"Action [{action}] completed successfully")
     else:
         logger.writelog("warn", f"Action [{action}] completed with failures - check log file {LOG_FILE} for further information")
+        print("The following errors occurred while executing the script:")
+        with open(LOG_FILE, "r") as f:
+            for line in f.readline():
+                if "error" in line.lower() or "warning" in line.lower():
+                    print(line.strip())
+
+
     
 
 
@@ -1104,7 +1137,16 @@ shared_config  - replicate shared config data - only applies to WLS")
     
     lcycle_parser = subparsers.add_parser('lifecycle', help="Lifecycle operations")
     lcycle_parser.set_defaults(func=run)
-    tnsnames_parser = subparsers.add_parser('tnsnames', help="Retrieve tnsnames file from on-prem, update values with OCI details and push to all OCI WLS nodes")
+    tnsnames_parser = subparsers.add_parser('tnsnames', 
+                                            help="Retrieve tnsnames file from on-prem, update values with OCI details and push to all OCI WLS nodes",
+                                            epilog="NOTE:\n \
+Push and update/pull actions can be run independently by using one the optional arguments --pull or --push.\n \
+If no optional argument supplied, all three actions will be run (pull->update->push)")
+    tnsnames_ex_group = tnsnames_parser.add_mutually_exclusive_group()
+    # tnsnames_parser.add_argument("--pull", help="Retrieve tnsnames file from primary and save to staging environment", action="store_true", required=False)
+    # tnsnames_parser.add_argument("--push", help="Update tnsnames file with OCI details and push to all OCI WLS nodes", action="store_true", required=False)
+    tnsnames_ex_group.add_argument("--pull", help="Retrieve tnsnames file from primary and save to staging environment", action="store_true", required=False)
+    tnsnames_ex_group.add_argument("--push", help="Update tnsnames file with OCI details and push to all OCI WLS nodes", action="store_true", required=False)
     tnsnames_parser.set_defaults(func=run)
     args = arg_parser.parse_args()
     kwargs = vars(args)
