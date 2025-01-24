@@ -35,7 +35,7 @@ export MW_HOME=/u01/oracle/products/fmw
 export ADMINVHN=asvip.soaedgtest.paasmaaoracle.com
 export ADMINPORT=9002
 export DOMAINUSER=soaedg1412rc2admin
-export TRUSTSTOREFILE=/u01/oracle/config/keystores/appTrustKeyStore.jks
+export TRUSTSTOREFILE=/u01/oracle/config/keystores/appTrustKeyStore.pkcs12
 ######################END OF VARIABLE CUSTOMIZATION ######################################
 
 
@@ -76,6 +76,21 @@ fi
 
 gather_current_variables_from_DS() {
         echo "Getting variables from current datasource..."
+	# Check dependencies
+	if [[ ! -x "${exec_path}/fmw_get_ds_property.sh" ]]; then
+              echo "Error!. The script ${exec_path}/fmw_get_ds_property.sh cannot be found or is not executable!"
+	      echo "Make sure you have donwloaded the file to from"
+	      echo "https://github.com/oracle-samples/maa/tree/main/app_dr_common, "
+	      echo "placed it under ${exec_path} and that you have set execution rights on it."
+              exit 1
+	fi
+	if [[ ! -x "${exec_path}/fmw_get_connect_string.sh " ]]; then
+              echo "Error!. The script ${exec_path}/fmw_get_connect_string.sh cannot be found or is not executable!"
+	      echo "Make sure you have donwloaded the file to from"
+              echo "https://github.com/oracle-samples/maa/tree/main/app_dr_common, "
+              echo "placed it under ${exec_path} and that you have set execution rights on it."
+              exit 1
+	fi
         export current_connect_string=$($exec_path/fmw_get_connect_string.sh $datasource_file)
         export current_jps_connect_string=$(grep url ${jps_file} | awk -F ':@' '{print $2}' |awk -F '"/>' '{print $1}')
 	export tns_admin=$($exec_path/fmw_get_ds_property.sh $datasource_file 'oracle.net.tns_admin')
