@@ -58,11 +58,6 @@ else
     	exit 1
 fi
 
-#Schemas for SOA Cloud
-#export schema_list="WLS UMS IAU OPSS ESS SOAINFRA IAU_APPEND IAU_VIEWER WLS_RUNTIME STB MDS DBFS MFT"
-
-#Schemas for SOA on-prem
-export schema_list="WLS UMS IAU OPSS SOAINFRA IAU_APPEND IAU_VIEWER WLS_RUNTIME STB MDS ESS"
 
 export beautify="
 set long 65536; 
@@ -79,6 +74,8 @@ set pause off;
 set flush off;
 column aaa format a1000;
 set echo off;
+set SERVEROUTPUT OFF;
+set term off;
 set head off;
 set termout off;
 set longchunksize 100000;
@@ -89,7 +86,7 @@ exec DBMS_METADATA.Set_Transform_Param(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERM
 mkdir -p $dumpdir
 cd $dumpdir
 #SYS generic ops
-sqlplus sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
+sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
 DROP DIRECTORY DUMP_INFRA;
 CREATE DIRECTORY DUMP_INFRA AS '$dumpdir';
 GRANT READ,WRITE ON DIRECTORY DUMP_INFRA TO SYS;
@@ -97,34 +94,42 @@ set line 500;
 column directory_name format a30;
 column directory_path format a60;
 SELECT directory_name, directory_path FROM dba_directories WHERE directory_name='DUMP_INFRA';
+set feedback off;
+column aaa format a1000;
+set echo off;
+set head off;
+set termout off;
+spool ON
+spool ${dumpdir}/schema_list.log
+select OWNER from SYSTEM.SCHEMA_VERSION_REGISTRY where OWNER like '${prefix}\_%' escape '\';
+spool off
+
 EOF
 
+export schema_list=$(cat schema_list.log)
 
 # Pending to add logic that handles placing ERRORS in the DDl when object does not exist
 
+
 #Schema DDL
 for schema in $schema_list;do
-        real_schema="$prefix"_"$schema"
-	real_schema_list+="$real_schema "
-        echo "Updating schema rights for $real_schema..."
+        echo "Updating schema rights for $schema..."
 	sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
-	GRANT READ,WRITE ON DIRECTORY DUMP_INFRA TO $real_schema;
-	GRANT SELECT ON "SYSTEM"."SCHEMA_VERSION_REGISTRY" TO "${real_schema}";
+	GRANT READ,WRITE ON DIRECTORY DUMP_INFRA TO $schema;
+	GRANT SELECT ON "SYSTEM"."SCHEMA_VERSION_REGISTRY" TO "${schema}";
 	$beautify
-	spool ${dumpdir}/create_schema_${real_schema}.sql
-	SELECT DBMS_METADATA.GET_DDL('USER', '${real_schema}') FROM dual;
-	SELECT DBMS_METADATA.GET_GRANTED_DDL('ROLE_GRANT', '${real_schema}') FROM dual;
-	SELECT DBMS_METADATA.GET_GRANTED_DDL('SYSTEM_GRANT','${real_schema}') FROM dual;
-	SELECT DBMS_METADATA.GET_GRANTED_DDL('OBJECT_GRANT', '${real_schema}') FROM dual;
+	spool ${dumpdir}/create_schema_${schema}.sql
+	SELECT DBMS_METADATA.GET_DDL('USER', '${schema}') FROM dual;
+	SELECT DBMS_METADATA.GET_GRANTED_DDL('ROLE_GRANT', '${schema}') FROM dual;
+	SELECT DBMS_METADATA.GET_GRANTED_DDL('SYSTEM_GRANT','${schema}') FROM dual;
+	SELECT DBMS_METADATA.GET_GRANTED_DDL('OBJECT_GRANT', '${schema}') FROM dual;
 	spool off
 EOF
-
-	expdp ${real_schema}/"${schema_pass}"@${tns_alias} schemas=${real_schema} directory=DUMP_INFRA dumpfile=${real_schema}_export.dmp logfile=${real_schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass};
+	expdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass};
 done
-echo "$real_schema_list">${dumpdir}/schema_list.log
 
 #Excluding BUFFERED messages view grants cause IDS will be inalid on import
-for schema in $real_schema_list;do
+for schema in $schema_list;do
 	cat ${dumpdir}/create_schema_${schema}.sql|  egrep -v "(QT.+BUFFER)" >>${dumpdir}/create_all_schemas.sql
 done
 
@@ -139,7 +144,7 @@ dumpfile=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp
 logfile=SYSTEM_SCHEMA_VERSION_REGISTRY.log 
 CLUSTER=N 
 encryption_password="$sys_pass"
-QUERY=SYSTEM.SCHEMA_VERSION_REGISTRY$:"where OWNER like '${prefix}%'" 
+QUERY=SYSTEM.SCHEMA_VERSION_REGISTRY$:"where OWNER like '${prefix}\_%' escape '\'" 
 EOF
 expdp \"sys/"${sys_pass}"@${tns_alias} as sysdba\" parfile=$dumpdir/sysparam.cfg
 
@@ -171,8 +176,8 @@ done
 (
 sqlplus -s  sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
 $beautify
-select DISTINCT tablespace_name from dba_segments WHERE OWNER like '${prefix}%';
-select DISTINCT temporary_tablespace from dba_users WHERE username like '${prefix}%';
+select DISTINCT tablespace_name from dba_segments WHERE OWNER like '${prefix}\_%' escape '\';
+select DISTINCT temporary_tablespace from dba_users WHERE username like '${prefix}\_%' escape '\';
 EOF
 ) | grep -v 'OWNER' |grep -v 'rows' | awk '{print $1}' > $dumpdir/tablespaces_list.log
 
