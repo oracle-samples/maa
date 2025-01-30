@@ -105,7 +105,7 @@ echo "Real Schema list : $real_schema_list"
 echo "Importing schemas exports..."
 for schema in $schema_list;do
         echo "Importing $schema..."
-	impdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_import.log PARALLEL=1 CLUSTER=N encryption_password=${sys_pass};
+	impdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_import.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass};
 done
 
 echo "Re-assign roles to consolidate"
