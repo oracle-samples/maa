@@ -31,8 +31,10 @@
 ###			Prefix used for schemas when the FMW RCU was used to create the Database artifacts used by a FMW domain
 ###             RCU_PASSWORD:
 ###                     Password provided for schemas when FMW RCU was executed to create the Database artifacts used by a FMW domain.
+###			Do not enclose passwords in double quotes (").
 ###		SYS_PASSWORD:
 ###			User sys's password in the PDB hosting the FMW systems.
+###                     Do not enclose passwords in double quotes (").
 ###		TNS_ALIAS:
 ###			Alias in tnsnames.ora that identifies the connect string to be used for the export
 ###		EXPORT_DIRECTORY:
@@ -86,7 +88,7 @@ exec DBMS_METADATA.Set_Transform_Param(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERM
 mkdir -p $dumpdir
 cd $dumpdir
 #SYS generic ops
-sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
+sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/schema_list_query.log << EOF
 DROP DIRECTORY DUMP_INFRA;
 CREATE DIRECTORY DUMP_INFRA AS '$dumpdir';
 GRANT READ,WRITE ON DIRECTORY DUMP_INFRA TO SYS;
@@ -113,8 +115,9 @@ export schema_list=$(cat schema_list.log)
 
 #Schema DDL
 for schema in $schema_list;do
-        echo "Updating schema rights for $schema..."
-	sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
+	echo "Updating schema rights for $schema (access data pump directory and schema_registry)..."
+	echo "Retrieving DDL for ${schema} ..."
+	sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba >  $dumpdir/${schema}_ddl.log << EOF
 	GRANT READ,WRITE ON DIRECTORY DUMP_INFRA TO $schema;
 	GRANT SELECT ON "SYSTEM"."SCHEMA_VERSION_REGISTRY" TO "${schema}";
 	$beautify
@@ -125,6 +128,7 @@ for schema in $schema_list;do
 	SELECT DBMS_METADATA.GET_GRANTED_DDL('OBJECT_GRANT', '${schema}') FROM dual;
 	spool off
 EOF
+	echo "Initiating export for scchema '${schema}..."
 	expdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass};
 done
 
@@ -144,7 +148,7 @@ dumpfile=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp
 logfile=SYSTEM_SCHEMA_VERSION_REGISTRY.log 
 CLUSTER=N 
 encryption_password="$sys_pass"
-QUERY=SYSTEM.SCHEMA_VERSION_REGISTRY$:"where OWNER like '${prefix}\_%' escape '\'" 
+QUERY=SYSTEM.SCHEMA_VERSION_REGISTRY$:"where OWNER like '${prefix}|_%' escape'|'" 
 EOF
 expdp \"sys/"${sys_pass}"@${tns_alias} as sysdba\" parfile=$dumpdir/sysparam.cfg
 
@@ -159,7 +163,7 @@ EOF
 export roles_list=$(cat $dumpdir/role_list.log)
 
 for role in $roles_list;do
-        sqlplus -s  sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
+        sqlplus -s  sys/""${sys_pass}""@${tns_alias} as sysdba  >  $dumpdir/${schema}_role.log << EOF
 	$beautify
         spool ${dumpdir}/create_role_${role}.sql
         SELECT DBMS_METADATA.GET_DDL('ROLE','${role}') FROM DUAL;
@@ -184,7 +188,7 @@ EOF
 export tablespaces_list=$(cat $dumpdir/tablespaces_list.log)
 
 for tablespace in $tablespaces_list;do
-        sqlplus -s  sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
+        sqlplus -s  sys/""${sys_pass}""@${tns_alias} as sysdba >  $dumpdir/${tablespace}_ddl.log << EOF
 	$beautify
         spool ${dumpdir}/create_tablespace_${tablespace}.sql
         SELECT DBMS_METADATA.GET_DDL('TABLESPACE','${tablespace}') FROM DUAL;
@@ -196,7 +200,7 @@ for tablespace in $tablespaces_list;do
         cat ${dumpdir}/create_tablespace_${tablespace}.sql  >>$dumpdir/create_all_tablespaces.sql
 done
 
-#Clean up dirt sql code
+#Clean up dirt in sql code
 sed -i '/ERROR/d' ${dumpdir}/create_all_*.sql
 sed -i '/no rows/d' ${dumpdir}/create_all_*.sql
 sed -i '/ORA-/d' ${dumpdir}/create_all_*.sql
@@ -205,6 +209,9 @@ sed -i 's/; ALTER/;\n ALTER/g' ${dumpdir}/create_all_*.sql
 sed -i "s/$sys_pass/****/g" ${dumpdir}/sysparam.cfg
 cd $dumpdir
 tar -czf  $dumpdir/complete_export_ddl_${dt}.tgz ./*
+
+echo ""
+echo ""
 
 echo "************************************* DONE! *************************************"
 echo "Results at:  $dumpdir"
