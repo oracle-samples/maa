@@ -87,6 +87,9 @@ exec DBMS_METADATA.Set_Transform_Param(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERM
 
 mkdir -p $dumpdir
 cd $dumpdir
+
+echo "$prefix" > $dumpdir/prefix.log
+
 #SYS generic ops
 sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/schema_list_query.log << EOF
 DROP DIRECTORY DUMP_INFRA;
@@ -105,10 +108,28 @@ spool ON
 spool ${dumpdir}/schema_list.log
 select OWNER from SYSTEM.SCHEMA_VERSION_REGISTRY where OWNER like '${prefix}\_%' escape '\';
 spool off
+spool ON
+spool ${dumpdir}/queue_list.log
+select owner || '.' || name from dba_queues where  owner like '${prefix}\_%' escape '\';
+spool off
 
 EOF
 
-export schema_list=$(cat schema_list.log)
+export schema_list=$(cat  ${dumpdir}/schema_list.log)
+export queue_list=$(cat  ${dumpdir}/queue_list.log)
+echo " QUEUE LIST:"
+echo "$queue_list"
+
+for queue in $queue_list;do
+        echo "Stopping queue ${queue} ..."
+        sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_export_stop_query.log << EOF
+        set echo off;
+        set head off;
+        set termout off;
+        EXECUTE DBMS_AQADM.stop_queue (queue_name => '$queue');
+EOF
+done
+
 
 # Pending to add logic that handles placing ERRORS in the DDl when object does not exist
 
@@ -134,6 +155,8 @@ done
 
 #Excluding BUFFERED messages view grants cause IDS will be inalid on import
 for schema in $schema_list;do
+	#Workaround for bug where UMS schema does not have procedure grants
+	echo "GRANT CREATE PROCEDURE TO $schema ;" >> ${dumpdir}/create_schema_${schema}.sql
 	cat ${dumpdir}/create_schema_${schema}.sql|  egrep -v "(QT.+BUFFER)" >>${dumpdir}/create_all_schemas.sql
 done
 
@@ -198,6 +221,39 @@ done
 
 for tablespace in $tablespaces_list;do
         cat ${dumpdir}/create_tablespace_${tablespace}.sql  >>$dumpdir/create_all_tablespaces.sql
+done
+
+for queue in $queue_list;do
+        export simple_queue_name=$(echo ${queue}|awk -F'.' '{print $2}')
+        squeue_type=$(sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba  << EOF
+        set echo off;
+        set head off;
+        set termout off;
+	select QUEUE_TYPE from dba_queues where NAME='$simple_queue_name' and owner like '${prefix}|_%' escape '|';
+EOF
+)
+        queue_type=$(echo $squeue_type| tr -d '[:space:]')
+        if [ "$queue_type" == "EXCEPTION_QUEUE" ]
+        then
+                echo "Starting exception queue $queue ..."
+                sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_export_start_query.log << EOF
+                set echo off;
+                set head off;
+                set termout off;
+                EXECUTE DBMS_AQADM.start_queue (queue_name => '$queue',enqueue=> false,dequeue=> true);
+
+EOF
+        else
+                echo "Starting normal queue $queue ..."
+                sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_export_start_query.log << EOF
+                set echo off;
+                set head off;
+                set termout off;
+                EXECUTE DBMS_AQADM.start_queue (queue_name => '$queue');
+EOF
+
+        fi
+
 done
 
 #Clean up dirt in sql code

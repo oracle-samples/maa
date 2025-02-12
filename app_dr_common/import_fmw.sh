@@ -61,7 +61,24 @@ else
        	echo "Make sure you have extracted the resulted tar genertaed by the export_fmw.sh script in the $dumpdir directory!"
 	exit 1
 fi
+if [ -f $dumpdir/prefix.log ]; then
+        echo "Found prefix log file, continuing..."
+        export prefix=$(cat $dumpdir/prefix.log)
+        cd $dumpdir
+else
+        echo "Prefix marker file $dumpdir/prefix.log does not exist!"
+        echo "Make sure you have extracted the resulted tar genertaed by the export_fmw.sh script in the $dumpdir directory!"
+        exit 1
+fi
 
+echo "***********************************************************************************"
+echo "***********************************************************************************"
+echo "Starting import of Oracle FMW schemas..."
+echo "NOTE: Errors on role grants, buffer queues and initial schema creation are expected"
+echo " and inocous both if the imported artifacts preexist or are being imported for the "
+echo "first time. Relevant errors will be reported in the  $dumpdir/*_import.log files.  "
+echo "***********************************************************************************"
+echo "***********************************************************************************"
 
 #SYS generic ops
 echo "Creating import dir and role for reg access"
@@ -87,8 +104,8 @@ EOF
 
 echo "Importing SCHEMA REGISTRY INFO"
 
-impdp  \"sys/"${sys_pass}"@${tns_alias} as sysdba\" SCHEMAS=SYSTEM directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import.log PARALLEL=1 CLUSTER=N encryption_password=${sys_passwd} TABLE_EXISTS_ACTION=APPEND
-impdp  \"sys/"${sys_pass}"@${tns_alias} as sysdba\"  SCHEMAS=$schema_list directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import_schemas.log PARALLEL=1 CLUSTER=N encryption_password=${sys_passwd} TABLE_EXISTS_ACTION=APPEND
+impdp  \"sys/${sys_pass}@${tns_alias} as sysdba\" SCHEMAS=SYSTEM directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import.log PARALLEL=1 CLUSTER=N encryption_password=${sys_pass} TABLE_EXISTS_ACTION=APPEND
+impdp  \"sys/${sys_pass}@${tns_alias} as sysdba\"  SCHEMAS=$schema_list directory=DUMP_INFRA DUMPFILE=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp LOGFILE=SYSTEM_SCHEMA_VERSION_REGISTRY_import_schemas.log PARALLEL=1 CLUSTER=N encryption_password=${sys_pass} TABLE_EXISTS_ACTION=APPEND
 
 #Initial grants to schemas
 echo "Assigning tablespace and dump dir rights to schemas..."
@@ -112,7 +129,45 @@ echo "Re-assign roles to consolidate"
 sqlplus sys/""${sys_pass}""@${tns_alias} as sysdba << EOF
 @$dumpdir/create_all_schemas.sql;
 EOF
+export queue_list=$(cat  ${dumpdir}/queue_list.log)
 
+for queue in $queue_list;do
+        export simple_queue_name=$(echo "${queue}"|awk -F'.' '{print $2}')
+        squeue_type=$(sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba  << EOF
+        set echo off;
+        set head off;
+        set termout off;
+	select QUEUE_TYPE from dba_queues where NAME='$simple_queue_name' and owner like '${prefix}|_%' escape '|';
+EOF
+)
+        queue_type=$(echo $squeue_type| tr -d '[:space:]')
+
+	echo "Queue $queue is of type $queue_type"
+        if [ "$queue_type" == "EXCEPTION_QUEUE" ]
+        then
+                echo "Starting exception queue $queue ..."
+                sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_import_start_query.log << EOF
+                set echo off;
+                set head off;
+                set termout off;
+                EXECUTE DBMS_AQADM.start_queue (queue_name => '$queue',enqueue=> false,dequeue=> true);
+
+EOF
+        else
+                echo "Starting normal queue $queue ..."
+                sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_import_start_query.log << EOF
+                set echo off;
+                set head off;
+                set termout off;
+                EXECUTE DBMS_AQADM.start_queue (queue_name => '$queue');
+EOF
+
+        fi
+
+done
+
+echo ""
+echo ""
 echo "*********************************************************************************"
 echo "************************************* DONE! *************************************"
 echo "*********************************************************************************"
