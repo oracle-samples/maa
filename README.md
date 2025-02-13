@@ -18,13 +18,13 @@ This repository stores a variety of examples demonstrating how to configure MAA/
 
 | Repo/Folder name  | Description |
 | ------------- | ------------- |
-| [WLS_HYDR Framework](./wls-hydr) | *New* Hybrid Disaster Recovery framework for WLS/FMW domains. 
+| [WLS HYDR Framework](./wls-hydr) | **New** Hybrid Disaster Recovery framework for WLS/FMW domains. 
 | [FMW Schemas Export Import Scripts](./fmw_schemas_exp_imp) | Scripts to export and import the FMW database schemas using Data Pump.
 | [App DR common scripts](./app_dr_common) | Common scripts referenced by different Disaster Recovery documents. 
 | [Oracle Data Guard](./dg_setup_scripts) | Scripts to set up Oracle Data Guard for an existing Oracle Database (on-prem to on-prem, OCI to OCI and on-prem to OCI). |
-| [FMW Hybrid Disaster Recovery ](./hybrid_dr) | (Legacy) Scripts to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI).|
-| [Weblogic for OCI DR](./wls_mp_dr) |  Scripts that can be used to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment. |
-| [Oracle SOA Marketplace DR](./drs_mp_soa) | scripts that can be used to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt. |
+| [FMW Hybrid Disaster Recovery ](./hybrid_dr) | *(Legacy)* Scripts to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI).|
+| [Weblogic for OCI DR](./wls_mp_dr) |  Scripts to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment. |
+| [Oracle SOA Marketplace DR](./drs_mp_soa) | scripts to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt. |
 | [Private DNS views for DR](./private_dns_views_for_dr) | Terraform scripts to create private DNS views in primary and standby OCI VCNs. This is used in Disaster Recovery environments. These private DNS views contain the other site's host names, but resolved with local IPs.  |
 | [DNS and Frontend Utilities](./dns_and_frontend_utilities) | Scripts for actions related with the frontend name and DNS in Disaster Recovery environments  |
 | [FMW-WLS Autonomous Database Shared DR](./fmw-wls-with-adb-dr) | Scripts and utilities to manage/obtain information from ADB systems and set up FMW DR with ADBS. |
