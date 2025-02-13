@@ -18,7 +18,8 @@ This repository stores a variety of examples demonstrating how to configure MAA/
 
 | Repo/Folder name  | Description |
 | ------------- | ------------- |
-| [WLS_HYDR Framework](./wls-hydr) | New Hybrid Disaster Recovery framework for WLS/FMW domains. 
+| [WLS_HYDR Framework](./wls-hydr) | *New* Hybrid Disaster Recovery framework for WLS/FMW domains. 
+| [fmw_schemas_exp_imp](./fmw_schemas_exp_imp) | Scripts to export and import FMW database schemas.
 | [App DR common scripts](./app_dr_common) | Common scripts referenced by different Disaster Recovery documents. 
 | [Oracle Data Guard](./dg_setup_scripts) | Scripts that can be used to set up Oracle Data Guard for an existing Oracle Database (on-prem to on-prem, OCI to OCI and on-prem to OCI). |
 | [FMW Hybrid Disaster Recovery ](./hybrid_dr) | Scripts that can be used to set up and maintain a Disaster Protection system involving an on-prem topology as primary and a standby system running on Oracle's CLoud (OCI).|
