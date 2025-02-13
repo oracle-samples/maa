@@ -3,7 +3,7 @@ Copyright (c) 2025 Oracle and/or its affiliates
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/  
 
 # FMW Database Schemas Export and Import Scripts
-These scripts are designed to export and import the FMW database metadata repository from a source database to a target database. This method can be used to migrate the database used by an FMW domain as an alternative to rman restore or Data Guard approaches.
+These scripts are designed to export and import the FMW database metadata repository from a source database to a target database. This method can be used to migrate the database used by an FMW domain as an alternative to rman backup and restore or Data Guard approaches.
 
 | Script name  | Description |
 | ------------- | ------------- |
