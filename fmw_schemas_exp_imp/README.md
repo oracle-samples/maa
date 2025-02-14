@@ -13,4 +13,4 @@ These scripts are designed to export and import the FMW database metadata reposi
 ### Features
 
 ### Considerations
-- Schemas, tablespaces, and user that are not part of the FMW metadata shcemas are not included in the export and import.
+- Schemas, tablespaces, and users that are not part of the FMW metadata shcemas are not included in the export and import.
