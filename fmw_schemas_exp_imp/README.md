@@ -29,3 +29,4 @@ These scripts are designed to export and import the FMW database metadata reposi
 
 ### Considerations
 - Schemas, tablespaces, and users that are not part of the FMW metadata schemas are not included in the export and import.
+- The queues of the FMW schemas are stopped in the source database for the export operation. They are started again once the information is exported.
