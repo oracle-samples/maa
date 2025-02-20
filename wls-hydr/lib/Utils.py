@@ -11,6 +11,9 @@ class Constants:
     INTERNAL_CONFIG_FILE = f"{BASEDIR}/lib/replication.internals"
     OCI_ENV_FILE = f"{BASEDIR}/config/oci.env"
     PREM_ENV_FILE = f"{BASEDIR}/config/prem.env"
+    DISCOVERY_SCRIPT = f"{BASEDIR}/lib/Discovery.py"
+    REPLICATION_SCRIPT = f"{BASEDIR}/lib/DataReplication.py"
+    PROVISIONING_SCRIPT = f"{BASEDIR}/wls_hydr.py"
     CLEANUP_SCRIPT = f"{BASEDIR}/cleanup.py"
 
     DIRECTORIES_CFG_TAG = "DIRECTORIES"
