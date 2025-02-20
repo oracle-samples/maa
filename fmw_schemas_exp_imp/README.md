@@ -17,7 +17,7 @@ These scripts are designed to export and import the FMW database metadata reposi
 
 ### Requirements
 - The scripts must run in the database nodes.
-- An directory is required in the source and in the target database, with enough space to store the exported data.
+- A directory is required in the source and in the target database, with enough space to store the exported data.
 - Both export and import scripts require a TNS alias to connect to the precise PDB. This tns alias must map to a service that is attached to a SINGLE instance of the RAC configuration. You must create this instance-specific service and an alias for it in tnsnames.ora.   
   For example:  
   `[oracle@fmwdbnode1 ~]$ srvctl add service -db $ORACLE_UNQNAME -service export_soaedg.example.com -preferred SOADB1 -pdb SOADB_pdb1`  
