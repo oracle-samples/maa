@@ -27,9 +27,11 @@ What the framework **DOES NOT DO**:
 
     - To create a copy of the database used by WLS/FMW using Oracle Data Pump Export and Import utilities, refer to the scripts at https://github.com/oracle-samples/maa/tree/main/app_dr_common. This approach does not require continuous connectivity between primary and secondary.
 
-This framework can be used for different scenarios. In the main one, referred to as "**COMPLETE DR SETUP**", it is used for creating a mirror system for an exiting FMW domain. Periodic replication between primary and secondary is setup to maintain both middle tier systems in sync. In this scenario, the database uses Oracle Data Guard for continuous synchronization of the DB tier. However, it can also be used for other purposes:
+This framework can be used in different scenarios:
 
- - **BACKUP AND RESTORE TO OCI**: In this scenario, a WLS or FMW domain is restored (or migrated) to OCI from a backup. In this use case, continuous connectivity between the primary datacenter and OCI is **NOT** needed. You upload the binary and configuration contents from primary to a bastion node in OCI. The OCI resources are created based on this information and the required input properties provided in the framework's configuration files. The RTO and RPO of this solution is considerably worse than in the "COMPLETE DR SETUP" case. When using this "backup and restore" approach, Oracle recommends that the secondary system is created and tested on a regular basis. However, and to reduce costs, it is also possible to "leave" the backup in the bastion and use it only when a restore is required (hence not incurring in the additional costs of having resources created and running upfront). In this scneario, the database uses Oracle Data Pump for exporting and importing the data used by WLS/FMW in the DB tier.
+ - **COMPLETE DR SETUP**: This is the main use case addressed by the framework. In this scenario the framework is used to create a continuously mirrored system for an existing primary WLS/FMW domain. Connectivity between primary and OCI is required. Periodic replication is setup to maintain both systems in sync. In this scenario, the database uses Oracle Data Guard for continuous synchronization of the DB tier. 
+
+ - **BACKUP AND RESTORE TO OCI**: In this scenario, a WLS or FMW domain is restored (or migrated) to OCI from a backup. In this use case, continuous connectivity between the primary datacenter and OCI is **NOT** needed. You upload the binary and configuration contents from primary to a bastion node in OCI. The OCI resources are created based on this information and the required input properties provided in the framework's configuration files. The RTO and RPO of this solution is considerably worse than in the "COMPLETE DR SETUP" case. When using this "backup and restore" approach, Oracle recommends that the secondary system is created and tested on a regular basis. However, and to reduce costs, it is also possible to "leave" the backup in the bastion and use it only when a restore is required (hence not incurring in the additional costs of having resources created and running upfront). In this scenario, the database uses Oracle Data Pump for exporting and importing the data used by WLS/FMW in the DB tier.
 
 - **INFRASTRUCTURE CREATION**: The framework can also be used to create the infrastructure required by a WebLogic environment in OCI (Load Balancer, Compute instances, shared storage, network, security rules etc.) without a primary system as a reference. In this use case, there is no discovery of resources from a primary system: you provide all the required input properties to create the OCI resources that a highly available WebLogic domain typically uses. There is no replication phase, since there is no primary system. You run the framework to create infrastructure resources in OCI, then install Oracle products and configure the WebLogic or FMW domain manually. In this use case, the WLS_HYDR framework only creates the  OCI artifacts that you need for a WebLogic EDG-like system in OCI: compute instances for WebLogic and for OHS, storage artifacts, OCI Load Balancer, network infrastructure and security rules for the subnets in the VCN.
 
@@ -52,16 +54,16 @@ Your system must meet the following requirements to use the WLS_HYDR framework i
 -   A compartment in your OCI tenancy must exist already.
 -   A Virtual Cloud Network (VCN) for the OCI resources must exist already. It is expected (but not mandatory) that, if the system uses a database, the database will be in the same VCN and set up before the midtier (if the WLS domain uses JDBC persistent stores, the database must be available before the secondary domain is started).
 -   An OCI Linux (OL8 or OL9) bastion host must exist in the same VCN as the OCI secondary system. Alternatively, if the bastion host isn’t located in the same VCN as the secondary's OCI resources, OCI's VCN local peering must be configured in advance between the bastion's VCN and the secondary system's VCN  (refer to the [OCI documentation](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/VCNpeering.htm) for this operation). 
--   The Operating System versions supported for the primary hosts in the current framewor's version are OL7.X, OL8.x, RHEL7.x and RHEL8.x. If the primary hosts are OL7 or RHEL7, then the compute instances in OCI will be created with OL7 image. If the primary hosts are OL8 or RHEL8, then the compute instances in OCI will be created with OL8 image.
+-   The Operating System versions supported for the primary hosts in the current framework's version are OL7.X, OL8.x, RHEL7.x and RHEL8.x. If the primary hosts are OL7 or RHEL7, then the compute instances in OCI will be created with OL7 image. If the primary hosts are OL8 or RHEL8, then the compute instances in OCI will be created with OL8 image.
 -   By default and following the Enterprise Deployment Guide best practices, Oracle HTTP Servers (OHS) are used to route requests to the WebLogic Servers. If OHS is not used, the framework can be configured to skip its configuration.
 -   A Load Balancer (LBR) is used in front of the OHS hosts. It is expected that this LBR uses a SSL listener for the exposed applications. It's SSL certificate (public and private key files) must be available and transferred to the bastion node (will be used to configure the OCI load balancer).
 -   At least 2 nodes for OHS and 2 nodes for WLS are used in primary (minimum High Availability). 
--   This framework cannot be used to setup asymetric DR topologies. It will always set up in secondary the same number of nodes as in primary.
+-   This framework cannot be used to setup asymmetric DR topologies. It will always set up in secondary the same number of nodes as in primary.
 -   The components (WebLogic Servers, OHS instances) do not use IPs as listen addresses. All listeners in any of the components use standard hostnames and not IPs.
 -   The system is accessed using frontend host names (a.k.a vanity urls). This means the WebLogic applications are accessed through the Load Balancer Virtual Server host names and not IPs.
 -   If the WebLogic domain uses an Oracle Database, the appropriate database needs to be "replicated" in OCI: 
-    - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running this framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. This midtier framework creates the required security rules for accessing the Database subnet but, if the database is in a differnet VCN, it does not set up the required [Local Peering Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/localVCNpeering.htm) between these tiers. 
-    - Alternatively and for the "Backup and Restore to OCI" use case, a seprate Oracle Data Pump Export and Import framework can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/blob/main/app_dr_common/export_fmw.sh and https://github.com/oracle-samples/maa/blob/main/app_dr_common/import_fmw.sh)
+    - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running this framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. Notice that this WLS_HYDR framework creates the required security rules for accessing the Database subnet but, if the database is in a different VCN, it does not set up the required [Local Peering Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/localVCNpeering.htm) between these tiers. 
+    - Alternatively and for the "Backup and Restore to OCI" use case, a separate Oracle Data Pump Export and Import framework can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/blob/main/app_dr_common/export_fmw.sh and https://github.com/oracle-samples/maa/blob/main/app_dr_common/import_fmw.sh)
 
 Additionally to these requirements, applicable to all the use cases, in the "COMPLETE DR SETUP" use case, connectivity is required between the OCI bastion host and the primary hosts:
 -   On-premises and OCI networks can be interconnected with [Oracle Cloud Infrastructure FastConnect](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/fastconnectoverview.htm#FastConnect_Overview) (preferred) or Site-to-Site VPN. In an "OCI to OCI" setup, [remote peering](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/scenario_e.htm#scenario_e) between the two systems has to be configured.
@@ -79,9 +81,9 @@ In it's default configuration the WLS_HYDR framework assumes that:
 -   In the "COMPLETE DR SETUP" use case, the same SSH key is used to connect to all the on-premises WLS nodes with the user that owns the WLS/FMW installation  (e.g. "oracle").
 -   Every WebLogic Server, including the Admin Server, uses a precise hostname as listen address. This means the listen address is not blank nor an IP.
 -   There is a single WebLogic Managed Servers' listen address per host in the WebLogic domain. This address may resolve to a different IP from the one provided for the SSH access. I.e. all WebLogic Managed servers in node "A" in a domain use the same hostname for their listen addresses (different port). The Admin Server, however, can listen on an additional virtual hostname (VHN mapping to a VIP). This is the recommended approach for and Enterprise Deployment (where the Admin Server can failover across nodes in the domain). These VHN and VIP must be manually configured in secondary after running the framework.
--   The nodes in the Weblogic domain have access to the domain shared config folder (used to failover the Admin Server).
+-   The nodes in the WebLogic domain have access to the domain shared config folder (used to failover the Admin Server).
 -   There is one WebLogic domain configuration folder private to each WebLogic host. This directory does not reside directly in the boot volume /. Using the boot volume in primary for storing the domain config is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations). Each private domain configuration folder can be an NFS private mount or a Block Volume, mounted individually in each host in the WLS domain.
--   The Oracle products installations in the WebLogic hosts do not reside in the boot volume /. Using boot volume in primary for storing binaries is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations). By default, the WLS_HYDR framework assumes that there are 2 redundant shared binary homes (NFS) in primary: one mounted by half of the nodes and the other mounted by the other half. This is the configuration recommended by the Enteprise Deployment Guide and is also the storage topology that is created in OCI.
+-   The Oracle products installations in the WebLogic hosts do not reside in the boot volume /. Using boot volume in primary for storing binaries is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations). By default, the WLS_HYDR framework assumes that there are 2 redundant shared binary homes (NFS) in primary: one mounted by half of the nodes and the other mounted by the other half. This is the configuration recommended by the Enterprise Deployment Guide and is also the storage topology that is created in OCI.
 -   A TNS alias is used in the database connection strings of the primary WebLogic's datasources. TNS alias can be configured before the execution of the Hybrid DR framework. Using TNS alias is recommended even without DR in the picture. Refer to Database Considerations in the Oracle FMW DR Guide for details (https://docs.oracle.com/en/middleware/fusion-middleware/12.2.1.4/asdrg/design-considerations.html#GUID-0E63F5EB-A42F-45CC-9546-BF0D139B4BB8)
 -   The WebLogic Administration Server runs collocated with managed servers in one of the hosts.
 
@@ -96,7 +98,7 @@ This solution requires the following services and roles:
 | Oracle Cloud Infrastructure: administrator     | Create the required resources in the OCI tenancy with the tool (compute instances, storage, Load Balancer, networking resources)                       |
 | Network: administrator                         | Configure the required network resources both in on-premises and OCI: Fast Connect, VCNs and subnets in OCI, network security rules and routing rules. |
 | Oracle WebLogic Server: root, oracle           | Use the tool to configure the secondary hosts: OS level configuration, add host aliases, mount file systems, and replication.    |
-| Oracle WebLogic Server: Weblogic Administrator | Manage Oracle WebLogic Server: stop, start, and apply WebLogic configuration changes.                                                                  |
+| Oracle WebLogic Server: WebLogic Administrator | Manage Oracle WebLogic Server: stop, start, and apply WebLogic configuration changes.                                                                  |
 | Oracle HTTP Server: root, oracle               | Use the tool to configure the secondary OHS hosts: perform the OS level configuration, add host aliases, mount file systems, and replication.    |
 
 FRAMEWORK OVERVIEW
@@ -116,17 +118,17 @@ This tree diagram shows the most relevant files in the framework:
 |│──├──Discovery.py|Script used to introspect the configuration of the primary system|
 |├── log|Directory containing the execution logs|
 |└── wls_hydr.py|Provisioning script|
-|└── wls_full_setup.py |Overall orchestrator script (invoques DataReplication, Discovery and Provisioning)|
+|└── wls_full_setup.py |Overall orchestrator script (invokes DataReplication, Discovery and Provisioning)|
 
 The wls_full_setup.py is used as an orchestrator script for the Replication, Discovery and Provisioning modules above. It ties their execution in one single step.
 
 END-TO-END PROCEDURES DESCRIPTION
 ==================================================
-- **COMPLETE DR SETUP**: The following diagram summarizes the **main flow execution** of the framework. This procedure creates a secondary system in OCI for a given primary (ideally, based on the EDG best practices). The entire process can be completed executing the orchestrator script (wls_full_setup.py). Alternatively, each indivdual phase can be run separately with the scripts provided (DataReplication.py, Discovery.py and wls_hydr.py). Note, however, that the execution of each phase depends on the results of the previous one.
+- **COMPLETE DR SETUP**: The following diagram summarizes the **main flow execution** of the framework. This procedure creates a secondary system in OCI for a given primary (ideally, based on the EDG best practices). The entire process can be completed executing the orchestrator script (wls_full_setup.py). Alternatively, each individual phase can be run separately with the scripts provided (DataReplication.py, Discovery.py and wls_hydr.py). Note, however, that the execution of each phase depends on the results of the previous one.
 
 ![Flow diagram to create a secondary system in OCI for a given on-prem environment. ](./images/Main_flow_diagram.png)
 
-- **BACKUP AND RESTORE TO OCI**: This procedure can be used when there is no connectivity between OCI bastion and primary's hosts. You don't run the Replication (pull) phase with the tool in this case. Instead, you upload the contents from primary to the bastion manually (through a secure copy). You can transfer them in a single tar file but then need to place them in a precise directory structure so that the framework can interpret contents properly. The entire process can be completed with executing the orchestrator script (wls_full_setup.py) with the "no connectivity" option. Alternatively, each indivdual phase can be run separately with the scripts provided (DataReplication.py, Discovery.py and wls_hydr.py)l. This use case can be viewed as an automated restore from a backup trasferred to the bastion.
+- **BACKUP AND RESTORE TO OCI**: This procedure can be used when there is no connectivity between OCI bastion and primary's hosts. You don't run the Replication (pull) phase with the tool in this case. Instead, you upload the contents from primary to the bastion manually (through a secure copy). You can transfer them in a single tar file but then need to place them in a precise directory structure so that the framework can interpret contents properly. The entire process can be completed with executing the orchestrator script (wls_full_setup.py) with the "no connectivity" option. Alternatively, each individual phase can be run separately with the scripts provided (DataReplication.py, Discovery.py and wls_hydr.py)l. This use case can be viewed as an automated restore from a backup transferred to the bastion.
 
 ![Flow diagram to migrate on-prem system to OCI (without connectivity). ](./images/flow_migration_from_copy.png)
 
@@ -153,8 +155,8 @@ Run the following steps as preparation for the execution of the scripts in all s
 7. Download the WLS_HYDR framework to the bastion server (example location <HOME>/wls_hydr) 
 8. (Optional) Create a subnet for the database if the WLS/FMW domain is using one.
 9. (Optional) Create a peer DB system if the WLS domain is using one:
-    - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running this framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. This midtier framework does not set up connectivity between the middle tier and the database in OCI. 
-    - Alternatively and for the "BACKUP AND RESTORE TO OCI" use case, an automated Oracle Data Pump Export and Import can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/blob/main/app_dr_common/export_fmw.sh and https://github.com/oracle-samples/maa/blob/main/app_dr_common/import_fmw.sh).
+    - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running the WLS_HYDR framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. The WLS_HYDR framework does not set up connectivity between the middle tier and the database in OCI. 
+    - Alternatively, and for the "BACKUP AND RESTORE TO OCI" use case, an automated Oracle Data Pump Export and Import can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/blob/main/app_dr_common/export_fmw.sh and https://github.com/oracle-samples/maa/blob/main/app_dr_common/import_fmw.sh).
 
 ## Running "COMPLETE DR SETUP"
 To run the "COMPLETE DR SETUP" follow these steps:
@@ -180,7 +182,7 @@ You will be prompted to make some selections based on the information detected i
 
 ## Running "BACKUP AND RESTORE TO OCI"
 
-To perfrom a "BACKUP AND RESTORE TO OCI", follow these steps:
+To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
 
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. Even when there is no connectivity to primary, this file is used to identify nodes and users in the primary system. Provide the values requested (the file contains a description of each entry).
 
@@ -223,9 +225,9 @@ If you want to use the framework simply to create in OCI the artifacts typically
 - Run the wls_hydr.py script indicating the sysconfig file that will be used (the csv file edited in previous steps). For example:
 `<WLS-HYDR_BASE>/wls_hydr.py -i sysconfig.csv`
 
-- If your WLS/FMW domain is using a database, create it in OCI using the standard provisioing procedures for each database type. 
+- If your WLS/FMW domain is using a database, create it in OCI using the standard provisioning procedures for each database type. 
 
-- Once infrastructure is created, you can manually install WLS/FMW/OHS in the compute instances created and conigure LBR according to your installation preferences. 
+- Once infrastructure is created, you can manually install WLS/FMW/OHS in the compute instances created and configure LBR according to your installation preferences. 
 
 ## Log information
 The framework provides a log file for the orchestrator script and individual logs for each one of the modules. Check these logs for errors after executing the framework. Logs are located at `<WLS-HYDR_BASE>/log`. Each log is marked with the precise module name and the date of the execution. For example: 
@@ -240,7 +242,7 @@ The framework provides a log file for the orchestrator script and individual log
 
 
 ## Cleaning Up Resources after a Provision Operation
-The WLS_HYDR framework provides an utility to clean up the resources created in the provisioning phase. This is useful for failed operations or when the secondary system needs to be decomissioned. The clean up script removes the OCI resources listed in the `<WLS-HYDR_BASE>/config/sysconfig_$date.json` file (created when wls_hydr.py is executed) that were marked for possible deletion in the provisioning phase. The framework differentiates between the pre-existing resources, such as the dbsubnet for example, and the newly created ones. Only the resources that were created by the framework are marked for posible deletion. The cleanup script doesn't delete any pre-existing resources. The resources are removed in a precise order to avoid errors caused by dependencies.   
+The WLS_HYDR framework provides an utility to clean up the resources created in the provisioning phase. This is useful for failed operations or when the secondary system needs to be decommissioned. The clean up script removes the OCI resources listed in the `<WLS-HYDR_BASE>/config/sysconfig_$date.json` file (created when wls_hydr.py is executed) that were marked for possible deletion in the provisioning phase. The framework differentiates between the pre-existing resources, such as the dbsubnet for example, and the newly created ones. Only the resources that were created by the framework are marked for possible deletion. The cleanup script doesn't delete any pre-existing resources. The resources are removed in a precise order to avoid errors caused by dependencies.   
 
 The contents of the sysconfig_$date.json file are updated by the `wls_hydr.py` and `cleanup.py` scripts according to the different operations performed on resources. Do not manually edit/alter the contents of this file.
 
@@ -253,7 +255,7 @@ To clean up resources from a failed execution of the wls_hydr framework or simpl
     `<WLS-HYDR_BASE>/cleanup.py -s <sysconfig_$date.json>`  
     For example:  
     `<WLS-HYDR_BASE>/cleanup.py -s /u01/config/sysconfig_2024-11-11_11\:46.json`  
-    The script will report the state of the different respources and the result of the cleanup operation in the `<WLS-HYDR_BASE>/log/cleanup_$date.log` file.
+    The script will report the state of the different resources and the result of the cleanup operation in the `<WLS-HYDR_BASE>/log/cleanup_$date.log` file.
 - Validate results:
     - The `cleanup_$date.log` and the output in the execution shell will report the resources that have been deleted, as well as those that was not possible to delete (because of external dependencies or other errors).
     - Use the OCI console to confirm that resources have been removed. The following is an ordered list of the resources that the cleanup scripts deletes:
@@ -338,7 +340,7 @@ This will create the following directory structure under the stage folder (speci
           ├── ohs_products_home1  
           └── ohs_products_home2
 ```
-- Manually upload the contents from the primary system to the differnt folders. Read the file `README_FOR_MANUAL_COPY.txt` in the stage folder for details about how to copy each item.
+- Manually upload the contents from the primary system to the different folders. Read the file `README_FOR_MANUAL_COPY.txt` in the stage folder for details about how to copy each item.
 
 ## Discovery
 In the discovery phase, the framework finds relevant information about the primary system. 
@@ -374,7 +376,7 @@ Provide the information requested in each case to generate the configuration tha
 In the provisioning phase, the tool creates the resources in OCI. These are created according to the input properties provided by the user and the results obtained in the discovery phase. 
 - Prepare for provisioning:
     - If you have run the discovery phase ("COMPLETE DR SETUP" and "BACKUP AND RESTORE OCI"), then you need to complete just a few pending entries (those that are not already populated by discovery) in the excel file _sysconfig_discovery.xlsx_. 
-    - If you have have NOT run the discovery phase ("INFRASTRUCTURE CREATION" use case), then you need to complete all the entries listed in the excel file  _sysconfig.xlsx_ 
+    - If you have NOT run the discovery phase ("INFRASTRUCTURE CREATION" use case), then you need to complete all the entries listed in the excel file  _sysconfig.xlsx_ 
     
     Both file templates (sysconfig_discovery.xlsx and sysconfig.xlsx) reside directly under `<WLS-HYDR_BASE>` (as clones or copied from the GitHub repository). Transfer the file pertaining your use case (discovery or non-discovery) to a Windows node to facilitate its edition. It is mandatory to fill in the entries in the excel files marked as "needs custom input". The entries marked as "default value can be used" can be customized or left in their default value.  
 
@@ -437,7 +439,7 @@ The following sections describe primary topology variations from the default Ent
 In this scenario, the WebLogic Administration server does not use a separate domain directory on a shared storage. Instead, all WLS servers run from domain directories that are private to each node. In the first node, this directory is shared by the Administration Server and the managed servers on that same node. To support this use case, leave the WLS_SHARED_CONFIG_DIR value in the _replication.properties_ file empty. Provide a value for WLS_PRIVATE_CONFIG_DIR. This will be used as the domain directory in all nodes and will  host also the Admin Server's domain directory.
 
 #### 2. The private wls config is not in a separate mount point, it resides in a subfolder in the boot volume / 
-In this scenario, the WLS nodes do not use a separate volume/mount for the WLS private config: they store it in the boot volume. For example, private config folder is /u02/oracle/config, but it resides under the / mount. Since this approach goes against High Availability best practices, the framework will still create separate block volumes for the domain configuraiton while preserving the required paths. Depending on the type of operation, different configuration options must be provided:
+In this scenario, the WLS nodes do not use a separate volume/mount for the WLS private config: they store it in the boot volume. For example, private config folder is /u02/oracle/config, but it resides under the / mount. Since this approach goes against High Availability best practices, the framework will still create separate block volumes for the domain configuration while preserving the required paths. Depending on the type of operation, different configuration options must be provided:
 - When using the framework for the "COMPLETE DR SETUP", the framework will detect "/" as mount point (i.e. using boot volume) and will use the value of WLS_PRIVATE_CONFIG_DIR as the mount point to be created in OCI (as specified in the _replication.properties_ file)
 - When using the framework for the "BACKUP AND RESTORE TO OCI" or for the "INFRASTRUCTURE CREATION" use cases: the user will have to provide all the values in the _sysconfig_ spreadsheet file specifying the path under which the domain directory resides (for example, /u02/oracle/config). 
 
@@ -464,7 +466,7 @@ In this case, use the tool as prescribed in variation #5 and then manually confi
 KNOWN ISSUES/ OTHER LIMITATIONS
 ==================================================
 
-1. Using more than one HOSTNAME as listen address for managed servers in the same host in the Weblogic domain is not supported by the WLS_HYDR framework in this release (other than the Admin Server's listen address). Additional hostnnames can be added manually to OCI DNS private views.
+1. Using more than one HOSTNAME as listen address for managed servers in the same host in the WebLogic domain is not supported by the WLS_HYDR framework in this release (other than the Admin Server's listen address). Additional hostnames can be added manually to OCI DNS private views.
 2. Using more than one Virtual Host for applications to be exposed through the LBR and OHS is not supported by the WLS_HYDR framework in this release. Additional virtual hosts can be added manually to the LBR and OHS configuration.
 3. Having the WebLogic Admin Server running in its own/separate host is not supported by the WLS_HYDR framework in this release.
 4. Using other OS versions than OL7,OL8,RHEL7,RHEL8 in primary is not supported by the WLS_HYDR framework in this release.
@@ -493,7 +495,7 @@ This table lists all the resources that this framework creates in OCI.
 |                              | NAT Gateway                                                 | HyDR_NAT_Gateway                           | Created if it doesn't already exist                                               |
 |                              | DNS Private View                                                | HYBRID_DR_VIRTUAL_HOSTNAMES                |                                                                                   |
 |                              | DHCP Options                                                | HyDR-DHCP                                  |                                                                                   |
-|                              | Virtual Address for Administration Server **(TBD)**                             | \<the listen address of the Admin Server added to the private view, pointing to administration node IP\>   | Created only if the value is provided (it is an optional input).                                               |
+|                              | Virtual Address for Administration Server                              | The listen address of the Admin Server added to the private view, pointing to administration node IP   | Created only if the value is provided (it is an optional input).                                               |
 | Compute Instances            | N compute instances for OHS                                 | \<custom ohs prefix\>-N                      | Created using WLS for OCI images                                                  |
 |                              | N compute instances for WLS                                 | \<custom wls prefix\>-N                      | Created using WLS for OCI images                                                  |
 | Storage Resources            | FSS Mount target                                            | \<custom_prefix\>Target1 (2)                 | 1 (or 2 if using 2 availability domains).                                         |
