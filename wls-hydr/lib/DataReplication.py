@@ -80,6 +80,7 @@ try:
     import pathlib
     import paramiko
     import datetime
+    import shutil
     import time
     import io
 except ImportError as e:
@@ -99,6 +100,8 @@ OCI = CONSTANTS.OCI_CFG_TAG
 PREM = CONSTANTS.PREM_CFG_TAG
 OPTIONS = CONSTANTS.OPTIONS_CFG_TAG
 TNS = CONSTANTS.TNS_TAG
+README_FILE = "README_FOR_MANUAL_COPY.txt"
+README_FILE_PATH = f"{BASEDIR}/lib/{README_FILE}"
 
 CALLER = 'cli' if __name__ == '__main__' else 'import'
 
@@ -182,6 +185,10 @@ def check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only)
                     logger.writelog("debug", str(e))
                     return False
                 logger.writelog("info", f"Created directory {wls_private_config_dir}")
+    if not os.path.isfile(README_FILE_PATH):
+        logger.writelog("error", "README file missing - update and run again")
+        myexit(1)
+    shutil.copy(README_FILE_PATH, config[DIRECTORIES]['STAGE_GOLD_COPY_BASE'])
     return True
 
 
@@ -943,7 +950,7 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
     else:
         log_level = 'INFO'
         warnings.filterwarnings("ignore")
-    logger = Logger(LOG_FILE, log_level)
+    logger = Logger(__file__, LOG_FILE, log_level)
     logger.writelog("info", f"Data replication started - action set to {action}")
     logger.writelog("info", f"Primary environment set to {PRIMARY}")
     logger.writelog("info", "Reading configuration files")
@@ -1024,9 +1031,9 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
 
     elif action == "tnsnames":
         tnsnames_action = "all"
-        if kwargs['push']:
+        if 'push' in kwargs.keys() and kwargs['push']:
             tnsnames_action = "push"
-        elif kwargs['pull']:
+        elif 'pull' in kwargs.keys() and kwargs['pull']:
             tnsnames_action = "pull"
         logger.writelog("info", "Checking that all staging directories exist - creating if not")
         ohs_nodes = len(config[PREM]['ohs_nodes'].split("\n"))
@@ -1073,6 +1080,9 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
             for line in f.readline():
                 if "error" in line.lower() or "warning" in line.lower():
                     print(line.strip())
+        logger.logger.handlers.clear()
+        myexit(1)
+    logger.logger.handlers.clear()
 
 
     

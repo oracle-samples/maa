@@ -73,6 +73,21 @@ class OciManager:
         if re.match(pattern, name):
             return True
         return False
+
+    def _is_valid_dhcp_name(self, name):
+        """Checks if given resource name is valid:
+            - must only consist of alphanum, '-',  '_' and '.'
+
+        Args:
+            name (str): Resource name to check
+
+        Returns:
+            Bool: True if valid name, else False
+        """
+        pattern = r'^[a-zA-Z0-9-_.]*$'
+        if re.match(pattern, name):
+            return True
+        return False
     
     def _is_valid_path(self, path):
         """Checks if given path is valid:
@@ -1541,7 +1556,7 @@ class OciManager:
             return False, f"VCN ID {vcn_id} is not a valid OCID"
         if not self._is_valid_zone_name(search_domains):
             return False, f"Search domain {search_domains} is invalid"
-        if not self._is_valid_name(display_name):
+        if not self._is_valid_dhcp_name(display_name):
             return False, f"DHCP option name {display_name} is not valid"
         
         dhcp_model = oci.core.models.CreateDhcpDetails(
@@ -2071,6 +2086,46 @@ class OciManager:
         except Exception as e:
             return False, repr(e)
         return True, ret.data
+
+    def check_private_view_exists(self, vcn_id, view_name):
+        """Checks if private view with given name exists
+
+        Args:
+            vcn_id (str): OCID of VCN where private view exists
+            view_name (str): Name of private view to check for
+
+        Returns:
+            - (True, str): Tuple consisting of bool True and view OCID if exists, 
+                        otherwise bool True and empty string
+            - (False, str): If check operation failed - tuple consisting of bool False 
+                        and exception encountered
+        """
+        if not self._is_valid_ocid(vcn_id):
+            return False, f"VCN ID {vcn_id} is not a valid OCID"
+        resolvers = self.dns_client.list_resolvers(self.compartment)
+        resolver = None
+        for res in resolvers.data:
+            if res.attached_vcn_id == vcn_id:
+                resolver = res
+        if resolver is None:
+            return False, "Could not retrieve VCN resolver"
+        try:
+            resolver_data = self.dns_client.get_resolver(resolver_id=resolver.id)
+        except oci.exceptions.ServiceError as e:
+            return False, f"Could not retrieve resolver data: {e.message}"
+        except Exception as e:
+            return False, f"Could not retrieve resolver data: {repr(e)}"
+        resolver_data = resolver_data.data
+        for view in resolver_data.attached_views:
+            try:
+                view_data = self.dns_client.get_view(view_id=view.view_id)
+            except oci.exceptions.ServiceError as e:
+                return False, e.message
+            except Exception as e:
+                return False, repr(e)
+            if view_data.data.display_name == view_name:
+                return True, view_data.data.id
+        return True, ""
     
     def create_private_view(self, view_name):
         """Creates a new private view
@@ -2084,7 +2139,7 @@ class OciManager:
             - (False, str): If creation failed - tuple consisting of bool False
                         and exception encountered
         """
-        if not self._is_valid_name(view_name):
+        if not self._is_valid_dhcp_name(view_name):
             return False, f"View name {view_name} is invalid"
         
         view_model = oci.dns.models.CreateViewDetails(
@@ -2102,6 +2157,40 @@ class OciManager:
         except Exception as e:
             return False, repr(e)
         return True, view_response.data
+
+    def check_zone_exists(self, zone_name, view_id):
+        """Checks if given zone name exists within given view ID    
+
+        Args:
+            zone_name (str): Zone name
+            view_id (str): OCID of view where to check
+
+        Returns:
+            - (True, str): Tuple consisting of bool True and OCID of zone if exists,
+                        otherwise bool True and empty string
+            - (False, str): If check failed - tuple consisting of bool False
+                        and exception encountered
+        """
+        if not self._is_valid_zone_name(zone_name):
+            return False, f"Zone name {zone_name} is invalid"
+        if not self._is_valid_ocid(view_id):
+            return False, f"View ID {view_id} is not a valid OCID"
+        try:
+            zone_data = self.dns_client.list_zones(
+                compartment_id=self.compartment,
+                scope="PRIVATE", 
+                name=zone_name, 
+                view_id=view_id
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        if zone_data.data:
+            return True, zone_data.data[0].id
+        else:
+            return True, ""
+
     
     def create_zone(self, zone_name, view_id):
         """Creates a new private zone in a given view
@@ -2140,6 +2229,40 @@ class OciManager:
         except Exception as e:
             return False, repr(e)
         return True, zone_response.data
+
+    def check_ipv4_record_exists(self, record_name, zone_name, view_id):
+        """Check if record of type ipv4 exists within given zone
+
+        Args:
+            record_name (str): Name of record to check for
+            zone_name (str): Name of zone where to check
+            view_id (str): OCID of view where to check
+
+        Returns:
+            - (True, str): Tuple consisting of bool True and name of record if exists,
+                        otherwise bool True and empty string
+            - (False, str): If check failed - tuple consisting of bool False
+                        and exception encountered
+        """
+        if not self._is_valid_dhcp_name(record_name):
+            return False, f"Record name {record_name} is invalid"
+        if not self._is_valid_zone_name(zone_name):
+            return False, f"Zone name {zone_name} is invalid"
+        if not self._is_valid_ocid(view_id):
+            return False, f"View ID {view_id} is not a valid OCID"
+        try:
+            record_data = self.dns_client.get_zone_records(
+                zone_name_or_id=zone_name,
+                domain=record_name,
+                view_id=view_id
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        if record_data.data.items and self._is_valid_ip(record_data.data.items[0].rdata):
+            return True, record_data.data.items[0].domain
+        return True, ""
     
     def add_ipv4_record_to_zone(self, zone_id, zone_name, host, ip):
         """Creates a new record of type A (IPv4 Address) in a given zone by retrieving 
@@ -2204,6 +2327,84 @@ class OciManager:
         except Exception as e:
             return False, repr(e)
         return True, update_records_response.data
+    
+    def update_ipv4_record(self, record_name, zone_name, view_id, ip):
+        """Updates an ipv4 record  
+
+        Args:
+            record_name (str): Name of record to update
+            zone_name (str): Name of zone where record resides
+            view_id (str): OCID of view where zone of the records exists
+            ip (str): IP to update with the zone
+
+        Returns:
+            - (True, list[oci.dns.models.Record]): Tuple consisting of bool True and 
+                        list of oci.dns.models.Record objects of all records in given zone 
+                        including the updated one
+            - (False, str): If update failed - tuple consisting of bool False
+                        and exception encountered
+        """
+        if not self._is_valid_dhcp_name(record_name):
+            return False, f"Record name {record_name} is invalid"
+        if not self._is_valid_zone_name(zone_name):
+            return False, f"Zone name {zone_name} is invalid"
+        if not self._is_valid_ocid(view_id):
+            return False, f"View ID {view_id} is not a valid OCID"
+        if not self._is_valid_ip(ip):
+            return False, f"IP {ip} is invalid"
+        try:
+            records_data = self.dns_client.get_zone_records(
+                zone_name_or_id=zone_name,
+                view_id=view_id
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        records_data = records_data.data.items
+        new_records = []
+        for record in records_data:
+            if record.domain != record_name:
+                new_records.append(
+                    oci.dns.models.RecordDetails(
+                        domain=record.domain, 
+                        is_protected=record.is_protected, 
+                        rdata=record.rdata, 
+                        record_hash=record.record_hash, 
+                        rrset_version=record.rrset_version, 
+                        rtype=record.rtype, 
+                        ttl=record.ttl)                    
+                    )
+            elif not self._is_valid_ip(record.rdata):
+                new_records.append(
+                    oci.dns.models.RecordDetails(
+                        domain=record.domain, 
+                        is_protected=record.is_protected, 
+                        rdata=record.rdata, 
+                        record_hash=record.record_hash, 
+                        rrset_version=record.rrset_version, 
+                        rtype=record.rtype, 
+                        ttl=record.ttl)                    
+                    )
+        new_records.append(oci.dns.models.RecordDetails(
+            domain=record_name,
+            rdata=ip,
+            rtype='A',
+            ttl=120
+        ))
+        update_zone_records_model = oci.dns.models.UpdateZoneRecordsDetails(items=new_records)
+        try:
+            update_records_response = self.dns_client.update_zone_records(
+                zone_name_or_id=zone_name,
+                update_zone_records_details=update_zone_records_model,
+                view_id=view_id
+            )
+        except oci.exceptions.ServiceError as e:
+            return False, e.message
+        except Exception as e:
+            return False, repr(e)
+        return True, update_records_response.data
+
     
     def attach_view_to_dns_resolver(self, view_id, vcn_id):
         """Attaches a view to a VCN's resolver
@@ -2863,25 +3064,23 @@ class OciManager:
         for resolver in resolvers:
             resolvers_details.append(self.dns_client.get_resolver(resolver_id=resolver.id).data)
         for resolver in resolvers_details:
-            for view in resolver.attached_views:
-                if dnsview_ocid == view.view_id:
-                    if not remove_from_resolver:
-                        return False, f"Cannot delete DNS view [{dnsview_ocid}] - it is attached to resolver [{resolver.id}]"
-        for resolver in resolvers_details:
-            for view in resolver.attached_views:
-                if dnsview_ocid == view.view_id:
-                    updated_view = resolver.attached_views
-                    updated_view.remove(view)
-                    try:
-                        remove_view_response = composite_operation.update_resolver_and_wait_for_state(
-                            resolver_id=resolver.id,
-                            update_resolver_details=oci.dns.models.UpdateResolverDetails(attached_views=updated_view),
-                            wait_for_states=[oci.dns.models.View.LIFECYCLE_STATE_ACTIVE]
-                        )
-                    except oci.exceptions.ServiceError as e:
-                        return False, f"Could not remove view ID [{dnsview_ocid}] from resolver ID [{resolver.id}]: {e.message}"
-                    except Exception as e:
-                        return False, f"Could not remove view ID [{dnsview_ocid}] from resolver ID [{resolver.id}]: {repr(e)}"
+            if any([view.view_id == dnsview_ocid for view in resolver.attached_views]):
+                if not remove_from_resolver:
+                    return False, f"Cannot delete DNS view [{dnsview_ocid}] - it is attached to resolver [{resolver.id}]"
+                updated_views = []
+                for view in resolver.attached_views:
+                    if view.view_id != dnsview_ocid:
+                        updated_views.append(oci.dns.models.AttachedViewDetails(view_id=view.view_id))
+                try:
+                    remove_view_response = composite_operation.update_resolver_and_wait_for_state(
+                        resolver_id=resolver.id,
+                        update_resolver_details=oci.dns.models.UpdateResolverDetails(attached_views=updated_views),
+                        wait_for_states=[oci.dns.models.View.LIFECYCLE_STATE_ACTIVE]
+                    )
+                except oci.exceptions.ServiceError as e:
+                    return False, f"Could not remove view ID [{dnsview_ocid}] from resolver ID [{resolver.id}]: {e.message}"
+                except Exception as e:
+                    return False, f"Could not remove view ID [{dnsview_ocid}] from resolver ID [{resolver.id}]: {repr(e)}"
         try:
             delete_dnsview_response = self.dns_client.delete_view(
                 view_id=dnsview_ocid

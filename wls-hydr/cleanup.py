@@ -233,7 +233,7 @@ else:
 
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
 log_file = f"cleanup_{now}.log"
-logger = Logger(log_file, log_level)
+logger = Logger(__file__, log_file, log_level)
 
 sysconfig_file = args.sysconfig_file
 

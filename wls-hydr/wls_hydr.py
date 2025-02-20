@@ -53,29 +53,29 @@ else:
 
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
 log_file = f"{CONSTANTS.BASEDIR}/log/wls_hydr_{now}.log"
-logger = Logger(log_file, log_level)
+logger = Logger(__file__, log_file, log_level)
 basedir = os.path.dirname(os.path.realpath(__file__))
 sysconfig = {}
 
-DHCP_OPT_NAME = "HyDR-DHCP"
-PRIVATE_VIEW_NAME = "HYBRID_DR_VIRTUAL_HOSTNAMES"
+DHCP_OPT_SUFFIX = "DHCP_OPTIONS"
+PRIVATE_VIEW_SUFFIX = "DR_VIRTUAL_HOSTNAMES"
 WLS_INIT_SCRIPT = f"{basedir}/lib/templates/wls_node_init.sh"
 OHS_INIT_SCRIPT = f"{basedir}/lib/templates/ohs_node_init.sh"
 LBR_ADMIN_BACKEND_SET_NAME = "OHS_Admin_backendset"
 LBR_ADMIN_COOKIE_NAME = "X-Oracle-LBR-ADMIN-Backendset"
-LBR_HTTP_BACKEND_SET_NAME = "OHS_HTTP_APP_backendset"
+LBR_HTTP_BACKEND_SET_NAME = "OHS_App_backendset"
 LBR_HTTP_COOKIE_NAME = "X-Oracle-LBR-OHS-HTTP-Backendset"
-LBR_INTERNAL_BACKEND_SET_NAME = "OHS_HTTP_INTERNAL_backendset"
+LBR_INTERNAL_BACKEND_SET_NAME = "OHS_Internal_backendset"
 LBR_INTERNAL_COOKIE_NAME = "X-Oracle-LBR-OHS-Internal-Backendset"
 LBR_EMPTY_BACKEND_SET_NAME = "empty_backendset"
 LBR_CERT_NAME = "HyDR_lbr_cert"
 LBR_HOSTNAME_NAME = "HyDR_LBR_virtual_hostname"
 LBR_ADMIN_HOSTNAME_NAME = "HyDR_LBR_admin_hostname"
 LBR_VIRT_HOST_HOSTNAME_NAME = "internal_frontend"
-LBR_ADMIN_LISTENER = "Admin_listener"
-LBR_HTTPS_LISTENER = "HTTPS_APP_listener"
-LBR_HTTP_LISTENER = "HTTP_APP_listener"
-LBR_VIRT_HOST_LISTENER = "HTTP_internal_listener"
+LBR_ADMIN_LISTENER = "LBR_Admin_listener"
+LBR_HTTPS_LISTENER = "LBR_APP_listener"
+LBR_HTTP_LISTENER = "LBR_Redirect_listener"
+LBR_VIRT_HOST_LISTENER = "LBR_Internal_listener"
 LBR_SSLHEADERS_RULE_SET = "SSLHeaders"
 LBR_HTTP_REDIRECT_RULE_SET = "HTTP_to_HTTPS_redirect"
 LBR_HTTP_PORT = 80
@@ -242,7 +242,7 @@ def main():
         # block volumes
         sysconfig['oci']['storage']['block_volumes'].append(
             {
-                "name" : f"wlsdrBV{count + 1}"
+                "name" : f"{sysconfig['oci']['wls']['node_prefix']}BV{count + 1}"
             })
         
     # 2 products filesystems
@@ -271,6 +271,8 @@ def main():
     # strip domain from listen addresses - expected format for creating private views
     for idx in range(0, len(sysconfig['prem']['wls']['listen_addresses'])):
         sysconfig['prem']['wls']['listen_addresses'][idx] = re.match(r"(.*?)\..*", sysconfig['prem']['wls']['listen_addresses'][idx])[1]
+    # input dependent variables
+
     # get bastion server information if in OCI
     if sysconfig['bastion']['location'] == 'oci':
         req = requests.get("http://169.254.169.254/opc/v1/vnics/")
@@ -727,6 +729,40 @@ def main():
             exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened outgoing port {port}")
 
+    if sysconfig['oci']['network']['ports']['wlschannels']:
+        logger.writelog("debug", "Opening outgoing WLS channels listen ports")
+        if not isinstance(sysconfig['oci']['network']['ports']['wlschannels'], list): 
+            sysconfig['oci']['network']['ports']['wlschannels'] = [sysconfig['oci']['network']['ports']['wlschannels']]
+        for port in sysconfig['oci']['network']['ports']['wlschannels']:
+            success, reason = oci_manager.open_egress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+                destination_cidr=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
+                port=port,
+                description=f"Allow outgoing access from web-tier to mid-tier {port} wls channels port"
+            )
+            if not success:
+                logger.writelog("error", f"Could not open outgoing port {port}")
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", f"Opened outgoing port {port}")
+
+    if sysconfig['oci']['network']['ports']['wlsadmin']:
+        logger.writelog("debug", "Opening outgoing WLS administration listen ports")
+        if not isinstance(sysconfig['oci']['network']['ports']['wlsadmin'], list): 
+            sysconfig['oci']['network']['ports']['wlsadmin'] = [sysconfig['oci']['network']['ports']['wlsadmin']]
+        for port in sysconfig['oci']['network']['ports']['wlsadmin']:
+            success, reason = oci_manager.open_egress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['webtier']['id'],
+                destination_cidr=sysconfig['oci']['network']['subnets']['midtier']['cidr'],
+                port=port,
+                description=f"Allow outgoing access from web-tier to mid-tier {port} wls administration port"
+            )
+            if not success:
+                logger.writelog("error", f"Could not open outgoing port {port}")
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", f"Opened outgoing port {port}")
+
     # GitLab #16 egress access for yum 
     logger.writelog("debug", "Opening web-tier egress 443 port to OSN") 
     success, reason = oci_manager.open_egress_port_osn(
@@ -832,7 +868,7 @@ def main():
             sysconfig['oci']['ohs']['console_port']
         ))
 
-    # allow from midtier wls servers ports
+    # allow midtier ingress fom webtier wls servers ports
     logger.writelog("debug", "Opening wls servers ports from webtier to midtier")
     for port in sysconfig['oci']['network']['ports']['wlsservers']:
         success, reason = oci_manager.open_ingress_tcp_port(
@@ -846,6 +882,42 @@ def main():
             logger.writelog("debug", reason)
             exit_failure(logger, sysconfig_file, 1)
         logger.writelog("debug", f"Opened midtier ingress port {port}")
+
+    # allow midtier ingress fom webtier wls channels ports
+    if sysconfig['oci']['network']['ports']['wlschannels']:
+        logger.writelog("debug", "Opening incoming WLS channels listen ports")
+        if not isinstance(sysconfig['oci']['network']['ports']['wlschannels'], list): 
+            sysconfig['oci']['network']['ports']['wlschannels'] = [sysconfig['oci']['network']['ports']['wlschannels']]
+        for port in sysconfig['oci']['network']['ports']['wlschannels']:
+            success, reason = oci_manager.open_ingress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
+                source=sysconfig['oci']['network']['subnets']['webtier']['cidr'],
+                description=f"Allow access from web-tier network to {port} port",
+                port=port
+            )
+            if not success:
+                logger.writelog("error", f"Could not open midtier ingress port {port}")
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", f"Opened midtier ingress port {port}")
+
+    # allow midtier ingress fom webtier wls administration ports
+    if sysconfig['oci']['network']['ports']['wlsadmin']:
+        logger.writelog("debug", "Opening incoming WLS administration listen ports")
+        if not isinstance(sysconfig['oci']['network']['ports']['wlsadmin'], list): 
+            sysconfig['oci']['network']['ports']['wlsadmin'] = [sysconfig['oci']['network']['ports']['wlsadmin']]
+        for port in sysconfig['oci']['network']['ports']['wlsadmin']:
+            success, reason = oci_manager.open_ingress_tcp_port(
+                security_list_id=sysconfig['oci']['network']['security_lists']['midtier']['id'],
+                source=sysconfig['oci']['network']['subnets']['webtier']['cidr'],
+                description=f"Allow access from web-tier network to {port} port",
+                port=port
+            )
+            if not success:
+                logger.writelog("error", f"Could not open midtier ingress port {port}")
+                logger.writelog("debug", reason)
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("debug", f"Opened midtier ingress port {port}")
 
     # rules to access to FSS subnet
     # stateful ingress from source mount target CIDR block TCP ports 111, 2048, 2049, and 2050 to ALL ports
@@ -1524,7 +1596,7 @@ def main():
     success, ret = oci_manager.create_dhcp_search_domain(
         vcn_id=sysconfig['oci']['network']['vcn']['id'],
         search_domains=sysconfig['prem']['network']['fqdn'],
-        display_name=DHCP_OPT_NAME,
+        display_name=f"{sysconfig['prem']['network']['fqdn']}_{DHCP_OPT_SUFFIX}",
     )
     if not success:
         logger.writelog("error", "Could not create DHCP search domain option")
@@ -1532,7 +1604,7 @@ def main():
         exit_failure(logger, sysconfig_file, 1)
     logger.writelog("info", "Created DHCP search domain option")
     sysconfig['oci']['network']['dhcp'] = {}
-    sysconfig['oci']['network']['dhcp']['name'] = DHCP_OPT_NAME
+    sysconfig['oci']['network']['dhcp']['name'] = ret.display_name
     sysconfig['oci']['network']['dhcp']['id'] = ret.id
     sysconfig['oci']['network']['dhcp']['status'] = STATUS.CREATED
 
@@ -1747,6 +1819,14 @@ def main():
     fw_ports = []
     fw_ports.extend(sysconfig['oci']['network']['ports']['wlsservers'])
     fw_ports.append(sysconfig['oci']['network']['ports']['node_manager'])
+    if isinstance(sysconfig['oci']['network']['ports']['wlschannels'], list):
+        fw_ports.extend(sysconfig['oci']['network']['ports']['wlschannels'])
+    else:
+        fw_ports.append(sysconfig['oci']['network']['ports']['wlschannels'])
+    if isinstance(sysconfig['oci']['network']['ports']['wlsadmin'], list):
+        fw_ports.extend(sysconfig['oci']['network']['ports']['wlsadmin'])
+    else:
+        fw_ports.append(sysconfig['oci']['network']['ports']['wlsadmin'])
     coherence_ports = []
     if isinstance(sysconfig['oci']['network']['ports']['coherence'], list):
         coherence_ports = sysconfig['oci']['network']['ports']['coherence']
@@ -2185,64 +2265,222 @@ def main():
                 logger.writelog("info", "Init script executed successfully")
 
 
+    PRIVATE_VIEW_EXISTS = False
+    ZONE_EXISTS = False
     # CREATE HOST NAME ALIASES
     logger.writelog("info", "Preparing host name aliases")
-    # create private view 
-    logger.writelog("info", f"Creating private view {PRIVATE_VIEW_NAME}")
-    success, ret = oci_manager.create_private_view(view_name=PRIVATE_VIEW_NAME)
-    if not success:
-        logger.writelog("error", "Could not create private view")
-        logger.writelog("debug", f"Exception encountered: {ret}")
-        exit_failure(logger, sysconfig_file, 1)
-    sysconfig['oci']['dns'] = {}
-    sysconfig['oci']['dns']['private_view'] = {}
-    sysconfig['oci']['dns']['private_view']['name'] = ret.display_name
-    sysconfig['oci']['dns']['private_view']['id'] = ret.id
-    sysconfig['oci']['dns']['private_view']['status'] = STATUS.CREATED
-    save_sysconfig(sysconfig, sysconfig_file)
-
-    # create zone
-    logger.writelog("info", f"Creating zone in private view")
-    success, ret = oci_manager.create_zone(zone_name=sysconfig['prem']['network']['fqdn'], 
-                                           view_id=sysconfig['oci']['dns']['private_view']['id'])
-    if not success:
-        logger.writelog("error", "Could not create zone")
-        logger.writelog("debug", ret)
-        exit_failure(logger, sysconfig_file, 1)
-    sysconfig['oci']['dns']['zone'] = {}
-    sysconfig['oci']['dns']['zone']['name'] = ret.name
-    sysconfig['oci']['dns']['zone']['id'] = ret.id
-    sysconfig['oci']['dns']['zone']['status'] = STATUS.CREATED
-    save_sysconfig(sysconfig, sysconfig_file)
-
-    # create records in new zone with primary wls virtual hosts
-    for idx in range(0, int(sysconfig['oci']['wls']['nodes_count'])):
-        logger.writelog("info", "Adding record to zone: primary virtual host {0} with secondary IP {1}".format(
-            sysconfig['prem']['wls']['listen_addresses'][idx],
-            sysconfig['oci']['wls']['nodes'][idx]['ip']
-        ))
-        success, ret = oci_manager.add_ipv4_record_to_zone(
-            zone_id=sysconfig['oci']['dns']['zone']['id'],
-            zone_name=sysconfig['oci']['dns']['zone']['name'],
-            host=sysconfig['prem']['wls']['listen_addresses'][idx],
-            ip=sysconfig['oci']['wls']['nodes'][idx]['ip']
-        )
-        if not success:
-            logger.writelog("info", "Failed adding record to zone")
-            logger.writelog("debug", f"Exception encountered: {ret}")
-            exit_failure(logger, sysconfig_file, 1)
-
-    # attach view to VCN resolver
-    logger.writelog("info", f"Attaching view to VCN {sysconfig['oci']['network']['vcn']['name']} resolver")
-    success, ret = oci_manager.attach_view_to_dns_resolver(
-        view_id=sysconfig['oci']['dns']['private_view']['id'],
-        vcn_id=sysconfig['oci']['network']['vcn']['id']
+    logger.writelog("info", f"Checking if private view {sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX} exists")
+    success, ret = oci_manager.check_private_view_exists(
+        vcn_id=sysconfig['oci']['network']['vcn']['id'],
+        view_name=f"{sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX}"
     )
     if not success:
-        logger.writelog("error", "Could not attach view to VCN resolver")
-        logger.writelog("debug", ret)
+        logger.writelog("error", f"Could not check if private view [{sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX}] exists")
+        logger.writelog("debug", f"Exception encountered: {ret}")
         exit_failure(logger, sysconfig_file, 1)
-    logger.writelog("info", "Successfully attached view to VCN resolver")
+    # if we didn't exit at this point and we have a ret it means that there's a private view with that name and we have the id in ret
+    if ret:
+        logger.writelog("info", f"Private view with name [{sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX}] already exists")
+        PRIVATE_VIEW_EXISTS = True
+        sysconfig['oci']['dns'] = {}
+        sysconfig['oci']['dns']['private_view'] = {}
+        sysconfig['oci']['dns']['private_view']['name'] = f"{sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX}"
+        sysconfig['oci']['dns']['private_view']['id'] = ret
+        sysconfig['oci']['dns']['private_view']['status'] = STATUS.PREEXISTING
+        save_sysconfig(sysconfig, sysconfig_file)
+    
+    # now, if the private view exists, check if we have our specific zone
+    if PRIVATE_VIEW_EXISTS:
+        logger.writelog("info", f"Checking if zone [{sysconfig['prem']['network']['fqdn']}] exists")
+        success, ret = oci_manager.check_zone_exists(
+            zone_name=sysconfig['prem']['network']['fqdn'],
+            view_id=sysconfig['oci']['dns']['private_view']['id']
+        )
+        if not success:
+            logger.writelog("error", f"Could not check if OCI zone [{sysconfig['prem']['network']['fqdn']}] exists")
+            logger.writelog("debug", f"Exception encountered: {ret}")
+            exit_failure(logger, sysconfig_file, 1)
+        # if we have a value in ret it means there's a zone with that name
+        if ret:
+            logger.writelog("info", f"Zone [{sysconfig['prem']['network']['fqdn']}] exists")
+            ZONE_EXISTS = True
+            sysconfig['oci']['dns']['zone'] = {}
+            sysconfig['oci']['dns']['zone']['name'] = sysconfig['prem']['network']['fqdn']
+            sysconfig['oci']['dns']['zone']['id'] = ret
+            sysconfig['oci']['dns']['zone']['status'] = STATUS.PREEXISTING
+            save_sysconfig(sysconfig, sysconfig_file)
+    # create private view if it doesn't exist
+    else:
+        logger.writelog("info", f"Creating private view {sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX}")
+        success, ret = oci_manager.create_private_view(view_name=f"{sysconfig['prem']['network']['fqdn']}_{PRIVATE_VIEW_SUFFIX}")
+        if not success:
+            logger.writelog("error", "Could not create private view")
+            logger.writelog("debug", f"Exception encountered: {ret}")
+            exit_failure(logger, sysconfig_file, 1)
+        sysconfig['oci']['dns'] = {}
+        sysconfig['oci']['dns']['private_view'] = {}
+        sysconfig['oci']['dns']['private_view']['name'] = ret.display_name
+        sysconfig['oci']['dns']['private_view']['id'] = ret.id
+        sysconfig['oci']['dns']['private_view']['status'] = STATUS.CREATED
+        save_sysconfig(sysconfig, sysconfig_file)
+
+    # create zone if it doesn't exist
+    if not ZONE_EXISTS:
+        logger.writelog("info", f"Creating zone in private view")
+        success, ret = oci_manager.create_zone(zone_name=sysconfig['prem']['network']['fqdn'], 
+                                            view_id=sysconfig['oci']['dns']['private_view']['id'])
+        if not success:
+            logger.writelog("error", "Could not create zone")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        sysconfig['oci']['dns']['zone'] = {}
+        sysconfig['oci']['dns']['zone']['name'] = ret.name
+        sysconfig['oci']['dns']['zone']['id'] = ret.id
+        sysconfig['oci']['dns']['zone']['status'] = STATUS.CREATED
+        save_sysconfig(sysconfig, sysconfig_file)
+
+    # create records in zone with primary wls virtual hosts if they don't exist
+    for idx in range(0, int(sysconfig['oci']['wls']['nodes_count'])):
+        RECORD_EXISTS = False
+        if ZONE_EXISTS:
+            # check if record exists
+            logger.writelog("info", "Checking if record for primary virtual host {0} with secondary IP {1} exists in zone {2}".format(
+                sysconfig['prem']['wls']['listen_addresses'][idx],
+                sysconfig['oci']['wls']['nodes'][idx]['ip'],
+                sysconfig['oci']['dns']['zone']['name']
+            ))
+            success, ret = oci_manager.check_ipv4_record_exists(
+                record_name=f"{sysconfig['prem']['wls']['listen_addresses'][idx]}.{sysconfig['oci']['dns']['zone']['name']}",
+                zone_name=sysconfig['oci']['dns']['zone']['name'],
+                view_id=sysconfig['oci']['dns']['private_view']['id']
+            )
+            if not success:
+                logger.writelog("error", "Could not check if record exists")
+                logger.writelog("debug", f"Exception encountered: {ret}")
+                exit_failure(logger, sysconfig_file, 1)
+            # if we have ret, it means that the record exists and we have the domain 
+            if ret: 
+                RECORD_EXISTS = True
+                record_domain = ret
+        if RECORD_EXISTS:
+            if Utils.confirm(f"A record for host [{sysconfig['prem']['wls']['listen_addresses'][idx]}] " \
+                          f"exists in zone [{sysconfig['oci']['dns']['zone']['name']}]\n" \
+                          f"Would you like to update with IP [{sysconfig['oci']['wls']['nodes'][idx]['ip']}]"):
+                logger.writelog("info", "User selected to update zone [{0}] record [{1}] with new IP [{2}]".format(
+                    sysconfig['oci']['dns']['zone']['name'],
+                    record_domain,
+                    sysconfig['oci']['wls']['nodes'][idx]['ip']
+                ))
+                # update the record with out details
+                success, ret = oci_manager.update_ipv4_record(
+                    record_name=record_domain,
+                    zone_name=sysconfig['oci']['dns']['zone']['name'],
+                    view_id=sysconfig['oci']['dns']['private_view']['id'],
+                    ip=sysconfig['oci']['wls']['nodes'][idx]['ip']
+                )
+                if not success:
+                    logger.writelog("info", f"Failed updating record [{record_domain}]")
+                    logger.writelog("debug", f"Exception encountered: {ret}")
+                    exit_failure(logger, sysconfig_file, 1)
+            else:
+                logger.writelog("info", "User selected not to update zone [{0}] record [{1}] with new IP [{2}]".format(
+                    sysconfig['oci']['dns']['zone']['name'],
+                    record_domain,
+                    sysconfig['oci']['wls']['nodes'][idx]['ip']
+                ))
+        else:
+            logger.writelog("info", "Adding record to zone: primary virtual host {0} with secondary IP {1}".format(
+                sysconfig['prem']['wls']['listen_addresses'][idx],
+                sysconfig['oci']['wls']['nodes'][idx]['ip']
+            ))
+            success, ret = oci_manager.add_ipv4_record_to_zone(
+                zone_id=sysconfig['oci']['dns']['zone']['id'],
+                zone_name=sysconfig['oci']['dns']['zone']['name'],
+                host=sysconfig['prem']['wls']['listen_addresses'][idx],
+                ip=sysconfig['oci']['wls']['nodes'][idx]['ip']
+            )
+            if not success:
+                logger.writelog("info", "Failed adding record to zone")
+                logger.writelog("debug", f"Exception encountered: {ret}")
+                exit_failure(logger, sysconfig_file, 1)
+
+    # check if VIP address supplied in sysconfig.csv - add to view if yes
+    if sysconfig['prem']['wls']['vipaddress']:
+        vip_hostname = re.match(r"(.*?)\..*", sysconfig['prem']['wls']['vipaddress']).group(1) if sysconfig['prem']['wls']['vipaddress'].count(".") > 0 else sysconfig['prem']['wls']['vipaddress']
+        # check if we have a record for it
+        RECORD_EXISTS = False
+        if ZONE_EXISTS:
+            logger.writelog("info", "Checking if record for VIP {0} with WLS node 1 IP {1} exists in zone {2}".format(
+                vip_hostname,
+                sysconfig['oci']['wls']['nodes'][0]['ip'],
+                sysconfig['oci']['dns']['zone']['name']
+            ))
+            success, ret = oci_manager.check_ipv4_record_exists(
+                record_name=f"{vip_hostname}.{sysconfig['oci']['dns']['zone']['name']}",
+                zone_name=sysconfig['oci']['dns']['zone']['name'],
+                view_id=sysconfig['oci']['dns']['private_view']['id']
+            )
+            if not success:
+                logger.writelog("error", "Could not check if record exists")
+                logger.writelog("debug", f"Exception encountered: {ret}")
+                exit_failure(logger, sysconfig_file, 1)
+            if ret:
+                RECORD_EXISTS = True
+                vip_record = ret
+        if RECORD_EXISTS:
+            if Utils.confirm(f"A record for VIP [{vip_hostname}] " \
+                          f"exists in zone [{sysconfig['oci']['dns']['zone']['name']}]\n" \
+                          f"Would you like to update with IP [{sysconfig['oci']['wls']['nodes'][0]['ip']}]"):
+                logger.writelog("info", "User selected to update zone [{0}] record [{1}] with new IP [{2}]".format(
+                    sysconfig['oci']['dns']['zone']['name'],
+                    vip_record,
+                    sysconfig['oci']['wls']['nodes'][0]['ip']
+                ))
+                # update the record with out details
+                success, ret = oci_manager.update_ipv4_record(
+                    record_name=vip_record,
+                    zone_name=sysconfig['oci']['dns']['zone']['name'],
+                    view_id=sysconfig['oci']['dns']['private_view']['id'],
+                    ip=sysconfig['oci']['wls']['nodes'][0]['ip']
+                )
+                if not success:
+                    logger.writelog("info", f"Failed updating record [{record_domain}]")
+                    logger.writelog("debug", f"Exception encountered: {ret}")
+                    exit_failure(logger, sysconfig_file, 1)
+            else:
+                logger.writelog("info", "User selected not to update zone [{0}] record [{1}] with new IP [{2}]".format(
+                    sysconfig['oci']['dns']['zone']['name'],
+                    vip_record,
+                    sysconfig['oci']['wls']['nodes'][0]['ip']
+                ))
+        else:
+            logger.writelog("info", "Adding record to zone: VIP {0} with secondary IP {1}".format(
+                vip_hostname,
+                sysconfig['oci']['wls']['nodes'][0]['ip']
+            ))
+            success, ret = oci_manager.add_ipv4_record_to_zone(
+                zone_id=sysconfig['oci']['dns']['zone']['id'],
+                zone_name=sysconfig['oci']['dns']['zone']['name'],
+                host=vip_hostname,
+                ip=sysconfig['oci']['wls']['nodes'][0]['ip']
+            )
+            if not success:
+                logger.writelog("info", "Failed adding record to zone")
+                logger.writelog("debug", f"Exception encountered: {ret}")
+                exit_failure(logger, sysconfig_file, 1)
+
+    # attach view to VCN resolver if created by us
+    if not PRIVATE_VIEW_EXISTS:
+        logger.writelog("info", f"Attaching view to VCN {sysconfig['oci']['network']['vcn']['name']} resolver")
+        success, ret = oci_manager.attach_view_to_dns_resolver(
+            view_id=sysconfig['oci']['dns']['private_view']['id'],
+            vcn_id=sysconfig['oci']['network']['vcn']['id']
+        )
+        if not success:
+            logger.writelog("error", "Could not attach view to VCN resolver")
+            logger.writelog("debug", ret)
+            exit_failure(logger, sysconfig_file, 1)
+        logger.writelog("info", "Successfully attached view to VCN resolver")
 
     # upload certificate to LBR
     # read files 

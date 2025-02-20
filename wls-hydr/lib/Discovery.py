@@ -11,9 +11,13 @@
 ### 
 ### Usage:
 ###
-###      ./Discovery.py [-d/--debug]
+###      ./Discovery.py [-d/--debug] [-n/--no-connectivity]
 ### Where:
-###      -d/--debug - print verbose output
+###      -d/--debug
+###             Print verbose output
+###
+###      -n/--no-connectivity 
+###             Do not attempt to connect to primary environment instead ask user for information
 ###
 ### Example output:
 ###
@@ -23,10 +27,10 @@
 ###
 ### -----------------------------------------------------------------
 ### Select correct value for OHS HTTP port for Weblogic admin console
-### 1: 7001
-### 2: 8888
-### 3: 8890
-### -> 1
+### OPTION 1: 7001
+### OPTION 2: 8888
+### OPTION 3: 8890
+### SELECTED OPTION-> 1
 ### [...]
 ### Discovery results:
 ### ------------------
@@ -35,6 +39,8 @@
 ### ONS Port                                             : 6200
 ### Weblogic domain name                                 : domain_name
 ### Weblogic server ports                                : 7010 7002 8001 7001 9001 8021 8011
+### Weblogic channels listen ports                       : 30901
+### Weblogic administration ports                        : 9003
 ### Nodemanager ports                                    : 5556
 ### Coherence ports                                      : 9991
 ### Number of Weblogic nodes                             : 2
@@ -70,7 +76,7 @@
 ###
 ### NOTE:
 ### Re-run discovery script to update any of the values
-### Discovery results written to file
+### Discovery results written to specially formatted CSV file: /path/to/discovery_results.csv
 ###
 
 __version__ = "1.0"
@@ -174,11 +180,11 @@ def prompt_user_selection(options_list, prompt="Please select a value:", help=""
     print("*" * separator_width)
     idx = 1
     for option in options_list:
-        print(f"{idx}: {option}")
+        print(f"OPTION {idx}: {option}")
         idx += 1
     valid_option = False
     while not valid_option:
-        opt = input("-> ")
+        opt = input("SELECTED OPTION-> ")
         try:
             opt = int(opt) - 1
         except Exception:
@@ -222,6 +228,8 @@ def clean_sysinfo(sysinfo):
             if len(item['value']) > 1:
                 if not item['multiple_allowed']:
                     item['value'] = prompt_user_selection(item['value'], f"Select correct value for {item['p_name']}", item['help'])
+            elif len(item['value']) == 0:
+                item['value'] = ""
             else:
                 item['value'] = item['value'][0]
 
@@ -238,7 +246,7 @@ def write_results(sysinfo):
         for key, item in sysinfo.items():
             if item["path"]:
                 f.write(f",,,{item['path']},{','.join(item['value']) if type(item['value']) == list else item['value']}\n")
-
+    print(f"Discovery results written to specially formatted CSV file: {RESULTS_FILE}")
 
 
 def print_discovery_results(sysinfo):
@@ -258,7 +266,6 @@ def print_discovery_results(sysinfo):
             print(f"{item['p_name']: <{width}}: {' '.join(item['value']) if type(item['value']) == list and len(item['value']) > 1 else item['value']}")
     print("\nNOTE:")
     print("Re-run discovery script to update any of the values")
-    print("Discovery results written to file")
 
 arg_parser = argparse.ArgumentParser(description="Data replication utility")
 arg_parser.add_argument("-d", "--debug", action="store_true",
@@ -273,7 +280,7 @@ if args.debug:
 else:
     log_level = 'INFO'
     warnings.filterwarnings("ignore")
-logger = Logger(LOG_FILE, log_level)
+logger = Logger(__file__, LOG_FILE, log_level)
 if args.no_connectivity:
     NO_CONNECTIVITY = True
 else:
@@ -399,6 +406,18 @@ wls_server_ports.append('7001')
 wls_server_ports = list(set(wls_server_ports))
 logger.writelog("debug", f"WLS server ports: {wls_server_ports}")
 add_info("wls_server_ports", "oci-network-ports-wlsservers/port", "Weblogic server ports", wls_server_ports, True)
+# get channels ports
+channels_ports = []
+channels_ports.extend([x.text for x in root.findall("xmlns:server/xmlns:network-access-point/xmlns:listen-port", namespaces)])
+channels_ports = list(set(channels_ports))
+logger.writelog("debug", f"WLS channels ports: {channels_ports}")
+add_info("channels_ports", "oci-network-ports-wlschannels/opt", "Weblogic channels listen ports", channels_ports, True)
+# get administration ports
+admin_ports = []
+admin_ports.extend([x.text for x in root.findall("xmlns:server/xmlns:administration-port", namespaces)])
+admin_ports = list(set(admin_ports))
+logger.writelog("debug", f"WLS administration ports: {admin_ports}")
+add_info("admin_ports", "oci-network-ports-wlsadmin/opt", "Weblogic administration ports", admin_ports, True)
 # get nodemanager port (include hardcoded 5556 for now):
 nm_ports = ['5556']
 # get all nodemanager.properties files
@@ -416,7 +435,7 @@ logger.writelog("debug", f"Nodemanager ports: {nm_ports}")
 add_info("nm_ports", "oci-network-ports-node_manager/port", "Nodemanager ports", nm_ports, True)
 
 # coherence cluster ports
-# get conherence config paths from config.xml
+# get coherence config paths from config.xml
 coherence_ports = []
 coherence_configs = root.findall("xmlns:coherence-cluster-system-resource/xmlns:descriptor-file-name", namespaces)
 # get port value from coherence config file
@@ -457,7 +476,7 @@ if NO_CONNECTIVITY:
             continue
         valid_wls_memory = True
     add_info("wls_memory", "oci-wls-memory/int", "Weblogic node memory", wls_memory, False)
-    # wls owner OS  user id
+    # wls owner OS user id
     wls_user_uid = UTILS.get_user_input(f"Please enter Weblogic {config[PREM]['wls_osuser']} user ID", value_type="int")
     add_info("wls_user_name", "prem-wls-user_name/name", f"Weblogic owner OS user name", config[PREM]['wls_osuser'], False)
     add_info("wls_user_uid", "prem-wls-user_uid/int", f"Weblogic {config[PREM]['wls_osuser']} user ID", wls_user_uid, False)
@@ -465,13 +484,6 @@ if NO_CONNECTIVITY:
     wls_group_gid = UTILS.get_user_input(f"Please enter Weblogic {config[PREM]['wls_osgroup']} group ID", value_type="int")
     add_info("wls_group_name", "prem-wls-group_name/name", f"Weblogic owner OS group name", config[PREM]['wls_osgroup'], False) 
     add_info("wls_group_gid", "prem-wls-group_gid/int", f"Weblogic {config[PREM]['wls_osgroup']} group ID", wls_group_gid, False)
-    # wls shared config mountpoint - only if shared config supplied otherwise empty value
-    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
-        wls_shared_config_mount = UTILS.get_user_input("Please enter Weblogic shared config mountpoint", value_type="path")
-        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
-    else:
-        logger.writelog("debug", "WLS_SHARED_CONFIG_DIR not supplied - will not check mountpoint")
-        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "", "", False)
     # wls shared runtime mountpoint
     if config[DIRECTORIES]['WLS_SHARED_RUNTIME_DIR']: 
         wls_shared_runtime_mount = UTILS.get_user_input("Please enter Weblogic shared runtime mountpoint", value_type="path")
@@ -479,18 +491,43 @@ if NO_CONNECTIVITY:
     else:
         logger.writelog("debug", "WLS_SHARED_RUNTIME_DIR not supplied - will not check mountpoint")
         add_info("wls_shared_runtime_mount", "prem-wls-mountpoints-runtime/opt", "", "", False)
+
+    # wls shared config mountpoint - only if shared config supplied otherwise empty value
+    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+        wls_shared_config_mount = UTILS.get_user_input("Please enter Weblogic shared config mountpoint", value_type="path")
+    else:
+        logger.writelog("info", "WLS_SHARED_CONFIG_DIR not supplied - will not check mountpoint")
+        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "", "", False)
     # wls products mountpoint
     wls_products_mountpoint = UTILS.get_user_input("Please enter Weblogic products mountpoint", value_type="path")
     if wls_products_mountpoint == "/":
-        logger.writelog("debug", f"WLS products mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRODUCTS']} for OCI input")
+        logger.writelog("info", f"WLS products mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRODUCTS']} for OCI input")
         wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
-    add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
     # wls private config mountpoint
     wls_private_config_mount = UTILS.get_user_input("Please enter Weblogic private config mountpoint", value_type="path")
     if wls_private_config_mount == "/":
-        logger.writelog("debug", f"WLS private config mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']} for OCI input")
+        logger.writelog("info", f"WLS private config mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']} for OCI input")
         wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
+
+    if wls_products_mountpoint == wls_shared_config_mount:
+        logger.writelog("info", f"WLS products and shared config use the same mount point - will use paths for OCI input")
+        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
+        wls_shared_config_mount = config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']
+
+    if wls_products_mountpoint == wls_private_config_mount:
+        logger.writelog("info", f"WLS products and private config use the same mount point - will use paths for OCI input")
+        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
+        wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
+
+    logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
+    add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
+
+    logger.writelog("debug", f"Weblogic products mountpoint: {wls_products_mountpoint}")
+    add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
+
+    logger.writelog("debug", f"Weblogic private config mountpoint: {wls_private_config_mount}")
     add_info("wls_private_config_mount", "prem-wls-mountpoints-private/path", "Weblogic private config mountpoint", wls_private_config_mount, False)
+
 else:
     # connect to on prem wls and get information if we have connectivity 
     # open ssh connection to WLS node 1 to run remote discovery commands 
@@ -539,17 +576,7 @@ else:
         add_info("wls_group_gid", "prem-wls-group_gid/int", f"Weblogic {config[PREM]['wls_osgroup']} group ID", wls_group_gid, False)
     else:
         logger.writelog("warn", f"Failed getting {config[PREM]['wls_osgroup']} group ID from wls node 1")
-    # wls shared config mountpoint - only if shared config supplied otherwise empty value
-    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
-        wls_shared_config_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']} | tail -1")
-        if wls_shared_config_mount:
-            logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
-            add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
-        else:
-            logger.writelog("warn", "Failed getting weblogic shared config mountpoint from wls node 1")
-    else:
-        logger.writelog("debug", "WLS_SHARED_CONFIG_DIR not supplied - will not check mountpoint")
-        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "", "", False)
+
     # wls shared runtime mountpoint
     if config[DIRECTORIES]['WLS_SHARED_RUNTIME_DIR']: 
         wls_shared_runtime_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_RUNTIME_DIR']} | tail -1")
@@ -561,14 +588,21 @@ else:
     else:
         logger.writelog("debug", "WLS_SHARED_RUNTIME_DIR not supplied - will not check mountpoint")
         add_info("wls_shared_runtime_mount", "prem-wls-mountpoints-runtime/opt", "", "", False)
+    # wls shared config mountpoint - only if shared config supplied otherwise empty value
+    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+        wls_shared_config_mount = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']} | tail -1")
+        if not wls_shared_config_mount:
+            logger.writelog("warn", "Failed getting weblogic shared config mountpoint from wls node 1")
+    else:
+        logger.writelog("debug", "WLS_SHARED_CONFIG_DIR not supplied - will not check mountpoint")
+        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "", "", False)
+        
     # wls products mountpoint
     wls_products_mountpoint = run_remote_command(ssh_wls_client, f"df --output=target {config[DIRECTORIES]['WLS_PRODUCTS']} | tail -1")
     if wls_products_mountpoint:
         if wls_products_mountpoint == "/":
             logger.writelog("debug", f"WLS products mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRODUCTS']} for OCI input")
             wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
-        logger.writelog("debug", f"Weblogic products mountpoint: {wls_products_mountpoint}")
-        add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
     else:
         logger.writelog("warn", f"Failed getting weblogic products mountpoint from wls node 1")
     # wls private config mountpoint
@@ -577,10 +611,27 @@ else:
         if wls_private_config_mount == "/":
             logger.writelog("debug", f"WLS private config mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']} for OCI input")
             wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
-        logger.writelog("debug", f"Weblogic private config mountpoint: {wls_private_config_mount}")
-        add_info("wls_private_config_mount", "prem-wls-mountpoints-private/path", "Weblogic private config mountpoint", wls_private_config_mount, False)
     else:
         logger.writelog("warn", "Failed getting weblogic private config mountpoint from wls node 1")
+
+    if wls_products_mountpoint == wls_shared_config_mount:
+        logger.writelog("debug", f"WLS products and shared config use the same mount point - will use paths for OCI input")
+        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
+        wls_shared_config_mount = config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']
+
+    if wls_products_mountpoint == wls_private_config_mount:
+        logger.writelog("debug", f"WLS products and private config use the same mount point - will use paths for OCI input")
+        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
+        wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
+
+    logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
+    add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
+
+    logger.writelog("debug", f"Weblogic products mountpoint: {wls_products_mountpoint}")
+    add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
+
+    logger.writelog("debug", f"Weblogic private config mountpoint: {wls_private_config_mount}")
+    add_info("wls_private_config_mount", "prem-wls-mountpoints-private/path", "Weblogic private config mountpoint", wls_private_config_mount, False)
 
     ssh_wls_client.close()
 

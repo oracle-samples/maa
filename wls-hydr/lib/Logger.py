@@ -36,7 +36,7 @@ class CustomFormatter(logging.Formatter):
 class Logger:
     """Logger object to write logging information to file and to console
     """
-    def __init__(self, name, level):
+    def __init__(self, calling_module, name, level):
         """Constructor
 
         Args:
@@ -44,7 +44,8 @@ class Logger:
             level (str): log level ['DEBUG', 'INFO']
         """
         self.log_dir = pathlib.Path(__file__).parents[1].resolve().joinpath("log")
-        self.calling_module = sys.argv[0].split("/")[-1]
+        # self.calling_module = sys.argv[0].split("/")[-1]
+        self.calling_module = calling_module
         # check if log dir exists - it should - if not, create it
         if not os.path.isdir(self.log_dir):
             try:
