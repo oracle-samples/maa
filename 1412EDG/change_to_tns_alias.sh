@@ -84,7 +84,7 @@ gather_current_variables_from_DS() {
 	      echo "placed it under ${exec_path} and that you have set execution rights on it."
               exit 1
 	fi
-	if [[ ! -x "${exec_path}/fmw_get_connect_string.sh " ]]; then
+	if [[ ! -x "${exec_path}/fmw_get_connect_string.sh" ]]; then
               echo "Error!. The script ${exec_path}/fmw_get_connect_string.sh cannot be found or is not executable!"
 	      echo "Make sure you have donwloaded the file to from"
               echo "https://github.com/oracle-samples/maa/tree/main/app_dr_common, "
