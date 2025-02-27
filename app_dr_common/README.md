@@ -17,3 +17,5 @@ These are common scripts referenced by different Disaster Recovery documents.
 | [fmw_dec_pwd.sh](./fmw_dec_pwd.sh) | _Referenced by other scripts_. This script decrypts a password using WebLogic encryption. |
 | [fmw_get_connect_string.sh](./fmw_get_connect_string.sh) | _Referenced by other scripts_. This script gets the connect string from a datasource file. |
 | [fmw_get_dbrole_wlst.sh](./fmw_get_dbrole_wlst.sh) | _Referenced by other scripts_. This script gets the role of the database using WLST command. |
+| [export_fmw.sh](https://github.com/oracle-samples/maa/blob/main/fmw_schemas_exp_imp/export_fmw.sh) |Exports the tablespaces, schemas and roles of an Oracle FMW domain. |
+| [import_fmw.sh](https://github.com/oracle-samples/maa/blob/main/fmw_schemas_exp_imp/import_fmw.sh) |Imports the tablespaces, schemas and roles of an Oracle FMW domain. |
