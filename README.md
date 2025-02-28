@@ -23,7 +23,7 @@ This repository stores a variety of examples demonstrating how to configure MAA/
 | [FMW Schemas Export Import Scripts](./fmw_schemas_exp_imp) | **(New)** Scripts to export and import the FMW database schemas using Data Pump.
 | [App DR common scripts](./app_dr_common) | Common scripts referenced by different Disaster Recovery documents. 
 | [Oracle Data Guard](./dg_setup_scripts) | Scripts to set up Oracle Data Guard for an existing Oracle Database (on-prem to on-prem, OCI to OCI and on-prem to OCI). |
-| [FMW Manual Hybrid Disaster Recovery ](./hybrid_dr) | *(Legacy)* Scripts used in the manual setup and maintenance of a Hybrid Disaster Protection system (primary on-prem and standby on Oracle's Cloud OCI).|
+| [FMW Manual Hybrid Disaster Recovery ](./manual_hybrid_dr) | *(Legacy)* Scripts used in the manual setup and maintenance of a Hybrid Disaster Protection system (primary on-prem and standby on Oracle's Cloud OCI).|
 | [Weblogic for OCI DR](./wls_mp_dr) |  Scripts to set up and maintain a Disaster Protection system for an Oracle Weblogic for OCI deployment. |
 | [Oracle SOA Marketplace DR](./drs_mp_soa) | scripts to set up and maintain a Disaster Protection system for an Oracle SOA Marketplace Deployemnt. |
 | [Private DNS views for DR](./private_dns_views_for_dr) | Terraform scripts to create private DNS views in primary and standby OCI VCNs. This is used in Disaster Recovery environments. These private DNS views contain the other site's host names, but resolved with local IPs.  |
