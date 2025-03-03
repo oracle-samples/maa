@@ -196,8 +196,8 @@ To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
 
 - Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
 
-- Create the stage folder structure in the bastion using the DataReplication.py init command:
-`<WLS-HYDR_BASE>/lib/DataReplication.py --init`
+- Create the stage folder structure in the bastion using the DataReplication.py init command:  
+`<WLS-HYDR_BASE>/lib/DataReplication.py init -w <nº wls nodes> -o <nº ohs nodes>`  
 This will create the required directory structure to place contents from primary
 
 - Manually upload the contents from the primary system to these folders. Read the file README_FOR_MANUAL_COPY.txt in the stage folder for details about how to copy each item.
@@ -315,8 +315,8 @@ The following table summarizes how each item is copied to the stage folder.
 #### Replication: Manual Upload
 If you don't have SSH connectivity between the bastion and the primary hosts ("BACKUP AND RESTORE OCI"), you have to copy the items to the bastion's stage folder manually. This stage folder is specified in the `<WLS-HYDR_BASE>/config/replication.properties` file (STAGE_GOLD_COPY_BASE variable). The contents need to be placed in precise directories so that the framework can interpret them correctly. Follow these steps to perform a Manual Upload of your WLS/FMW system to the bastion host:
 
-- Create the required WLS/FMW folder structure under the stage directory using this command  
-`./DataReplication.py --init`  
+- Create the required WLS/FMW folder structure under the stage directory using this command:  
+`<WLS-HYDR_BASE>/lib/DataReplication.py init -w <nº wls nodes> -o <nº ohs nodes>`  
 This will create the following directory structure under the stage folder (specified in the replication.properties file):
 ```
 ├── midtier  
