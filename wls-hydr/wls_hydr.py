@@ -51,7 +51,7 @@ else:
     log_level = 'INFO'
     warnings.filterwarnings("ignore")
 
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 log_file = f"{CONSTANTS.BASEDIR}/log/wls_hydr_{now}.log"
 logger = Logger(__file__, log_file, log_level)
 basedir = os.path.dirname(os.path.realpath(__file__))
@@ -2809,6 +2809,18 @@ def main():
     if errors:
         print(f"\nPlease check log file {log_file} for context and further details.\n")
         print("Please check status of resources in the OCI console")
- 
+
+    # build the instances recap table and print 
+    recap_header = ['Resource', 'OCI Name', 'OCI IP address']
+    recap_info = []
+    for wls_node in sysconfig['oci']['wls']['nodes']:
+        recap_info.append(["Weblogic Node", wls_node['name'], wls_node['ip']])
+    if OHS_USED:
+        for ohs_node in sysconfig['oci']['ohs']['nodes']:
+            recap_info.append(['OHS Node', ohs_node['name'], ohs_node['ip']])
+    recap_info.append(["Load Balancer", sysconfig['oci']['lbr']['name'], sysconfig['oci']['lbr']['ip']])
+    print("Summary of instances created:")
+    Utils.pprint_arr_table(recap_header, recap_info)
+
 if __name__ == "__main__":
     main()

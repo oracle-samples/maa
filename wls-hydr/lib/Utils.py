@@ -400,3 +400,58 @@ class Utils:
             valid_input = True
         return user_input
 
+    @staticmethod
+    def pprint_arr_table(header, values, r_pad=3):
+        """Pretty print a list of lists as a table
+
+        Args:
+            header (list): List of header items
+            values (list[list]): A list of lists of values to populate the table
+            r_pad (int, optional): Right padding offset for each cell. Defaults to 3.
+
+        Raises:
+            TypeError: If the header parameter is not a list or if the values parameter 
+                not a list of lists.
+            ValueError: If the length of the header list or the lengths of any values 
+                list differ.
+        """
+        if type(header) != list:
+            raise TypeError("header parameter must be a list")
+        if any(type(x) != list for x in values):
+            raise TypeError("values parameter must be a list of lists")
+        error = ""
+        if any([len(x) != len(values[0]) for x in values]):
+            error = "values contains different length lists"
+        if any([len(header) != len(x) for x in values]):
+            if error:
+                error += " and header is of different length"
+            else:
+                error = "header and lists in values must have same number of items"
+        if error:
+            raise ValueError(error)
+        width_offset = r_pad
+        width = [0] * len(header)
+        for i in range(len(width)):
+            width[i] = max([len(x[i]) for x in values + [header]]) + width_offset 
+        border = sum(width) + len(values[0]) * 2
+        print("=" * border)
+        for i in range(len(header)):
+            if i == len(header) - 1:
+                cell_width = width[i] - 1
+            else:
+                cell_width = width[i]
+            print(f"| {header[i]: <{cell_width}}", end="")
+        print("|")
+        print("=" * border)
+        for item in values:
+            for i in range(len(item)):
+                if i == len(item) - 1:
+                    cell_width = width[i] - 1
+                else:
+                    cell_width = width[i]
+                print(f"| {item[i]: <{cell_width}}", end="")
+            print("|")
+            print("-" * border)
+
+
+

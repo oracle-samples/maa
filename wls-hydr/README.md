@@ -25,7 +25,7 @@ What the framework **DOES NOT DO**:
 
     - To create a copy of the database used by WLS/FMW using an Oracle Data Guard standby, please refer to https://docs.oracle.com/en/solutions/configure-standby-db/index.html. This approach requires continuous connectivity between primary and secondary.
 
-    - To create a copy of the database used by WLS/FMW using Oracle Data Pump Export and Import utilities, refer to the scripts at https://github.com/oracle-samples/maa/tree/main/app_dr_common. This approach does not require continuous connectivity between primary and secondary.
+    - To create a copy of the database used by WLS/FMW using Oracle Data Pump Export and Import utilities, refer to the scripts at https://github.com/oracle-samples/maa/tree/main/fmw_schemas_exp_imp This approach does not require continuous connectivity between primary and secondary.
 
 This framework can be used in different scenarios:
 
@@ -63,7 +63,7 @@ Your system must meet the following requirements to use the WLS_HYDR framework i
 -   The system is accessed using frontend host names (a.k.a vanity urls). This means the WebLogic applications are accessed through the Load Balancer Virtual Server host names and not IPs.
 -   If the WebLogic domain uses an Oracle Database, the appropriate database needs to be "replicated" in OCI: 
     - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running this framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. Notice that this WLS_HYDR framework creates the required security rules for accessing the Database subnet but, if the database is in a different VCN, it does not set up the required [Local Peering Gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/localVCNpeering.htm) between these tiers. 
-    - Alternatively and for the "Backup and Restore to OCI" use case, a separate Oracle Data Pump Export and Import framework can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/blob/main/app_dr_common/export_fmw.sh and https://github.com/oracle-samples/maa/blob/main/app_dr_common/import_fmw.sh)
+    - Alternatively and for the "Backup and Restore to OCI" use case, a separate Oracle Data Pump Export and Import framework can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/tree/main/fmw_schemas_exp_imp)
 
 Additionally to these requirements, applicable to all the use cases, in the "COMPLETE DR SETUP" use case, connectivity is required between the OCI bastion host and the primary hosts:
 -   On-premises and OCI networks can be interconnected with [Oracle Cloud Infrastructure FastConnect](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/fastconnectoverview.htm#FastConnect_Overview) (preferred) or Site-to-Site VPN. In an "OCI to OCI" setup, [remote peering](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/scenario_e.htm#scenario_e) between the two systems has to be configured.
@@ -156,7 +156,7 @@ Run the following steps as preparation for the execution of the scripts in all s
 8. (Optional) Create a subnet for the database if the WLS/FMW domain is using one.
 9. (Optional) Create a peer DB system if the WLS domain is using one:
     - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running the WLS_HYDR framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. The WLS_HYDR framework does not set up connectivity between the middle tier and the database in OCI. 
-    - Alternatively, and for the "BACKUP AND RESTORE TO OCI" use case, an automated Oracle Data Pump Export and Import can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/blob/main/app_dr_common/export_fmw.sh and https://github.com/oracle-samples/maa/blob/main/app_dr_common/import_fmw.sh).
+    - Alternatively, and for the "BACKUP AND RESTORE TO OCI" use case, an automated Oracle Data Pump Export and Import can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/tree/main/fmw_schemas_exp_imp).
 
 ## Running "COMPLETE DR SETUP"
 To run the "COMPLETE DR SETUP" follow these steps:
@@ -196,8 +196,8 @@ To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
 
 - Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
 
-- Create the stage folder structure in the bastion using the DataReplication.py init command:
-`<WLS-HYDR_BASE>/lib/DataReplication.py --init`
+- Create the stage folder structure in the bastion using the DataReplication.py init command:  
+`<WLS-HYDR_BASE>/lib/DataReplication.py init -w <nº wls nodes> -o <nº ohs nodes>`  
 This will create the required directory structure to place contents from primary
 
 - Manually upload the contents from the primary system to these folders. Read the file README_FOR_MANUAL_COPY.txt in the stage folder for details about how to copy each item.
@@ -207,7 +207,7 @@ This will create the required directory structure to place contents from primary
 
 You will be prompted to make some selections based on the information detected in the copy at the bastion. You can add the -d flag to obtain debugging information through the different steps.
 
-- If your WLS/FMW domain is using a database, use the steps at  https://github.com/oracle-samples/maa/tree/main/app_dr_common to run an Oracle Data Pump export from the primary DataBase and an Oracle Data Pump import to an Oracle DataBase in OCI (refer to the export_fmw.sh and import_fmw.sh scripts details).
+- If your WLS/FMW domain is using a database, use the steps at https://github.com/oracle-samples/maa/tree/main/fmw_schemas_exp_imp to run an Oracle Data Pump export from the primary DataBase and an Oracle Data Pump import to an Oracle DataBase in OCI (refer to the export_fmw.sh and import_fmw.sh scripts details).
 
 ## Running "INFRASTRUCTURE CREATION"
 If you want to use the framework simply to create in OCI the artifacts typically required by a highly available WLS/FMW system (see [LIST OF THE RESOURCES](#list-of-the-resources))  follow these steps:
@@ -315,8 +315,8 @@ The following table summarizes how each item is copied to the stage folder.
 #### Replication: Manual Upload
 If you don't have SSH connectivity between the bastion and the primary hosts ("BACKUP AND RESTORE OCI"), you have to copy the items to the bastion's stage folder manually. This stage folder is specified in the `<WLS-HYDR_BASE>/config/replication.properties` file (STAGE_GOLD_COPY_BASE variable). The contents need to be placed in precise directories so that the framework can interpret them correctly. Follow these steps to perform a Manual Upload of your WLS/FMW system to the bastion host:
 
-- Create the required WLS/FMW folder structure under the stage directory using this command  
-`./DataReplication.py --init`  
+- Create the required WLS/FMW folder structure under the stage directory using this command:  
+`<WLS-HYDR_BASE>/lib/DataReplication.py init -w <nº wls nodes> -o <nº ohs nodes>`  
 This will create the following directory structure under the stage folder (specified in the replication.properties file):
 ```
 ├── midtier  

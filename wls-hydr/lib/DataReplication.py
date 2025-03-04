@@ -105,7 +105,7 @@ README_FILE_PATH = f"{BASEDIR}/lib/{README_FILE}"
 
 CALLER = 'cli' if __name__ == '__main__' else 'import'
 
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 LOG_FILE = f"{BASEDIR}/log/replication_{now}.log"
 
 #TODO: work out a way to check which is primary and which is standby, placeholder for now:
