@@ -113,7 +113,7 @@ DIRECTORIES = CONSTANTS.DIRECTORIES_CFG_TAG
 PREM = CONSTANTS.PREM_CFG_TAG
 RESULTS_FILE = CONSTANTS.DISCOVERY_RESULTS_FILE
 
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 LOG_FILE = f"{BASEDIR}/log/discovery_{now}.log"
 
 def myexit(code):
@@ -381,8 +381,6 @@ if not os.path.isfile(wls_config_xml_file):
 wls_private_config_path = config[DIRECTORIES]['STAGE_WLS_PRIVATE_CONFIG_DIR']
 wls_domain_dir = pathlib.Path(wls_config_xml_file).parents[1]
 
-domain = re.search(".*\/domains\/(.*?)\/.*", wls_config_xml_file)[1]
-add_info("domain", "", "Weblogic domain name", domain, False)
 # parse shared config xml file
 try:
     tree = ET.parse(wls_config_xml_file)
@@ -395,6 +393,8 @@ namespaces = {
     "xmlns" : "http://xmlns.oracle.com/weblogic/domain"
 }
 root = tree.getroot()
+domain = root.find("xmlns:name", namespaces).text
+add_info("domain", "", "Weblogic domain name", domain, False)
 # get wls server ports
 wls_server_ports = [] 
 wls_server_ports.extend([x.text for x in root.findall("xmlns:server/xmlns:listen-port", namespaces)])

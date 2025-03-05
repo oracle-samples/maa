@@ -231,7 +231,7 @@ else:
     log_level = 'INFO'
     warnings.filterwarnings("ignore")
 
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 log_file = f"cleanup_{now}.log"
 logger = Logger(__file__, log_file, log_level)
 

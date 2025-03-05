@@ -88,6 +88,7 @@ try:
     import datetime
     import shlex
     import subprocess
+    import time
 except ImportError as e:
     raise ImportError (str(e) + """
 Failed to import module
@@ -113,7 +114,7 @@ if args.debug:
     log_level = 'DEBUG'
 else:
     log_level = 'INFO'
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
 log_file = f"full_setup_{now}.log"
 logger = Logger(__file__, log_file, log_level)
 logger.writelog("info", "Starting full WLS Hybrid DR set-up")
@@ -128,14 +129,20 @@ else:
         custom_exit(1)
         
 logger.writelog("info", "Running discovery")
-cmd = f"{CONSTANTS.DISCOVERY_SCRIPT} "
+cmd = f"{CONSTANTS.DISCOVERY_SCRIPT}"
 if args.debug:
-    cmd += "-d"
+    cmd += " -d"
+if args.no_connectivity:
+    cmd += " -n"
 discovery_exec = subprocess.Popen(shlex.split(cmd))
 discovery_exec.wait()
 if discovery_exec.returncode != 0:
     logger.writelog("error", "Discovery failed - please check specific logs for more information and help") 
     custom_exit(1)
+
+wait_time = 15
+print(f"Waiting {wait_time} seconds before continuing")
+time.sleep(wait_time)
 
 logger.writelog("info", "Provisioning OCI resources")
 cmd = f"{CONSTANTS.PROVISIONING_SCRIPT} -i {args.input_file} -a"
