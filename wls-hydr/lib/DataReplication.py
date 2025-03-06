@@ -159,7 +159,7 @@ def check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only)
         ohs_private_config_dir = f"{config[DIRECTORIES]['STAGE_OHS_PRIVATE_CONFIG_DIR']}/ohsnode{ohs_node_count}_private_config"
         if not os.path.isdir(ohs_private_config_dir):
             if check_only:
-                logger.writelog("error", f"Directory {path} missing - possible data corruption - aborting")
+                logger.writelog("error", f"Directory {ohs_private_config_dir} missing - possible data corruption - aborting")
                 return False
             else:
                 logger.writelog("info", f"Directory {ohs_private_config_dir} missing - attempting to create")
@@ -174,7 +174,7 @@ def check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only)
         wls_private_config_dir = f"{config[DIRECTORIES]['STAGE_WLS_PRIVATE_CONFIG_DIR']}/wlsnode{wls_node_count}_private_config"
         if not os.path.isdir(wls_private_config_dir):
             if check_only:
-                logger.writelog("error", f"Directory {path} missing - possible data corruption - aborting")
+                logger.writelog("error", f"Directory {wls_private_config_dir} missing - possible data corruption - aborting")
                 return False
             else:
                 logger.writelog("info", f"Directory {wls_private_config_dir} missing - attempting to create")
@@ -995,10 +995,11 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
         if not check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only=False):
             logger.writelog("error", "Errors encountered checking/creating directories - exiting")
             myexit(1)
-
+        action_successfull = True
+        
     elif action == 'pull':
         logger.writelog("info", "Checking that all staging directories exist - creating if not")
-        ohs_nodes = len(config[PRIMARY]['ohs_nodes'].split("\n"))
+        ohs_nodes = len(config[PRIMARY]['ohs_nodes'].split("\n")) if config[PRIMARY]['ohs_nodes'] else 0
         wls_nodes = len(config[PRIMARY]['wls_nodes'].split("\n"))
         if not check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only=False):
             logger.writelog("error", "Errors encountered checking/creating directories - exiting")
@@ -1015,7 +1016,7 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
 
     elif action == 'push':
         logger.writelog("info", "Checking that all staging directories exist - exiting if not")
-        ohs_nodes = len(config[STANDBY]['ohs_nodes'].split("\n"))
+        ohs_nodes = len(config[STANDBY]['ohs_nodes'].split("\n")) if config[STANDBY]['ohs_nodes'] else 0
         wls_nodes = len(config[STANDBY]['wls_nodes'].split("\n"))
         if not check_create_dir_structure(logger, config, wls_nodes, ohs_nodes, check_only=True):
             logger.writelog("error", "Some or all staging directories missing - exiting")
@@ -1036,7 +1037,7 @@ def run(debug, action, data=None, instance=None, wls_nodes=None, ohs_nodes=None,
         elif 'pull' in kwargs.keys() and kwargs['pull']:
             tnsnames_action = "pull"
         logger.writelog("info", "Checking that all staging directories exist - creating if not")
-        ohs_nodes = len(config[PREM]['ohs_nodes'].split("\n"))
+        ohs_nodes = len(config[PREM]['ohs_nodes'].split("\n")) if config[PREM]['ohs_nodes'] else 0
         wls_nodes = len(config[PREM]['wls_nodes'].split("\n"))
         if wls_nodes is None:
             logger.writelog("error", "Missing value for WLS node count")

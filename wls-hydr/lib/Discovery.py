@@ -508,19 +508,19 @@ if NO_CONNECTIVITY:
     if wls_private_config_mount == "/":
         logger.writelog("info", f"WLS private config mounted on root (/) - will use {config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']} for OCI input")
         wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
-
-    if wls_products_mountpoint == wls_shared_config_mount:
-        logger.writelog("info", f"WLS products and shared config use the same mount point - will use paths for OCI input")
-        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
-        wls_shared_config_mount = config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']
+    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+        if wls_products_mountpoint == wls_shared_config_mount:
+            logger.writelog("info", f"WLS products and shared config use the same mount point - will use paths for OCI input")
+            wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
+            wls_shared_config_mount = config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']
 
     if wls_products_mountpoint == wls_private_config_mount:
         logger.writelog("info", f"WLS products and private config use the same mount point - will use paths for OCI input")
         wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
         wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
-
-    logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
-    add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
+    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+        logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
+        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
 
     logger.writelog("debug", f"Weblogic products mountpoint: {wls_products_mountpoint}")
     add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
@@ -614,18 +614,20 @@ else:
     else:
         logger.writelog("warn", "Failed getting weblogic private config mountpoint from wls node 1")
 
-    if wls_products_mountpoint == wls_shared_config_mount:
-        logger.writelog("debug", f"WLS products and shared config use the same mount point - will use paths for OCI input")
-        wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
-        wls_shared_config_mount = config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']
+    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+        if wls_products_mountpoint == wls_shared_config_mount:
+            logger.writelog("debug", f"WLS products and shared config use the same mount point - will use paths for OCI input")
+            wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
+            wls_shared_config_mount = config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']
 
     if wls_products_mountpoint == wls_private_config_mount:
         logger.writelog("debug", f"WLS products and private config use the same mount point - will use paths for OCI input")
         wls_products_mountpoint = config[DIRECTORIES]['WLS_PRODUCTS']
         wls_private_config_mount = config[DIRECTORIES]['WLS_PRIVATE_CONFIG_DIR']
 
-    logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
-    add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
+    if config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR']:
+        logger.writelog("debug", f"Weblogic shared config mountpoint: {wls_shared_config_mount}")
+        add_info("wls_shared_config_mount", "prem-wls-mountpoints-config/opt", "Weblogic shared config mountpoint", wls_shared_config_mount, False)
 
     logger.writelog("debug", f"Weblogic products mountpoint: {wls_products_mountpoint}")
     add_info("wls_products_mountpoint", "prem-wls-mountpoints-products/path", "Weblogic products mountpoint", wls_products_mountpoint, False)
