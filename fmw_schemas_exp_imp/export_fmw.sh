@@ -113,27 +113,18 @@ spool ${dumpdir}/queue_list.log
 select owner || '.' || name from dba_queues where  owner like '${prefix}\_%' escape '\';
 spool off
 
+spool ON
+spool ${dumpdir}/scn.log
+SELECT trim(dbms_flashback.get_system_change_number) FROM DUAL;
+spool off
+
 EOF
 
 export schema_list=$(cat  ${dumpdir}/schema_list.log)
 export queue_list=$(cat  ${dumpdir}/queue_list.log)
-echo " QUEUE LIST:"
-echo "$queue_list"
-
-for queue in $queue_list;do
-        echo "Stopping queue ${queue} ..."
-        sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_export_stop_query.log << EOF
-        set echo off;
-        set head off;
-        set termout off;
-        EXECUTE DBMS_AQADM.stop_queue (queue_name => '$queue');
-EOF
-done
-
+export scn=$(cat  ${dumpdir}/scn.log |tr -d '[:space:]')
 
 # Pending to add logic that handles placing ERRORS in the DDl when object does not exist
-
-
 #Schema DDL
 for schema in $schema_list;do
 	echo "Updating schema rights for $schema (access data pump directory and schema_registry)..."
@@ -150,7 +141,7 @@ for schema in $schema_list;do
 	spool off
 EOF
 	echo "Initiating export for scchema '${schema}..."
-	expdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass};
+	expdp ${schema}/"${schema_pass}"@${tns_alias} schemas=${schema} directory=DUMP_INFRA dumpfile=${schema}_export.dmp logfile=${schema}_export.log PARALLEL=1 CLUSTER=N encryption_password=${schema_pass} FLASHBACK_SCN=$scn;
 done
 
 #Excluding BUFFERED messages view grants cause IDS will be inalid on import
@@ -171,6 +162,7 @@ dumpfile=SYSTEM_SCHEMA_VERSION_REGISTRY.dmp
 logfile=SYSTEM_SCHEMA_VERSION_REGISTRY.log 
 CLUSTER=N 
 encryption_password="$sys_pass"
+flashback_scn=$scn
 QUERY=SYSTEM.SCHEMA_VERSION_REGISTRY$:"where OWNER like '${prefix}|_%' escape'|'" 
 EOF
 expdp \"sys/"${sys_pass}"@${tns_alias} as sysdba\" parfile=$dumpdir/sysparam.cfg
@@ -221,39 +213,6 @@ done
 
 for tablespace in $tablespaces_list;do
         cat ${dumpdir}/create_tablespace_${tablespace}.sql  >>$dumpdir/create_all_tablespaces.sql
-done
-
-for queue in $queue_list;do
-        export simple_queue_name=$(echo ${queue}|awk -F'.' '{print $2}')
-        squeue_type=$(sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba  << EOF
-        set echo off;
-        set head off;
-        set termout off;
-	select QUEUE_TYPE from dba_queues where NAME='$simple_queue_name' and owner like '${prefix}|_%' escape '|';
-EOF
-)
-        queue_type=$(echo $squeue_type| tr -d '[:space:]')
-        if [ "$queue_type" == "EXCEPTION_QUEUE" ]
-        then
-                echo "Starting exception queue $queue ..."
-                sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_export_start_query.log << EOF
-                set echo off;
-                set head off;
-                set termout off;
-                EXECUTE DBMS_AQADM.start_queue (queue_name => '$queue',enqueue=> false,dequeue=> true);
-
-EOF
-        else
-                echo "Starting normal queue $queue ..."
-                sqlplus -s sys/""${sys_pass}""@${tns_alias} as sysdba > $dumpdir/${queue}_export_start_query.log << EOF
-                set echo off;
-                set head off;
-                set termout off;
-                EXECUTE DBMS_AQADM.start_queue (queue_name => '$queue');
-EOF
-
-        fi
-
 done
 
 #Clean up dirt in sql code
