@@ -1677,10 +1677,10 @@ def main():
             name=sysconfig['oci']['storage']['fss']['runtime']['name'],
         )
         if not success:
-            logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
+            logger.writelog("error", f"Could not create runtime filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
             logger.writelog("debug", ret)
             exit_failure(logger, sysconfig_file, 1)
-        logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
+        logger.writelog("info", f"Created runtime filesystem [{sysconfig['oci']['storage']['fss']['runtime']['name']}]")
         sysconfig['oci']['storage']['fss']['runtime']['id'] = ret.id
         sysconfig['oci']['storage']['fss']['runtime']['status'] = STATUS.CREATED
     else:
@@ -1694,10 +1694,10 @@ def main():
             name=sysconfig['oci']['storage']['fss']['products'][idx]['name'],
         )
         if not success:
-            logger.writelog("error", f"Could not create shared config filesystem [{sysconfig['oci']['storage']['fss']['products'][idx]['name']}]")
+            logger.writelog("error", f"Could not create products filesystem [{sysconfig['oci']['storage']['fss']['products'][idx]['name']}]")
             logger.writelog("debug", ret)
             exit_failure(logger, sysconfig_file, 1)
-        logger.writelog("info", f"Created shared config filesystem [{sysconfig['oci']['storage']['fss']['products'][idx]['name']}]")
+        logger.writelog("info", f"Created products filesystem [{sysconfig['oci']['storage']['fss']['products'][idx]['name']}]")
         sysconfig['oci']['storage']['fss']['products'][idx]['id'] = ret.id       
         sysconfig['oci']['storage']['fss']['products'][idx]['status'] = STATUS.CREATED
 
@@ -1817,20 +1817,26 @@ def main():
         ssh_key = f.read()
     # get all ports that need to be opened in instance firewall
     fw_ports = []
-    fw_ports.extend(sysconfig['oci']['network']['ports']['wlsservers'])
-    fw_ports.append(sysconfig['oci']['network']['ports']['node_manager'])
+    if isinstance(sysconfig['oci']['network']['ports']['wlsservers'], list):
+        fw_ports.extend(sysconfig['oci']['network']['ports']['wlsservers'])
+    elif isinstance(sysconfig['oci']['network']['ports']['wlsservers'], str):
+        fw_ports.append(sysconfig['oci']['network']['ports']['wlsservers'])
+    if isinstance(sysconfig['oci']['network']['ports']['node_manager'], list):
+        fw_ports.extend(sysconfig['oci']['network']['ports']['node_manager'])
+    elif isinstance(sysconfig['oci']['network']['ports']['node_manager'], str):
+        fw_ports.append(sysconfig['oci']['network']['ports']['node_manager'])
     if isinstance(sysconfig['oci']['network']['ports']['wlschannels'], list):
         fw_ports.extend(sysconfig['oci']['network']['ports']['wlschannels'])
-    else:
+    elif isinstance(sysconfig['oci']['network']['ports']['wlschannels'], str):
         fw_ports.append(sysconfig['oci']['network']['ports']['wlschannels'])
     if isinstance(sysconfig['oci']['network']['ports']['wlsadmin'], list):
         fw_ports.extend(sysconfig['oci']['network']['ports']['wlsadmin'])
-    else:
+    elif isinstance(sysconfig['oci']['network']['ports']['wlsadmin'], str):
         fw_ports.append(sysconfig['oci']['network']['ports']['wlsadmin'])
     coherence_ports = []
     if isinstance(sysconfig['oci']['network']['ports']['coherence'], list):
         coherence_ports = sysconfig['oci']['network']['ports']['coherence']
-    else:
+    elif isinstance(sysconfig['oci']['network']['ports']['coherence'], str):
         coherence_ports = [sysconfig['oci']['network']['ports']['coherence']]
     # check if shared config and runtime filesystems are used otherwise leave vars blank
     config_fs = ""

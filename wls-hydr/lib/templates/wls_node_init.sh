@@ -184,22 +184,27 @@ function change_user_id() {
 function create_user() {
     user_name=$1
     user_id=$2
+    group_name=$3
     log "info" "Checking if UID $user_id is used by a another user"
     if id "$user_id" > /dev/null 2>&1; then
         used_by=$(id -u "$user_id" -n)
         log "warn" "UID $user_id is already used by $used_by - shifting UIDs"
-        if ! shift_uid "$user_id"; then 
+        if ! shift_uid "$user_id"; then
             log "error" "Could not shift UID of user $used_by"
             return 1
         else
             log "info" "Successfully shifted $used_by UID"
         fi
-    else 
-        log "info" "GID $user_id not used by another user"
-    fi 
+    else
+        log "info" "UID $user_id not used by another user"
+    fi
     log "info" "Creating $user_name with UID $user_id"
-    log "info" "Running useradd -u $user_id $user_name"
-    if ! useradd -u "$user_id" "$user_name" >> "$LOG_FILE" 2>&1; then
+    useradd_args=("-u" "$user_id" "$user_name")
+    if [ "$user_name" = "$group_name" ]; then
+        useradd_args+=("-N")
+    fi
+    log "info" "Running useradd ${useradd_args[*]}"
+    if ! useradd ${useradd_args[*]} >> "$LOG_FILE" 2>&1; then
         log "error" "Could not create user $user_name with UID $user_id"
         return 1
     fi
@@ -311,7 +316,7 @@ if grep -q "^$USER_NAME:" /etc/passwd; then
     fi 
 else 
     log "info" "User $USER_NAME does not exist - creating with UID $USER_UID"
-    if ! create_user "$USER_NAME" "$USER_UID"; then 
+    if ! create_user "$USER_NAME" "$USER_UID" "$GROUP_NAME"; then 
         FAILURE='true'
         user_valid="false"
     fi
