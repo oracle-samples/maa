@@ -3102,16 +3102,14 @@ class OciManager:
         """
         if not self._is_valid_ocid(dns_zone_ocid):
             return False, f"DNS zone ID {dns_zone_ocid} is not a valid OCID"
-        composite_operation = oci.dns.DnsClientCompositeOperations(self.dns_client)
         try:
-            delete_dns_zone_response = composite_operation.delete_zone_and_wait_for_state(
-                zone_name_or_id=dns_zone_ocid,
-                wait_for_states=[oci.dns.models.Zone.LIFECYCLE_STATE_DELETED]
-            )
+            delete_dns_zone_response = self.dns_client.delete_zone(zone_name_or_id=dns_zone_ocid)
         except oci.exceptions.ServiceError as e:
             return False, e.message
         except Exception as e:
             return False, repr(e)
+        if delete_dns_zone_response.status != 204:
+            return False, f"Deleting DNS zone with OCID {dns_zone_ocid} encountered an unknown error - check in OCI console."
         return True, f"DNS zone with OCID {dns_zone_ocid} deleted from compartment {self.compartment}"
     
     def delete_loadbalancer(self, load_balancer_ocid):
