@@ -5,7 +5,8 @@
 ## Copyright (c) 2025 Oracle and/or its affiliates
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
-### This script generates a packed extraction of the required tablespaces, schemas and roles used by Oracle FMW
+### This script generates a package with the extraction of the required database tablespaces, schemas and roles used by Oracle FMW,
+### It can be used also for custom schemas (not FMW-related).
 ### It uses Oracle Data Pump Export and DDL extraction from a PDB hosting a FMW system (typically JRF or SOA domain)
 ### to create a tar that can be transferred to another database system to "migrate" the original FMW domain.
 ### - It has to be executed in any of the FMW DB nodes.
