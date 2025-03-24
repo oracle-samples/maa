@@ -381,7 +381,9 @@ class Utils:
 
     @staticmethod
     def get_user_input(prompt, help="", value_type=""):
-        separator_width = len(prompt)
+        separator_width = max(max([len(line.strip()) for line in prompt.split("\n")]),
+                            max([len(line.strip()) for line in help.split("\n")]),
+                            len(help.split("\n")[0].strip()) + 6)
         print(f"\n{'-' * separator_width}\n{prompt}")
         if help.strip():
             print("*" * separator_width)
