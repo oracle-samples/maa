@@ -161,6 +161,10 @@ Run the following steps as preparation for the execution of the scripts in all s
 ## Running "COMPLETE DR SETUP"
 To run the "COMPLETE DR SETUP" follow these steps:
 
+- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment. Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
+
+- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
+  
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. This file is used to identify nodes and users in the primary system. Provide the values requested (the file contains a description of each entry).
 
 - Edit the `<WLS-HYDR_BASE>/config/replication.properties` file. This file is used to identify the primary system's directories and for configuring replication settings. Provide the values requested (the file contains a description of each entry).
@@ -168,10 +172,6 @@ To run the "COMPLETE DR SETUP" follow these steps:
 - Transfer the `<WLS-HYDR_BASE>/sysconfig_discovery.xlsx` file to a Windows node to facilitate its edition. Fill in the entries in the excel files marked as "needs custom input". The entries marked as "default value can be used" can be customized or left in their default value.
 
 - Once edited, save the excel as a CSV (Comma delimited) file format (do not use CSV UTF-8, use plain CSV format) and upload it to the bastion again. You can use any file name for the saved copy, the examples provided only use the name XXX_sysconfig_discovery.csv to differentiate use cases.
-
-- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment. Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
-
-- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
 
 - Run the wls_full_setup.py script indicating the sysconfig file that will be used (the csv file created in previous steps). For example:
 `<WLS-HYDR_BASE>/./wls_full_setup.py -i sysconfig_discovery.csv`
@@ -184,6 +184,10 @@ You will be prompted to make some selections based on the information detected i
 
 To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
 
+- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment). Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
+
+- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
+
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. Even when there is no connectivity to primary, this file is used to identify nodes and users in the primary system. Provide the values requested (the file contains a description of each entry).
 
 - Edit the `<WLS-HYDR_BASE>/config/replication.properties` file. This file is used to identify the primary system's directories and for configuring replication settings. Provide the values requested (the file contains a description of each entry).
@@ -191,10 +195,6 @@ To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
 - Transfer the `<WLS-HYDR_BASE>/sysconfig_discovery.xlsx` file to a Windows node to facilitate its edition. Fill in the entries in the excel file marked as "needs custom input". The entries marked as "default value can be used" can be customized or left in their default value.
 
 - Once edited, save the excel as a CSV (Comma delimited) file format (do not use CSV UTF-8, use plain CSV format) and upload it to the bastion again. You can use any file name for the saved copy, the examples provided only use the names XXX_sysconfig_discovery.csv to differentiate use cases.
-
-- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment). Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
-
-- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
 
 - Create the stage folder structure in the bastion using the DataReplication.py init command:  
 `<WLS-HYDR_BASE>/lib/DataReplication.py init -w <nº wls nodes> -o <nº ohs nodes>`  
@@ -212,15 +212,15 @@ You will be prompted to make some selections based on the information detected i
 ## Running "INFRASTRUCTURE CREATION"
 If you want to use the framework simply to create in OCI the artifacts typically required by a highly available WLS/FMW system (see [LIST OF THE RESOURCES](#list-of-the-resources))  follow these steps:
 
+- Upload to the bastion the SSH keys that will be used in the OCI nodes . You need to upload both the SSH private and the SSH public key since those will be used in the new OCI environment. Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
+
+- Upload to the bastion the certificate files for the front end Load Balancer (that the new system will use). You need to upload both its public certificate and the certificate's private key to the bastion.
+
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. Even when there is no primary system, this file is used to identify the number of nodes and users that will be created in the OCI system. Provide the values requested (the file contains a description of each entry).
 
 - Transfer the `<WLS-HYDR_BASE>/sysconfig.xlsx` file to a Windows node to facilitate its edition. Fill in the entries in the excel file marked as "needs custom input". The entries marked as "default value can be used" can be customized or left in their default value.
 
 - Once edited, save the excel as a CSV (Comma delimited) file format (do not use CSV UTF-8, use plain CSV format) and upload it to the bastion again. You can use any file name for the saved copy, the examples provided only use the name XXX_sysconfig.csv to differentiate use cases.
-
-- Upload to the bastion the SSH keys that will be used in the OCI nodes . You need to upload both the SSH private and the SSH public key since those will be used in the new OCI environment. Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
-
-- Upload to the bastion the certificate files for the front end Load Balancer (that the new system will use). You need to upload both its public certificate and the certificate's private key to the bastion.
 
 - Run the wls_hydr.py script indicating the sysconfig file that will be used (the csv file edited in previous steps). For example:
 `<WLS-HYDR_BASE>/wls_hydr.py -i sysconfig.csv`
@@ -493,8 +493,8 @@ This table lists all the resources that this framework creates in OCI.
 |                              | Internet Gateway                                            | HyDR_SG_Gateway                            | Created if it doesn't exist and there is a public subnet                          |
 |                              | Service Gateway                                             | HyDR_SG_Gateway                            | Created if it doesn't already exist                                               |
 |                              | NAT Gateway                                                 | HyDR_NAT_Gateway                           | Created if it doesn't already exist                                               |
-|                              | DNS Private View                                                | HYBRID_DR_VIRTUAL_HOSTNAMES                |                                                                                   |
-|                              | DHCP Options                                                | HyDR-DHCP                                  |                                                                                   |
+|                              | DNS Private View                                                | \<primary_listen_addresses_fqdn_domain\>_DR_VIRTUAL_HOSTNAMES                |                                                                                   |
+|                              | HyDR-DHCP                                                | \<primary_listen_addresses_fqdn_domain\>_DHCP Options                                  |                                                                                   |
 |                              | Virtual Address for Administration Server                              | The listen address of the Admin Server added to the private view, pointing to administration node IP   | Created only if the value is provided (it is an optional input).                                               |
 | Compute Instances            | N compute instances for OHS                                 | \<custom ohs prefix\>-N                      | Created using Oracle WebLogic Server Enterprise Edition UCM Image       |
 |                              | N compute instances for WLS                                 | \<custom wls prefix\>-N                      | Created using Oracle WebLogic Suite UCM Image              |
@@ -503,22 +503,22 @@ This table lists all the resources that this framework creates in OCI.
 |                              | FSS File System for WLS products 1                          | \<custom_prefix\>productsFSS1                |                                                                                   |
 |                              | FSS File System for WLS products 2                          | \<custom_prefix\>productsFSS2                |                                                                                   |
 |                              | FSS File System for WLS shared runtime                      | <\<ustom_prefix\>runtimeFSS                  |                                                                                   |
-|                              | N Block Volumes                                             | wlsdrbvN                                   | One per WLS node, for the private config                                          |
+|                              | N Block Volumes                                             | \<custom wls prefix\>N                                   | One per WLS node, for the private config                                          |
 | Load Balancer resources      | Load Balancer                                               | custom name                                |                                                                                   |
 |                              | Ruleset                                                     | HTTP_to_HTTPS_redirect                     |                                                                                   |
 |                              | Ruleset                                                     | SSLHeaders                                 |                                                                                   |
-|                              | Listener (for HTTPS)                                        | HTTPS_APP_listener                         |                                                                                   |
-|                              | Listener (for HTTP)                                         | HTTP_APP_listener                          | In port 80 and same hostname than "Listener (for HTTPS)", redirects all to "Listener (for HTTPS)" |
-|                              | Listener (for WLS Admin Console, HTTP)                      | Admin_listener                             |                                                                                   |
-|                              | Listener (for internal accesses, HTTTP)                     | HTTP_internal_listener                     | Optional                                                                          |
+|                              | Listener (for HTTPS)                                        | LBR_APP_listener                         |                                                                                   |
+|                              | Listener (for HTTP)                                         | LBR_Redirect_listener                          | In port 80 and same hostname than "Listener (for HTTPS)", redirects all to "Listener (for HTTPS)" |
+|                              | Listener (for WLS Admin Console, HTTP)                      | LBR_Admin_listener                             |                                                                                   |
+|                              | Listener (for internal accesses, HTTTP)                     | LBR_Internal_listenerr                     | Optional                                                                          |
 |                              | Certificate                                                 | HyDR_lbr_cert                              |                                                                                   |
 |                              | Hostname (frontend for HTTPS access)                        | HyDR_LBR_virtual_hostname                  |                                                                                   |
 |                              | Hostname (frontend for accesing to WLS Admin Console)       | HyDR_LBR_admin_hostname                    | Optional                                                                                  |
 |                              | Hostname (frontend for Internal HTTP acccess)               | HyDR_LBR_internal_hostname                 | Optional                                                                          |
-|                              | Backendset for the "Listener (for HTTPS)"                   | OHS_HTTP_APP_backendset                    |                                                                                   |
+|                              | Backendset for the "Listener (for HTTPS)"                   | OHS_App_backendset                    |                                                                                   |
 |                              | Backendset for the "Listener (for WLS Admin Console, HTTP)" | OHS_Admin_backendset                       |                                                                                   |
 |                              | Beackenset for the "Listener (for HTTP)"                    | empty_backendset                           |                                                                                   |
-|                              | Backendset for the Listener (for internal access, HTTP)  | OHS_HTTP_internal_backendset_XX            | Optional                                                                          |
+|                              | Backendset for the Listener (for internal access, HTTP)  | OHS_Internal_backendset            | Optional                                                                          |
 | Additional actions performed | In the OHS compute instances                                    | Create user/group as primary               |                                                                                   |
 |                              |                                                             | Configure ssh access for user              |                                                                                   |
 |                              |                                                             | Create folders                             |                                                                                   |
