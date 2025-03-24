@@ -161,9 +161,9 @@ Run the following steps as preparation for the execution of the scripts in all s
 ## Running "COMPLETE DR SETUP"
 To run the "COMPLETE DR SETUP" follow these steps:
 
-- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment. Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
+- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment. Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
 
-- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
+- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion. Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
   
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. This file is used to identify nodes and users in the primary system. Provide the values requested (the file contains a description of each entry).
 
@@ -184,9 +184,9 @@ You will be prompted to make some selections based on the information detected i
 
 To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
 
-- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment). Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
+- Upload to the bastion the SSH keys of the primary nodes. You need to upload both the SSH private and the SSH public key since those will be used also in the new OCI environment). Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
 
-- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion.
+- Upload to the bastion the certificate files for the front end Load Balancer. You need to upload both its public certificate and the certificate's private key to the bastion. Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
 
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. Even when there is no connectivity to primary, this file is used to identify nodes and users in the primary system. Provide the values requested (the file contains a description of each entry).
 
@@ -212,9 +212,9 @@ You will be prompted to make some selections based on the information detected i
 ## Running "INFRASTRUCTURE CREATION"
 If you want to use the framework simply to create in OCI the artifacts typically required by a highly available WLS/FMW system (see [LIST OF THE RESOURCES](#list-of-the-resources))  follow these steps:
 
-- Upload to the bastion the SSH keys that will be used in the OCI nodes . You need to upload both the SSH private and the SSH public key since those will be used in the new OCI environment. Place them in the appropriate path, according with the inputs in the sysconfig spreadsheet.
+- Upload to the bastion the SSH keys that will be used in the OCI nodes . You need to upload both the SSH private and the SSH public key since those will be used in the new OCI environment. Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
 
-- Upload to the bastion the certificate files for the front end Load Balancer (that the new system will use). You need to upload both its public certificate and the certificate's private key to the bastion.
+- Upload to the bastion the certificate files for the front end Load Balancer (that the new system will use). You need to upload both its public certificate and the certificate's private key to the bastion. Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
 
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. Even when there is no primary system, this file is used to identify the number of nodes and users that will be created in the OCI system. Provide the values requested (the file contains a description of each entry).
 
