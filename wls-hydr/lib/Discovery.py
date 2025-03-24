@@ -172,7 +172,9 @@ def prompt_user_selection(options_list, prompt="Please select a value:", help=""
     Returns:
         str: Selected value.
     """
-    separator_width = len(prompt)
+    separator_width = max(max([len(line.strip()) for line in prompt.split("\n")]),
+                          max([len(line.strip()) for line in help.split("\n")]),
+                          len(help.split("\n")[0].strip()) + 6)
     print(f"\n{'-' * separator_width}\n{prompt}")
     if help.strip():
         print("*" * separator_width)
@@ -477,11 +479,15 @@ if NO_CONNECTIVITY:
         valid_wls_memory = True
     add_info("wls_memory", "oci-wls-memory/int", "Weblogic node memory", wls_memory, False)
     # wls owner OS user id
-    wls_user_uid = UTILS.get_user_input(f"Please enter Weblogic {config[PREM]['wls_osuser']} user ID", value_type="int")
+    wls_user_uid = UTILS.get_user_input(f"Please enter the OS user id in the WebLogic nodes for user {config[PREM]['wls_osuser']}", 
+                                        help=f"The output of the command 'id -u' for the user {config[PREM]['wls_osuser']}",
+                                        value_type="int")
     add_info("wls_user_name", "prem-wls-user_name/name", f"Weblogic owner OS user name", config[PREM]['wls_osuser'], False)
     add_info("wls_user_uid", "prem-wls-user_uid/int", f"Weblogic {config[PREM]['wls_osuser']} user ID", wls_user_uid, False)
     # wls owner OS group id
-    wls_group_gid = UTILS.get_user_input(f"Please enter Weblogic {config[PREM]['wls_osgroup']} group ID", value_type="int")
+    wls_group_gid = UTILS.get_user_input(f"Please enter the OS group id in the WebLogic nodes for group {config[PREM]['wls_osgroup']}",
+                                         help=f"The output of the command 'getent group {config[PREM]['wls_osgroup']} | cut -d: -f3'",
+                                         value_type="int")
     add_info("wls_group_name", "prem-wls-group_name/name", f"Weblogic owner OS group name", config[PREM]['wls_osgroup'], False) 
     add_info("wls_group_gid", "prem-wls-group_gid/int", f"Weblogic {config[PREM]['wls_osgroup']} group ID", wls_group_gid, False)
     # wls shared runtime mountpoint
@@ -555,7 +561,7 @@ else:
     # get wls host memory
     wls_memory = run_remote_command(ssh_wls_client, 'grep MemTotal /proc/meminfo')
     if wls_memory:
-        wls_memory = int(re.search(r"MemTotal:\s*(\d*)", wls_memory)[1]) // 1024 // 1024
+        wls_memory = int(re.search(r"MemTotal:\s*(\d*)", wls_memory)[1]) // 1000 // 1000
         logger.writelog("debug", f"WLS memory to be used in OCI: {wls_memory}")
         add_info("wls_memory", "oci-wls-memory/int", "Weblogic node memory", wls_memory, False)
     else:
@@ -717,10 +723,14 @@ if OHS_USED:
                 continue
             valid_ohs_memory = True
         add_info("ohs_memory", "oci-ohs-memory/opt", "OHS node memory", ohs_memory, False)
-        ohs_user_uid = UTILS.get_user_input(f"Please enter OHS {config[PREM]['ohs_osuser']} user ID", value_type="int")
+        ohs_user_uid = UTILS.get_user_input(f"Please enter the OS user id in the OHS nodes for user {config[PREM]['ohs_osuser']}",
+                                            help=f"The output of the command 'id -u' for the user {config[PREM]['ohs_osuser']}",
+                                            value_type="int")
         add_info("ohs_user_name", "prem-ohs-user_name/opt", f"OHS owner OS user name", config[PREM]['ohs_osuser'], False)
         add_info("ohs_user_uid", "prem-ohs-user_uid/opt", f"OHS {config[PREM]['ohs_osuser']} user ID", ohs_user_uid, False)
-        ohs_group_gid = UTILS.get_user_input(f"Please enter OHS {config[PREM]['ohs_osgroup']} group ID", value_type="int")
+        ohs_group_gid = UTILS.get_user_input(f"Please enter the OS group id in the OHS nodes for group {config[PREM]['ohs_osgroup']}",
+                                             help=f"The output of the command 'getent group {config[PREM]['ohs_osgroup']} | cut -d: -f3'",
+                                             value_type="int")
         add_info("ohs_group_name", "prem-ohs-group_name/opt", f"OHS owner OS group name", config[PREM]['ohs_osgroup'], False)
         add_info("ohs_group_gid", "prem-ohs-group_gid/opt", f"OHS {config[PREM]['ohs_osgroup']} group ID", ohs_group_gid, False)
     else:
@@ -752,7 +762,7 @@ if OHS_USED:
         # ohs memory
         ohs_memory = run_remote_command(ssh_ohs_client, 'grep MemTotal /proc/meminfo')
         if ohs_memory:
-            ohs_memory = int(re.search(r"MemTotal:\s*(\d*)", ohs_memory)[1]) // 1024 // 1024
+            ohs_memory = int(re.search(r"MemTotal:\s*(\d*)", ohs_memory)[1]) // 1000 // 1000
             logger.writelog("debug", f"OHS memory to be used in OCI: {ohs_memory}")
             add_info("ohs_memory", "oci-ohs-memory/opt", "OHS node memory", ohs_memory, False)
         else:
