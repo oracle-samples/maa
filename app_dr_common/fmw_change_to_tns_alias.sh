@@ -6,10 +6,12 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 
-# This script can be used to replace the connect strings used by WLS datasources (under $DOMAIN_HOME}/config/jdbc)
+# -This script can be used to replace the connect strings used by WLS datasources (under $DOMAIN_HOME}/config/jdbc)
 # and jps config files (under ${DOMAIN_HOME}/config/fmwconfig) with a tns alias
-# Note this performs replacements in the WLS configuration files, so it must be used conscientiously and requires restart of the WLS servers to take effect
-# The script uses fmw_get_ds_property.sh and fmw_get_connect_string.sh so make sure to place them together with this script
+# -Note this performs replacements in the WLS configuration files, so it must be used conscientiously and requires restart of the WLS servers to take effect
+# -The script uses fmw_get_ds_property.sh and fmw_get_connect_string.sh so make sure to place them together with this script
+# -Refer to the Oracle NET Services Adminsitration guide for allowed connect descriptor formats. For example, ezconnect short-string formats like 
+# //db:port/service are not supported by multiple Oracle NET Local Naming versions) 
 
 # The script gathers the current connect string from the opss-datasource-jdbc.xml (can be executed multiple times
 # each with a different DS if different connect strings are used by other DS) and replaces them with the tnsalias  provided as parameter.
