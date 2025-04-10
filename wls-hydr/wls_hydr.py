@@ -19,9 +19,12 @@ try:
     from lib.Utils import Constants as CONSTANTS
     from lib.Utils import Status as STATUS
     import configparser
+    import subprocess
     import warnings
     import requests
     import paramiko
+    import copy
+    import shlex
     import time
 
 except ImportError as e:
@@ -1984,11 +1987,92 @@ def main():
                 exit_failure(logger, sysconfig_file, 1)
             sysconfig['oci']['ohs']['nodes'][idx]['ip'] = ret
             save_sysconfig(sysconfig, sysconfig_file)
+            
+    # get all the information we need in order to check instances and init scripts statuses
+    instances_info = []
+    instances_info.extend(copy.deepcopy(sysconfig['oci']['wls']['nodes']))
+    if OHS_USED:
+        instances_info.extend(copy.deepcopy(sysconfig['oci']['ohs']['nodes']))
+    for node in instances_info:
+        node['ssh_connectivity'] = False
+        node['init_script_finished'] = False
+    # check that we have connectivity on port 22 
+    # set a total timeout value of 20 minutes and consider that something went wrong 
+    # if we can't establish a connection by then we'll assume something failed
+    # same applies for init script check
+    logger.writelog("info", "Checking that compute instances are available over SSH")
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    timeout_minutes = 20
+    timeout = 60 * timeout_minutes
+    not_up = True
+    start_time = time.time()
+    while not_up:
+        for node in instances_info:
+            if not node['ssh_connectivity']:
+                try:
+                    ssh.connect(username='opc',
+                                hostname=node['ip'],
+                                key_filename=sysconfig['oci']['ssh_private_key'],
+                                timeout=10)
+                    ssh.close()
+                    node['ssh_connectivity'] = True
+                except Exception as e:
+                    logger.writelog("info", f"Instance {node['name']} not yet accessible over SSH: {str(e)}")
+        not_up = any(x['name'] for x in instances_info if not x['ssh_connectivity'])
+        if not_up:
+            if time.time() - start_time >= timeout:
+                logger.writelog("error", "It was not possible to connect to the following compute instances after {0} minutes - check in OCI console and log files: {1}\nExiting.".format(
+                    timeout_minutes,
+                    [x['name'] for x in instances_info if not x['ssh_connectivity']]
+                ))
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("info", "Some of the created compute instances are still not ready - waiting 30 seconds and checking again")
+            time.sleep(30)
+    # check that init script execution finished
+    logger.writelog("info", "Checking that init script execution finished on compute instances")
+    start_time = time.time()
+    init_running = True
+    while init_running:
+        init_statuses = []
+        for node in instances_info:
+            if not node['init_script_finished']:
+                try:
+                    ssh.connect(username='opc',
+                                hostname=node['ip'],
+                                key_filename=sysconfig['oci']['ssh_private_key'])
+                except Exception as e:
+                    logger.writelog("error", f"Could not connect to instance {node['name']} to check init script execution status: {str(e)}")
+                    exit_failure(logger, sysconfig_file, 1)
+                cmd = "ls /var/log/ | egrep '(wls|ohs)_init.log'"
+                logger.writelog("debug", f"Running command '{cmd}' on host {node['name']}")
+                _, stdout, _ = ssh.exec_command(cmd)
+                stdout = stdout.read().decode()
+                logger.writelog("debug", f"Command output: {stdout}")
+                if not stdout:
+                    logger.writelog("info", f"Instance {node['name']} has not started executing init script")
+                    out = f"Host {node['name']} not started"
+                else:
+                    cmd = f"ps -ef | grep '[/]bin/bash /var/lib/cloud/instance/scripts/part'"
+                    logger.writelog("debug", f"Running command '{cmd}' on host {node['name']}")
+                    _, stdout, _ = ssh.exec_command(cmd)
+                    out = stdout.read().decode()
+                    logger.writelog("debug", f"Command output: {out}")
+                    if out:
+                        logger.writelog("info", f"Instance {node['name']} has not finished executing init script")
+                    else:
+                        node['init_script_finished'] = True
+                init_statuses.append(out)
+                ssh.close()
+        init_running = any(init_statuses)
+        if init_running:
+            if time.time() - start_time >= timeout:
+                logger.writelog("error", f"There are still instances that have not finished executing init script after {timeout_minutes} minutes - check in OCI console and log files")
+                exit_failure(logger, sysconfig_file, 1)
+            logger.writelog("info", "There are still instances that have not finished executing init script - waiting 30 seconds and checking again")
+            time.sleep(30)
 
-    logger.writelog("info", "Waiting 3 minutes for instances to initialize")
-    time.sleep(60 * 3)
-
-    # check init script execution status on WLS nodes
+    # check init script execution result on WLS nodes
     for idx in range(0, int(sysconfig['oci']['wls']['nodes_count'])):
         logger.writelog("info", f"Checking init script execution status on WLS node {sysconfig['oci']['wls']['nodes'][idx]['name']}")
         ssh = paramiko.SSHClient()
@@ -1998,8 +2082,8 @@ def main():
                         hostname=sysconfig['oci']['wls']['nodes'][idx]['ip'],
                         key_filename=sysconfig['oci']['ssh_private_key'])
         except Exception as e:
-            logger.writelog("error", f"Could not connect to instance {sysconfig['oci']['wls']['nodes'][idx]['name']}: {str(e)}")
-            continue
+            logger.writelog("error", f"Could not connect to instance {sysconfig['oci']['wls']['nodes'][idx]['name']} to check init script results: {str(e)}")
+            exit_failure(logger, sysconfig_file, 1)
         cmd = 'tail -1 /var/log/wls_init.log'
         logger.writelog("debug", f"Running {cmd} on {sysconfig['oci']['wls']['nodes'][idx]['name']}")
         stdin, stdout, stderr = ssh.exec_command(cmd)
@@ -2014,15 +2098,54 @@ def main():
                 sysconfig['oci']['wls']['nodes'][idx]['name'],
                 "/var/log/wls_init.log"
             ))
-            continue
+            exit_failure(logger, sysconfig_file, 1)
         if 'SUCCESS' not in out:
             logger.writelog("warn", "Errors encountered when executing init script")
             logger.writelog("warn", "Check local logs on {0}, log path {1}".format(
                 sysconfig['oci']['wls']['nodes'][idx]['name'],
                 "/var/log/wls_init.log"
             ))
+            exit_failure(logger, sysconfig_file, 1)
         else:
             logger.writelog("info", "Init script executed successfully")
+
+    # check init script execution status on OHS nodes if OHS is used
+    if OHS_USED:
+        for idx in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
+            logger.writelog("info", f"Checking init script execution status on OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                ssh.connect(username='opc',
+                            hostname=sysconfig['oci']['ohs']['nodes'][idx]['ip'],
+                            key_filename=sysconfig['oci']['ssh_private_key'])
+            except Exception as e:
+                logger.writelog("error", f"Could not connect to instance {sysconfig['oci']['ohs']['nodes'][idx]['name']} to check init script results: {str(e)}")
+                exit_failure(logger, sysconfig_file, 1)
+            cmd = 'tail -1 /var/log/ohs_init.log'
+            logger.writelog("debug", f"Running {cmd} on {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
+            stdin, stdout, stderr = ssh.exec_command(cmd)
+            out = stdout.read().decode()
+            err = stderr.read().decode()
+            ssh.close()
+            logger.writelog("debug", f"stdout: {out}")
+            logger.writelog("debug", f"stderr: {err}")
+            if err:
+                logger.writelog("error", f"Could not check init script execution: {err}")
+                logger.writelog("error", "Check local logs on {0}, log path {1}".format(
+                    sysconfig['oci']['ohs']['nodes'][idx]['name'],
+                    "/var/log/ohs_init.log"
+                ))
+                exit_failure(logger, sysconfig_file, 1)
+            if 'SUCCESS' not in out:
+                logger.writelog("warn", "Errors encountered when executing init script")
+                logger.writelog("warn", "Check local logs on {0}, log path {1}".format(
+                    sysconfig['oci']['ohs']['nodes'][idx]['name'],
+                    "/var/log/ohs_init.log"
+                ))
+                exit_failure(logger, sysconfig_file, 1)
+            else:
+                logger.writelog("info", "Init script executed successfully")
         
     # ATTACH BLOCK VOLUMES TO WLS NODES, RUN iscsi COMMANDS, FORMAT AND MOUNT
     logger.writelog("info", "Attaching block volumes to wls nodes")
@@ -2231,45 +2354,6 @@ def main():
                 sysconfig['prem']['wls']['group_name']
         ))
         ssh.close()
-
-
-    # check init script execution status on OHS nodes if OHS is used
-    if OHS_USED:
-        for idx in range(0, int(sysconfig['oci']['ohs']['nodes_count'])):
-            logger.writelog("info", f"Checking init script execution status on OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            try:
-                ssh.connect(username='opc',
-                            hostname=sysconfig['oci']['ohs']['nodes'][idx]['ip'],
-                            key_filename=sysconfig['oci']['ssh_private_key'])
-            except Exception as e:
-                logger.writelog("error", f"Could not connect to instance {sysconfig['oci']['ohs']['nodes'][idx]['name']}: {str(e)}")
-                continue
-            cmd = 'tail -1 /var/log/ohs_init.log'
-            logger.writelog("debug", f"Running {cmd} on {sysconfig['oci']['ohs']['nodes'][idx]['name']}")
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            out = stdout.read().decode()
-            err = stderr.read().decode()
-            ssh.close()
-            logger.writelog("debug", f"stdout: {out}")
-            logger.writelog("debug", f"stderr: {err}")
-            if err:
-                logger.writelog("error", f"Could not check init script execution: {err}")
-                logger.writelog("error", "Check local logs on {0}, log path {1}".format(
-                    sysconfig['oci']['ohs']['nodes'][idx]['name'],
-                    "/var/log/ohs_init.log"
-                ))
-                continue
-            if 'SUCCESS' not in out:
-                logger.writelog("warn", "Errors encountered when executing init script")
-                logger.writelog("warn", "Check local logs on {0}, log path {1}".format(
-                    sysconfig['oci']['ohs']['nodes'][idx]['name'],
-                    "/var/log/ohs_init.log"
-                ))
-            else:
-                logger.writelog("info", "Init script executed successfully")
-
 
     PRIVATE_VIEW_EXISTS = False
     ZONE_EXISTS = False

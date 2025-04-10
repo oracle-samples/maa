@@ -206,7 +206,7 @@ function create_user() {
 
 function myexit() {
     if [[ $FAILURE == 'true' ]]; then
-        echo "RECAP: init confi FAIL" | tee -a "$LOG_FILE"
+        echo "RECAP: init config FAIL" | tee -a "$LOG_FILE"
         exit 1
     else
         echo "RECAP: init config SUCCESS" | tee -a "$LOG_FILE"

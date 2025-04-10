@@ -41,7 +41,7 @@ function change_gid() {
     log "info" "Changing ownership of all files owned by group $used_by to new GID $new_gid"
     log "info" "Running find / -path /sys -prune -o -path /proc -prune -o -group $old_gid -exec chgrp -h $used_by {} \;"
     
-    # the following convoluted and (apparently) superflous line of code is used to mitigate false
+    # the following convoluted and (apparently) superfluous line of code is used to mitigate false
     # failures caused by some temporary files found by find that are deleted before find stats them
     # GitLab issue #12
     if ! find / -path /sys -prune -o -path /proc -prune -o -group "$old_gid" -print0 |  xargs -0 -i bash -c "if test -e {}; then chgrp -h $used_by {}; fi" >> "$LOG_FILE" 2>&1; then
@@ -130,7 +130,7 @@ function change_uid() {
     fi
     log "info" "Changing ownership of all files owned by user $used_by to new UID $new_uid"
     log "info" "Running find / -path /sys -prune -o -path /proc -prune -o -user $old_uid -exec chown -h $used_by {} \;"
-    # the following convoluted and (apparently) superflous line of code is used to mitigate false
+    # the following convoluted and (apparently) superfluous line of code is used to mitigate false
     # failures caused by some temporary files found by find that are deleted before find stats them
     # GitLab issue #12
     if ! find / -path /sys -prune -o -path /proc -prune -o -user "$old_uid" -print0 | xargs -0 -i bash -c "if test -e {}; then chown -h $used_by {}; fi" >> "$LOG_FILE" 2>&1; then
