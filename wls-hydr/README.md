@@ -144,17 +144,16 @@ Run the following steps as preparation for the execution of the scripts in all s
 3. Provision a bastion host in the subnet. The bastion host must use OL8 or OL9. A "VM.Standard.E4.Flex with 1 OCPU and 16GB memory" shape is enough to run the framework. The amount of information that is copied to the bastion can be high (around 40GB for the typical FMW SOA product and config directories), so you can attach an additional block volume of this size during the bastion creation process itself. You can use this formula for a rough estimate of the required storage size: _[2xFMW products] + [WLS_domain_size x (nº wls nodes + 1)] + [2xOHS products] + [OHS domain_size x (nº of OHS nodes)]_
 4. For the "COMPLETE DR SETUP" use case, setup connectivity between primary hosts and the bastion host (FastConnect, VPN, Peering). This is not required if you are performing a "BACKUP AND RESTORE TO OCI".
 5. Prepare the bastion host to run the framework:
-    1. Make sure the following python modules are installed:  
-    oci sdk (this package should come pre-installed on OCI OL9 images):  `rpm -qa | grep -i python.*oci `   
-    paramiko:     `rpm -qa | grep -i python3-paramiko`   
-    Install with the following command if missing:  
-    `sudo yum --enablerepo="ol9_developer_EPEL" install python3-paramiko`  
-    or  
-    `sudo yum --enablerepo="ol8_developer_EPEL" install python3-paramiko`
-    2. Add the OCI config to the bastion server. This is needed to connect through OCI APIs to the OCI tenancy and region where you want to create the resources. The complete instructions can be found [here](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#apisigningkey_topic_How_to_Generate_an_API_Signing_Key_Console). Then, when you run the provisioning phase, you can supply the path of the oci config file using -c/--oci-config FILE_PATH. If no path is supplied, the default path is assumed `<HOME>/.oci/config` 
-7. Download the WLS_HYDR framework to the bastion server (example location <HOME>/wls_hydr) 
-8. (Optional) Create a subnet for the database if the WLS/FMW domain is using one.
-9. (Optional) Create a peer DB system if the WLS domain is using one:
+    1. Make sure pip is installed and updated:  
+    `sudo yum install python3-pip`  
+    `sudo python3 -m pip install --upgrade pip`  
+    2. Install required packages:  
+    `cd /path/to/wls_hydr`  
+    `python3 -m pip install -r requirements.txt`  
+    3. Add the OCI config to the bastion server. This is needed to connect through OCI APIs to the OCI tenancy and region where you want to create the resources. The complete instructions can be found [here](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#apisigningkey_topic_How_to_Generate_an_API_Signing_Key_Console). Then, when you run the provisioning phase, you can supply the path of the oci config file using -c/--oci-config FILE_PATH. If no path is supplied, the default path is assumed `<HOME>/.oci/config` 
+6. Download the WLS_HYDR framework to the bastion server (example location <HOME>/wls_hydr) 
+7. (Optional) Create a subnet for the database if the WLS/FMW domain is using one.
+8. (Optional) Create a peer DB system if the WLS domain is using one:
     - For the "COMPLETE DR SETUP" Data Guard should be configured before or after running the WLS_HYDR framework. Refer to the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html. The WLS_HYDR framework does not set up connectivity between the middle tier and the database in OCI. 
     - Alternatively, and for the "BACKUP AND RESTORE TO OCI" use case, an automated Oracle Data Pump Export and Import can be used for the JRF/FMW schemas (refer to https://github.com/oracle-samples/maa/tree/main/fmw_schemas_exp_imp).
 

@@ -21,6 +21,8 @@ OHS:
             to <stage>/webtier/ohs_private_config/ohsnode2_private_config folder.
       - If there are more OHS nodes, copy the content of the folder OHS_PRIVATE_CONFIG_DIR 
             of the OHS node N to <stage>/webtier/ohs_private_config/ohsnodeN_private_config folder.
+      - If the JDK is NOT located under the OHS products folder (OHS_PRODUCTS), copy the content of the folder 
+            OHS_JDK_DIR to <stage>/webtier/ohs_jdk_dir.
 
 WLS:
 ####
@@ -47,3 +49,5 @@ WLS:
             to <stage>/midtier/wls_shared_config folder.
       - Copy the tnsnames.ora file of your primary WebLogic domain in the 
             bastion's <stage>/midtier/var folder.
+      - If the JDK is NOT located under the WLS products folder (WLS_PRODUCTS), copy the content of the folder 
+            WLS_JDK_DIR  to <stage>/midtier/wls_jdk_dir.

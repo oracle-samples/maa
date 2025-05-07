@@ -365,8 +365,8 @@ if not NO_CONNECTIVITY:
         myexit(1)
     ssh.close()
 
-# work out config.xml path from propertries file (shared or private depending on info supplied)
-# on-oprem path
+# work out config.xml path from properties file (shared or private depending on info supplied)
+# on-prem path
 wls_config_xml_file = config[DIRECTORIES]['WLS_CONFIG_PATH']
 # use shared config if supplied else use private config
 # replace prem path with staging
@@ -397,6 +397,11 @@ namespaces = {
 root = tree.getroot()
 domain = root.find("xmlns:name", namespaces).text
 add_info("domain", "", "Weblogic domain name", domain, False)
+# check if SOA 
+is_soa = "No"
+if any([x.text in ["soa-infra", "mft-app", "service-bus"] for x in root.findall("xmlns:app-deployment/xmlns:name", namespaces)]):
+    is_soa = "Yes"
+add_info("is_soa", "prem-wls-is_soa/yesno", "", is_soa, False)
 # get wls server ports
 wls_server_ports = [] 
 wls_server_ports.extend([x.text for x in root.findall("xmlns:server/xmlns:listen-port", namespaces)])
@@ -438,7 +443,7 @@ add_info("nm_ports", "oci-network-ports-node_manager/port", "Nodemanager ports",
 
 # coherence cluster ports
 # get coherence config paths from config.xml
-coherence_ports = []
+coherence_cluster_ports = []
 coherence_configs = root.findall("xmlns:coherence-cluster-system-resource/xmlns:descriptor-file-name", namespaces)
 # get port value from coherence config file
 for config_path in coherence_configs:
@@ -448,9 +453,18 @@ for config_path in coherence_configs:
         for line in f.readlines():
             match = re.search(r"^\s*<cluster-listen-port>(\d*)<\/cluster-listen-port>", line)
             if match:
-                coherence_ports.append(match[1])
-logger.writelog("debug", f"Coherence ports: {coherence_ports}")
-add_info("coherence_ports", "oci-network-ports-coherence/port", "Coherence ports", coherence_ports, True)
+                coherence_cluster_ports.append(match[1])
+logger.writelog("debug", f"Coherence cluster ports: {coherence_cluster_ports}")
+add_info("coherence_cluster_ports", "oci-network-ports-coherence_cluster/port", "Coherence cluster ports", coherence_cluster_ports, True)
+
+# coherence unicast ports
+coherence_unicast_ports = []
+coherence_unicast_ports.extend([int(x.text) for x in root.findall("xmlns:server/xmlns:coherence-member-config/xmlns:unicast-listen-port", namespaces)])
+coherence_unicast_ports.extend([x+y for y in range(6) for x in coherence_unicast_ports])
+coherence_unicast_ports = list(set(coherence_unicast_ports))
+coherence_unicast_ports = [str(x) for x in coherence_unicast_ports]
+logger.writelog("debug", f"Coherence unicast ports: {coherence_unicast_ports}")
+add_info("coherence_unicast_ports", "oci-network-ports-coherence_unicast/port", "Coherence unicast ports", coherence_unicast_ports, True)
 
 # WLS info
 # number of wls nodes
@@ -698,6 +712,9 @@ else:
                 add_info(f"wls_node_{node_idx + 1}_listen_address", "", f"Weblogic node {node_idx + 1} listen address", address, False)
         node_ssh.close()
 
+# WLS jdk path 
+add_info("wls_jdk_path", "prem-wls-jdk_path/opt", "", config[DIRECTORIES]['WLS_JDK_DIR'], False)
+
 # ohs info if ohs is used
 if OHS_USED:
     # number of ohs nodes 
@@ -872,8 +889,8 @@ For example:
 $ grep Listen /path/to/ohsconfig/moduleconf/app_conf.conf
 # The Listen directive below has a comment preceding it that is used
 # Listen] OHS_SSL_PORT
-Listen ohs.hostname.com:4445
-4445 would be the value requested"""
+Listen ohs.hostname.com:9999
+9999 would be the value requested"""
     add_info("ohs_http_port", "oci-ohs-http_port/opt", "OHS HTTP port", ohs_http_ports, False, help_msg)
     logger.writelog("debug", f"LBR virtual hostnames found: {valid_lbr_hostnames}")
     help_msg = """Select the LBR frontend hostname used by the applications exposed in this WebLogic domain. 
@@ -901,10 +918,11 @@ else:
     add_info("lbr_https_port", "oci-lbr-https_port/opt", "", "", False)
 
 
-# add OHS products and private config paths if OHS is used
+# add OHS products, private config and jdk paths if OHS is used
 if OHS_USED:
     add_info("ohs_products", "prem-ohs-products_path/opt", "", config[DIRECTORIES]['OHS_PRODUCTS'], False)
     add_info("ohs_config", "prem-ohs-config_path/opt", "", config[DIRECTORIES]['OHS_PRIVATE_CONFIG_DIR'], False)
+    add_info("ohs_jdk_path", "prem-ohs-jdk_path/opt", "", config[DIRECTORIES]['OHS_JDK_DIR'], False)
 
 # get user input on any items that require it
 clean_sysinfo(discovery_sysinfo)
