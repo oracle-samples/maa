@@ -13,6 +13,7 @@ PRODUCTS_FS="%%PRODUCTS_FS%%"
 CONFIG_MOUNT="%%CONFIG_MOUNT%%"
 RUNTIME_MOUNT="%%RUNTIME_MOUNT%%"
 PRODUCTS_MOUNT="%%PRODUCTS_MOUNT%%"
+JDK_PATH="%%JDK_PATH%%"
 PORTS=%%PORTS%%
 COHERENCE_PORTS=%%COHERENCE_PORTS%%
 SSH_PUB_KEY="%%SSH_PUB_KEY%%"
@@ -455,6 +456,22 @@ for mount in "$CONFIG_MOUNT" "$RUNTIME_MOUNT" "$PRODUCTS_MOUNT"; do
         fi
     fi
 done
+
+if [[ -n "$JDK_PATH" ]] && [[ ! "$JDK_PATH" =~ "%%" ]]; then
+    log "info" "Custom JDK path set to $JDK_PATH - creating directory" 
+    if ! mkdir -p "$JDK_PATH" >> "$LOG_FILE" 2>&1; then
+        log "error" "Failed creating $JDK_PATH directory"
+        FAILURE='true'
+    else
+        log "info" "Setting permissions on $JDK_PATH directory"
+        if ! chown -R "$USER_NAME:$GROUP_NAME" "$JDK_PATH" 2>&1 >> "$LOG_FILE" 2>&1; then 
+            log "error" "Failed setting correct permissions for $JDK_PATH"
+            FAILURE='true'
+        else 
+            log "info" "$JDK_PATH correct permissions set"
+        fi
+    fi 
+fi
 
 log "info" "Opening firewalld ports"
 for port in "${PORTS[@]}"; do

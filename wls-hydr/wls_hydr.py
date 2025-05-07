@@ -269,25 +269,32 @@ def main():
                 {
                     "name" : f"{sysconfig['oci']['ohs']['node_prefix']}{count + 1}"
                 })
+    # check if SOA and OS version
+    is_soa = False
+    if sysconfig['prem']['wls']['is_soa'] and sysconfig['prem']['wls']['is_soa'] == "Yes":
+        is_soa = True
+        if not float(sysconfig['oci']['wls']['os_version']) >= 8 :
+            logger.writelog("error", "SOA domain selected, but OS version selected is lower than the minimum 8.")
+            exit_failure(logger, sysconfig_file, 1)
     # get domain from wls fqdn listen addresses
     sysconfig['prem']['network']['fqdn'] = re.match(r".*?\.(.*)", sysconfig['prem']['wls']['listen_addresses'][0])[1]
     # strip domain from listen addresses - expected format for creating private views
     for idx in range(0, len(sysconfig['prem']['wls']['listen_addresses'])):
         sysconfig['prem']['wls']['listen_addresses'][idx] = re.match(r"(.*?)\..*", sysconfig['prem']['wls']['listen_addresses'][idx])[1]
-    # input dependent variables
 
     # get bastion server information if in OCI
     if sysconfig['bastion']['location'] == 'oci':
-        req = requests.get("http://169.254.169.254/opc/v1/vnics/")
+        req = requests.get("http://169.254.169.254/opc/v2/vnics/", headers={"Authorization": "Bearer Oracle"})
         data = req.json()[0]
         sysconfig['bastion']['private_ip'] = data['privateIp']
-    oci_manager_args = []
-    oci_manager_args.append(sysconfig['oci']['compartment_id'])
+    oci_manager_args = {}
+    oci_manager_args['compartment'] = sysconfig['oci']['compartment_id']
     # use cli specified oci config file if supplied
     if args.oci_config:
-        oci_manager_args.append(args.oci_config)
+        oci_manager_args['config_path'] = args.oci_config
+    oci_manager_args['is_soa'] = is_soa
     try:
-        oci_manager = OciManager(*oci_manager_args)
+        oci_manager = OciManager(**oci_manager_args)
     except Exception as e:
         logger.writelog("info", "Failed to instantiate OciManager")
         logger.writelog("debug", repr(e))
@@ -1837,10 +1844,14 @@ def main():
     elif isinstance(sysconfig['oci']['network']['ports']['wlsadmin'], str):
         fw_ports.append(sysconfig['oci']['network']['ports']['wlsadmin'])
     coherence_ports = []
-    if isinstance(sysconfig['oci']['network']['ports']['coherence'], list):
-        coherence_ports = sysconfig['oci']['network']['ports']['coherence']
-    elif isinstance(sysconfig['oci']['network']['ports']['coherence'], str):
-        coherence_ports = [sysconfig['oci']['network']['ports']['coherence']]
+    if isinstance(sysconfig['oci']['network']['ports']['coherence_cluster'], list):
+        coherence_ports = sysconfig['oci']['network']['ports']['coherence_cluster']
+    elif isinstance(sysconfig['oci']['network']['ports']['coherence_cluster'], str):
+        coherence_ports = [sysconfig['oci']['network']['ports']['coherence_cluster']]
+    if isinstance(sysconfig['oci']['network']['ports']['coherence_unicast'], list):
+        coherence_ports.extend(sysconfig['oci']['network']['ports']['coherence_unicast'])
+    elif isinstance(sysconfig['oci']['network']['ports']['coherence_unicast'], str):
+        coherence_ports.append(sysconfig['oci']['network']['ports']['coherence_unicast'])
     # check if shared config and runtime filesystems are used otherwise leave vars blank
     config_fs = ""
     config_mount = ""
@@ -1880,6 +1891,8 @@ def main():
                                             runtime_mount)
                         line = line.replace("%%PRODUCTS_MOUNT%%", 
                                             f"{sysconfig['prem']['wls']['mountpoints']['products']}")
+                        line = line.replace("%%JDK_PATH%%",
+                                            f"{sysconfig['prem']['wls']['jdk_path']}")                     
                         line = line.replace("%%PORTS%%", 
                                             f"({' '.join(fw_ports)})")
                         line = line.replace("%%COHERENCE_PORTS%%", 
@@ -1956,7 +1969,9 @@ def main():
                             line = line.replace("%%PRODUCTS_PATH%%",
                                                 sysconfig['prem']['ohs']['products_path'])
                             line = line.replace("%%PRIVATE_CFG_PATH%%",
-                                                sysconfig['prem']['ohs']['config_path'])
+                                                f"{sysconfig['prem']['ohs']['config_path']}")
+                            line = line.replace("%%JDK_PATH%%", 
+                                                f"{sysconfig['prem']['ohs']['jdk_path']}")                       
                             line = line.replace("%%SSH_PUB_KEY%%", ssh_key)
                         outfile.write(line)
             logger.writelog("info", f"Creating OHS node {sysconfig['oci']['ohs']['nodes'][idx]['name']}")

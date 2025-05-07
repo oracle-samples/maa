@@ -8,7 +8,7 @@ class OciManager:
     shape_name = "VM.Standard.E3.Flex"
 
 
-    def __init__(self, compartment, config_path=None):
+    def __init__(self, compartment, config_path=None, is_soa=False):
         """Constructor
 
         Args:
@@ -17,6 +17,10 @@ class OciManager:
             config_path (filepath, optional): Path of oci config file. 
                     Defaults to None in which case the oci sdk default of 
                     /home/<user>/.oci/config will be used
+            is_soa (bool, optional): If SOA domain. If true, will use 
+                    Oracle SOA Suite Compute Image (PAID) for weblogic nodes.
+                    Otherwise will use Oracle WebLogic Suite UCM Image.
+                    Defaults to False.
 
         Raises:
             ValueError: If compartment ID is not a valid OCID
@@ -42,6 +46,8 @@ class OciManager:
         if not success:
             raise RuntimeError(f"Cannot retrieve availability domains: {ret}")
         self.availability_domains = ret
+        if is_soa:
+            self.weblogic_image = "Oracle SOA Suite Compute Image (PAID)"
 
     def _is_valid_ocid(self, ocid):
         """Checks if given OCID is valid
@@ -1921,9 +1927,9 @@ class OciManager:
                         and exception encountered 
         """
         if type.lower() == 'wls':
-            image = OciManager.weblogic_image
+            image = self.weblogic_image
         elif type.lower() =='ohs':
-            image = OciManager.ohs_image
+            image = self.ohs_image
         else:
             return False, f"Wrong value for parameter type: {type}"
         if not self._is_valid_name(name):

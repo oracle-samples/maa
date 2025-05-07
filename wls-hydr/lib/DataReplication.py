@@ -394,6 +394,26 @@ def pull(logger, config, data, instance):
                 logger.writelog("error", f"Pull failed: {reason}")
                 logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                 pull_successful = False
+            # also pull jdk with products if path supplied in config
+            if not config[DIRECTORIES]['WLS_JDK_DIR']:
+                logger.writelog("info", "WLS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not pull")
+            else:
+                logger.writelog("info", f"Pulling WLS jdk from primary [{PRIMARY}]")
+                pull_success, reason = transfer_data(
+                    transfer_type='pull',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[PRIMARY]['wls_osuser'],
+                    host=primary_wls_nodes[0],
+                    key_path=config[PRIMARY]["wls_ssh_key"],
+                    origin_path=config[DIRECTORIES]['WLS_JDK_DIR'],
+                    destination_path=config[DIRECTORIES]['STAGE_WLS_JDK_DIR'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries']
+                )
+                if not pull_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    pull_successful = False
         # pull wls private config from primary - if requested
         if any(dta in data for dta in ['private_config', 'all']):
             for index in range(len(primary_wls_nodes)):
@@ -540,6 +560,7 @@ def pull(logger, config, data, instance):
         if len(primary_ohs_nodes) == 0:
             logger.writelog("info", "OHS not used - will not attempt any OHS related pull")
         else:
+            # pull ohs products
             if any(dta in data for dta in ['products', 'all']):
                 logger.writelog("info", f"Pulling OHS products1 from primary [{PRIMARY}]")
                 pull_success, reason = transfer_data(
@@ -575,6 +596,26 @@ def pull(logger, config, data, instance):
                     logger.writelog("error", f"Pull failed: {reason}")
                     logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     pull_successful = False
+                # also pull jdk with products if jdk path supplied in config
+                if not config[DIRECTORIES]['OHS_JDK_DIR']:
+                    logger.writelog("info", "OHS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not pull")
+                else:
+                    logger.writelog("info", f"Pulling OHS jdk from primary [{PRIMARY}]")
+                    pull_success, reason = transfer_data(
+                        transfer_type='pull',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[PRIMARY]['ohs_osuser'],
+                        host=primary_ohs_nodes[0],
+                        key_path=config[PRIMARY]["ohs_ssh_key"],
+                        origin_path=config[DIRECTORIES]['OHS_JDK_DIR'],
+                        destination_path=config[DIRECTORIES]['STAGE_OHS_JDK_DIR'],
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries']
+                    )
+                    if not pull_success:
+                        logger.writelog("error", f"Pull failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        pull_successful = False
             # pull ohs private config - if requested
             if any(dta in data for dta in ['private_config', 'all']):
                 for index in range(len(primary_ohs_nodes)):
@@ -642,6 +683,51 @@ def push(logger, config, data, instance):
                 logger.writelog("error", f"Pull failed: {reason}")
                 logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                 push_successful = False
+            # also push jdk to all wls nodes if path supplied in config
+            if not config[DIRECTORIES]['WLS_JDK_DIR']:
+                logger.writelog("info", "WLS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not push")
+            else:
+                logger.writelog("info", "Pushing JDK to all WLS nodes")
+                for index in range(len(standby_wls_nodes)):
+                    ssh_client = paramiko.SSHClient()
+                    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[index], key_filename=config[STANDBY]["wls_ssh_key"])
+                    sftp_client = ssh_client.open_sftp()
+                    logger.writelog("debug", f"Checking destination directory exists on WLS node {index + 1}: {config[DIRECTORIES]['WLS_JDK_DIR']}")
+                    try:
+                        sftp_client.stat(config[DIRECTORIES]['WLS_JDK_DIR'])
+                    except IOError as e:
+                        if e.errno == errno.ENOENT:
+                            logger.writelog("debug", "Destination directory does not exist - attempting to create")
+                            stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {config[DIRECTORIES]['WLS_JDK_DIR']}")
+                            error = stderr.read().decode()
+                            if error:
+                                logger.writelog("error", f"Failed creating remote destination directory: {error}")
+                                push_successful = False
+                                continue
+                        else:
+                            logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
+                            push_successful = False
+                            continue
+                    sftp_client.close()
+                    ssh_client.close()
+                    logger.writelog("info", f"Pushing JDK to WLS node {index + 1}")
+                    push_success, reason = transfer_data(
+                        transfer_type='push',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[STANDBY]['wls_osuser'],
+                        host=standby_wls_nodes[index],
+                        key_path=config[STANDBY]["wls_ssh_key"],
+                        origin_path=config[DIRECTORIES]['STAGE_WLS_JDK_DIR'],
+                        destination_path=config[DIRECTORIES]['WLS_JDK_DIR'],
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries']
+                    )
+                    if not push_success:
+                        logger.writelog("error", f"Push failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        push_successful = False
+
         # push wls private config to standby - if requested
         if any(dta in data for dta in ['private_config', 'all']):
             for index in range(len(standby_wls_nodes)):
@@ -706,7 +792,7 @@ def push(logger, config, data, instance):
                 origin_dp_path = destination_dp_path.replace(config[DIRECTORIES]['WLS_SHARED_CONFIG_DIR'], config[DIRECTORIES]['STAGE_WLS_SHARED_CONFIG_DIR'])
                 logger.writelog("debug", f"Deployment plan directory origin path: {origin_dp_path}")
                 logger.writelog("debug", f"Deployment plan directory destination path: {destination_dp_path}")
-                # transfer applications, domain an dp but make sure destination dirs exist first
+                # transfer applications, domain and dp but make sure destination dirs exist first
                 ssh_client = paramiko.SSHClient()
                 ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh_client.connect(username=config[STANDBY]['wls_osuser'], hostname=standby_wls_nodes[0], key_filename=config[STANDBY]["wls_ssh_key"])
@@ -853,6 +939,50 @@ def push(logger, config, data, instance):
                         logger.writelog("error", f"Push failed: {reason}")
                         logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                         push_successful = False
+                    # also push jdk with products if path supplied in config
+                    if not config[DIRECTORIES]['OHS_JDK_DIR']:
+                        logger.writelog("info", "OHS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not push")
+                    else:
+                        logger.writelog("info", f"Attempting to push OHS node {index + 1} JDK")
+                        ssh_client = paramiko.SSHClient()
+                        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                        ssh_client.connect(username=config[STANDBY]['ohs_osuser'], hostname=standby_ohs_nodes[index], key_filename=config[STANDBY]["ohs_ssh_key"])
+                        sftp_client = ssh_client.open_sftp()
+                        logger.writelog("debug", f"Checking destination directory exists on OHS node {index + 1}: {config[DIRECTORIES]['OHS_JDK_DIR']}")
+                        try:
+                            sftp_client.stat(config[DIRECTORIES]['OHS_JDK_DIR'])
+                        except IOError as e:
+                            if e.errno == errno.ENOENT:
+                                logger.writelog("debug", "Destination directory does not exist - attempting to create")
+                                stdin, stdout, stderr = ssh_client.exec_command(f"mkdir -p {config[DIRECTORIES]['OHS_JDK_DIR']}")
+                                error = stderr.read().decode()
+                                if error:
+                                    logger.writelog("error", f"Failed creating remote destination directory: {error}")
+                                    push_successful = False
+                                    continue
+                            else:
+                                logger.writelog("error", f"Cannot check remote destination directory exists: {str(e)}")
+                                push_successful = False
+                                continue
+                        sftp_client.close()
+                        ssh_client.close()
+                        logger.writelog("info", f"Pushing JDK to OHS node {index + 1}")
+                        push_success, reason = transfer_data(
+                            transfer_type='push',
+                            use_delete=config.getboolean(OPTIONS, 'delete'),
+                            username=config[STANDBY]['ohs_osuser'],
+                            host=standby_ohs_nodes[index],
+                            key_path=config[STANDBY]["ohs_ssh_key"],
+                            origin_path=config[DIRECTORIES]['STAGE_OHS_JDK_DIR'],
+                            destination_path=config[DIRECTORIES]['OHS_JDK_DIR'],
+                            logger=logger,
+                            retries=config[OPTIONS]['rsync_retries']
+                        )
+                        if not push_success:
+                            logger.writelog("error", f"Push failed: {reason}")
+                            logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                            push_successful = False
+
             # push ohs private config - if requested
             if any(dta in data for dta in ['private_config', 'all']):
                 for index in range(len(standby_ohs_nodes)):

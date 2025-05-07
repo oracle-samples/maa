@@ -11,6 +11,7 @@ PORTS=%%PORTS%%
 HOSTNAME_ALIAS="%%HOSTNAME_ALIAS%%"
 PRODUCTS_PATH="%%PRODUCTS_PATH%%"
 PRIVATE_CFG_PATH="%%PRIVATE_CFG_PATH%%"
+JDK_PATH="%%JDK_PATH%%"
 SSH_PUB_KEY="%%SSH_PUB_KEY%%"
 
 function log(){
@@ -355,6 +356,21 @@ chown -R "$USER_NAME:$GROUP_NAME" "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1
 chmod 700 "/home/$USER_NAME/.ssh" >> "$LOG_FILE" 2>&1
 chmod 600 "/home/$USER_NAME/.ssh/authorized_keys" >> "$LOG_FILE" 2>&1
 
+if [[ -n "$JDK_PATH" ]] && [[ ! "$JDK_PATH" =~ "%%" ]]; then
+    log "info" "Custom JDK path set to $JDK_PATH - creating directory" 
+    if ! mkdir -p "$JDK_PATH" >> "$LOG_FILE" 2>&1; then
+        log "error" "Failed creating $JDK_PATH directory"
+        FAILURE='true'
+    else
+        log "info" "Setting permissions on $JDK_PATH directory"
+        if ! chown -R "$USER_NAME:$GROUP_NAME" "$JDK_PATH" 2>&1 >> "$LOG_FILE" 2>&1; then 
+            log "error" "Failed setting correct permissions for $JDK_PATH"
+            FAILURE='true'
+        else 
+            log "info" "$JDK_PATH correct permissions set"
+        fi
+    fi 
+fi
 
 log "info" "Opening firewalld ports"
 for port in "${PORTS[@]}"; do
