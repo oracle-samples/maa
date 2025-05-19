@@ -1848,6 +1848,9 @@ def main():
         coherence_ports = sysconfig['oci']['network']['ports']['coherence_cluster']
     elif isinstance(sysconfig['oci']['network']['ports']['coherence_cluster'], str):
         coherence_ports = [sysconfig['oci']['network']['ports']['coherence_cluster']]
+    # add default coherence cluster port 7574 if no value supplied in csv input
+    if not coherence_ports:
+        coherence_ports = [7574]
     if isinstance(sysconfig['oci']['network']['ports']['coherence_unicast'], list):
         coherence_ports.extend(sysconfig['oci']['network']['ports']['coherence_unicast'])
     elif isinstance(sysconfig['oci']['network']['ports']['coherence_unicast'], str):

@@ -455,7 +455,7 @@ for config_path in coherence_configs:
             if match:
                 coherence_cluster_ports.append(match[1])
 logger.writelog("debug", f"Coherence cluster ports: {coherence_cluster_ports}")
-add_info("coherence_cluster_ports", "oci-network-ports-coherence_cluster/port", "Coherence cluster ports", coherence_cluster_ports, True)
+add_info("coherence_cluster_ports", "oci-network-ports-coherence_cluster/opt", "Coherence cluster ports", coherence_cluster_ports, True)
 
 # coherence unicast ports
 coherence_unicast_ports = []
@@ -464,7 +464,7 @@ coherence_unicast_ports.extend([x+y for y in range(6) for x in coherence_unicast
 coherence_unicast_ports = list(set(coherence_unicast_ports))
 coherence_unicast_ports = [str(x) for x in coherence_unicast_ports]
 logger.writelog("debug", f"Coherence unicast ports: {coherence_unicast_ports}")
-add_info("coherence_unicast_ports", "oci-network-ports-coherence_unicast/port", "Coherence unicast ports", coherence_unicast_ports, True)
+add_info("coherence_unicast_ports", "oci-network-ports-coherence_unicast/opt", "Coherence unicast ports", coherence_unicast_ports, True)
 
 # WLS info
 # number of wls nodes
