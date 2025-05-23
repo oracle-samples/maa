@@ -14,19 +14,19 @@
 ### It can be customizez together with rsync_copy_and_validate.sh to operate in a "push" model copying local folder to remote nodes.
 ### Usage:
 ###
-###      	./rsync_for_WLS.sh [REMOTE_NODE_IP] [REMOTE_FOLDER] [SSH_KEYFILE]
+###      	./rsync_for_WLS.sh [REMOTE_NODE_IP] [REMOTE_FOLDER] [SSH_SSH_KEYFILE]
 ### Where:
 ###		REMOTE_NODE_IP:
 ###			The IP of the nodes where things are copied from.
 ###		REMOTE_FOLDER:
 ###			The directory that will be copied n the exact same path in this node.
-###		SSH_KEYFILE:
+###		SSH_SSH_KEYFILE:
 ###			The ssh key file to be used for the ssh connection used by rsync (can be skiped if password-based ssh is used)
 ### Use the script separately for each type of data in your WebLogic Domain. 
 ### For example:
 ### -To replicate the primary system's ORACLE_HOME and JDK location used in the Enteprise Deployment Guide:
 ### rsync_for_WLS.sh 172.11.2.113 /u01/oracle/products /home/oracle/keys/SSHKey.priv"
-### -To replicate the primary system's WebLogic Domain  shared configuration used in the Enteprise Deployment Guide:
+### -To replicate the primary system's WebLogic Domain shared configuration used in the Enteprise Deployment Guide:
 ### rsync_for_WLS.sh 172.11.2.113 /u01/oracle/config /home/oracle/keys/SSHKey.priv"
 ### -To replicate the primary system's WebLogic Domain private configuration used in the Enteprise Deployment Guide:
 ### rsync_for_WLS.sh 172.11.2.113 /u02/oracle/config /home/oracle/keys/SSHKey.priv"
@@ -36,8 +36,8 @@ if [[ $# -eq 3 ]];
 then
 	REMOTE_NODE=$1
 	LOCAL_CONFIG_FOLDER=$2
-	KEYFILE=$3
-	export KEYFILE
+	SSH_KEYFILE=$3
+	export SSH_KEYFILE
 elif [[ $# -eq 2 ]];
 then
 	REMOTE_NODE=$1
@@ -49,7 +49,7 @@ else
     	echo "Usage:"
 	echo ""
 	echo "-To run rsync using a keyfile for the ssh connection use this syntax: (ssh key-file needs to be set up before running the script)"
-    	echo "    $0 [REMOTE_NODE_IP] [REMOTE_FOLDER] [SSH_KEYFILE]"
+    	echo "    $0 [REMOTE_NODE_IP] [REMOTE_FOLDER] [SSH_SSH_KEYFILE]"
 	echo ""
 	echo "-To run rsync using a password-based ssh connection use this syntax: (password-based ssh needs to be set up before running the script)"
 	echo "    $0 [REMOTE_NODE] [DIRECTORY]"
@@ -88,4 +88,4 @@ EXCLUDE_LIST="${CUSTOM_EXCLUDE_LIST} ${EXCLUDE_LIST_MSERVER} ${EXCLUDE_LIST_NM}"
 
 # Run the script
 mkdir -p $LOCAL_CONFIG_FOLDER
-$exec_path/rsync_copy_and_validate.sh $ORIGIN_FOLDER $DEST_FOLDER $REMOTE_NODE "$EXCLUDE_LIST"
+$exec_path/rsync_copy_and_validate.sh $ORIGIN_FOLDER $DEST_FOLDER $REMOTE_NODE true "$EXCLUDE_LIST"
