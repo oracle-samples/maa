@@ -4,22 +4,69 @@
 ## Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 ##
 ### This script is used to perform an rsync copy "from" or "to" a remote node and validate the contets replicated.
-### In context of a Oracle FMW 14.1.2 Disaster Recovery sytem, this scripts is invoked by rsync_for_WLS
-### to replicate the OHOME, WebLogic Domain Direcotry etc.
+### In context of a Oracle FMW 14.1.2 Disaster Recovery sytem, this script is invoked by rsync_for_WLS.sh
+### to replicate the OHOME, WebLogic Private Configuration and Shared configuration 
+### Refer to the Oracle® Fusion Middleware EDG for directory and storage configurattion details: 
+### https://docs.oracle.com/en/middleware/fusion-middleware/12.2.1.4/soedg/.
+### TBA Link to DR Guide.
+### If the SSH_KEYFILE env variable is set, it uses it for a key-based rsync over ssh
+### If the SSH_KEYFILE env variable is not set, it uses a password-based rsync over ssh
+### Usage:
+###
+###      	./rsync_copy_and_validate.sh [ORIGIN_FOLDER] [DEST_FOLDER] [REMOTE_NODE_IP] [COPY_FROM] "[EXCLUDE_LIST]" 
+### Where:
+###		ORIGIN_FOLDER:
+###			The folder in the source to copy from.
+###		DEST_FOLDER:
+###			The folder in the target to copy to.
+###		REMOTE_NODE_IP:
+###			The remote node's IP.
+###		COPY_FROM:
+###			TRUE/FALSE param. If TRUE, the script copies from a remote node, if FALSE it copies to that node.
+###		EXCLUDE_LIST
+###			Optional parameter. If provided, it must be passed between double quotes because it contains blank spaces.
+###  		For example: "--exclude 'dir1/' --exclude 'dir2/'"
+### Examples:
+###		-To copy from node 172.11.2.113's folder /u01/oracle/config to this node's (executing the script) folder /u01/stage
+### 	excluding directories tmp and logs 
+###			./rsync_copy_and_validate.sh /u01/oracle/config /u01/oracle/config/stage 172.11.2.113 true "--exclude 'tmp/' --exclude 'logs/'"
+###		-To copy to node 172.11.2.113's folder /u01/oracle/config from this node's (executing the script) folder /u01/stage
+### 	excluding directories tmp and logs 
+###			./rsync_copy_and_validate.sh /u01/oracle/config/stage /u01/oracle/config 172.11.2.113 false"
 
-###########################################################################
-# INPUT PARAMETERS
-###########################################################################
-# Usage:
-# rsync_copy_and_validate.sh [ORIGIN_FOLDER] [DEST_FOLDER] [REMOTE_NODE] "[EXCLUDE_LIST]"
-# NOTE: "EXCLUDE_LIST" is optional parameter. If provided, it must be passed between double quotes 
-# because it contains blank spaces.
-# For example: "--exclude 'dir1/' --exclude 'dir2/'"
+if [[ $# -eq 5 ]];
+then
+	ORIGIN_FOLDER=$1
+	DEST_FOLDER=$2
+	REMOTE_NODE_IP=$3
+	COPY_FROM=$4
+	EXCLUDE_LIST=$5
+elif [[ $# -eq 4 ]];
+then
+	ORIGIN_FOLDER=$1
+	DEST_FOLDER=$2
+	REMOTE_NODE_IP=$3
+	COPY_FROM=$4
+else
+	echo ""
+    echo "ERROR: Incorrect number of parameters used: Expected 4 or 5, got $#"
+    echo ""
+    echo "Usage:"
+	echo ""
+	echo "$0 [ORIGIN_FOLDER] [DEST_FOLDER] [REMOTE_NODE_IP] [COPY_FROM] \"[EXCLUDE_LIST]\""
+	echo ""
+	echo "-To copy from node REMOTE_NODE_IP folder REMOTE_FOLDER to this node's (executing the script) folder DEST_FOLDER with EXCLUDE_LIST"
+  	echo "    $0 [ORIGIN_FOLDER] [DEST_FOLDER] [REMOTE_NODE_IP] true \"[EXCLUDE_LIST]\""
+	echo ""
+	echo "-To copy to node REMOTE_NODE_IP folder REMOTE_FOLDER from this node's (executing the script) folder DEST_FOLDER without a EXCLUDE_LIST"
+	echo "    $0 [ORIGIN_FOLDER] [DEST_FOLDER] [REMOTE_NODE_IP] false"
+	echo ""
+    echo "Examples:  "
+    echo "    $0  /u01/oracle/config /u01/oracle/config/stage 172.11.2.113 true \"--exclude 'tmp/' --exclude 'logs/'\" "
+	echo "    $0  /u01/oracle/config/stage /u01/oracle/config 172.11.2.113 false "
+	exit 1
+fi
 
-ORIGIN_FOLDER=$1
-DEST_FOLDER=$2
-REMOTE_NODE=$3
-EXCLUDE_LIST=$4
 
 ###########################################################################
 # END OF INPUT PARAMETERS
@@ -83,12 +130,12 @@ else
 fi
 
 
-if [ -z "${REMOTE_NODE}" ]; then
-        echo "Error: REMOTE_NODE not passed as input parameter"
+if [ -z "${REMOTE_NODE_IP}" ]; then
+        echo "Error: REMOTE_NODE_IP not passed as input parameter"
         exit 1
 else
-        echo "-REMOTE_NODE:"
-     	echo "			$REMOTE_NODE"
+        echo "-REMOTE_NODE_IP:"
+     	echo "			$REMOTE_NODE_IP"
 fi
 
 if [ -z "${EXCLUDE_LIST}" ]; then
@@ -118,10 +165,10 @@ echo ""
 ###########################################################################
 
 copy_from_remote(){
-        if [ -z "$KEYFILE" ]; then
+        if [ -z "$SSH_KEYFILE" ]; then
                 SSH_OPTION=""
         else
-                SSH_OPTION="-e \"ssh -i ${KEYFILE}\""
+                SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
         fi
 
         if [ "$DELETE" = true ] ; then
@@ -131,21 +178,19 @@ copy_from_remote(){
         fi
 	echo ""
         echo "" | tee -a ${LOG_FILE}
-        echo "Copying from ${REMOTE_NODE}:${DEST_FOLDER} to ${ORIGIN_FOLDER}..."  | tee -a ${LOG_FILE}
-        rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${USER}@${REMOTE_NODE}:${DEST_FOLDER}/ ${ORIGIN_FOLDER}/"
+        echo "Copying from ${REMOTE_NODE_IP}:${DEST_FOLDER} to ${ORIGIN_FOLDER}..."  | tee -a ${LOG_FILE}
+        rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${USER}@${REMOTE_NODE_IP}:${ORIGIN_FOLDER}/ ${DEST_FOLDER}/"
 	echo "(You can check rsync command and exclude list in ${LOG_FILE})"
         eval $rsync_command >> ${LOG_FILE}
 	echo ""
 }
 
 
-
-
 copy_to_remote(){
-	if [ -z "$KEYFILE" ]; then
+	if [ -z "$SSH_KEYFILE" ]; then
 		SSH_OPTION=""
 	else
-		SSH_OPTION="-e \"ssh -i ${KEYFILE}\""
+		SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
 	fi
 	
 	if [ "$DELETE" = true ] ; then
@@ -155,9 +200,9 @@ copy_to_remote(){
 	fi
 	echo ""
 	echo "" | tee -a ${LOG_FILE}
-	echo "Copying ${ORIGIN_FOLDER} to ${REMOTE_NODE}:${DEST_FOLDER}..."  | tee -a ${LOG_FILE}
+	echo "Copying ${ORIGIN_FOLDER} to ${REMOTE_NODE_IP}:${DEST_FOLDER}..."  | tee -a ${LOG_FILE}
 	echo ""
-	rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE}:${DEST_FOLDER}/"
+	rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/"
 	echo ""
 	echo "(Check rsync command nd exclud elist used in ${LOG_FILE})"
 	eval $rsync_command >> ${LOG_FILE}
@@ -170,8 +215,8 @@ validate_copy(){
 	max_rsync_retries=4
 	stilldiff="true"
         diff_file=${LOG_FILE}_diffs
-	rsync_compare_command="rsync ${SSH_OPTION} -niaHc ${EXCLUDE_LIST} ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE}:${DEST_FOLDER}/ --modify-window=1"
-	rsync_pending_command="rsync ${SSH_OPTION} --stats --modify-window=1 --files-from=${diff_file}_pending ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE}:${DEST_FOLDER}/"
+	rsync_compare_command="rsync ${SSH_OPTION} -niaHc ${EXCLUDE_LIST} ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/ --modify-window=1"
+	rsync_pending_command="rsync ${SSH_OPTION} --stats --modify-window=1 --files-from=${diff_file}_pending ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/"
 	while [ $stilldiff == "true" ]
 	do
 		eval $rsync_compare_command > $diff_file 
@@ -218,13 +263,19 @@ validate_copy(){
 ###########################################################
 
 echo "Starting rsync copy..."
-
+if [ "$COPY_FROM" = true ] ; then
+	echo "Copying from remote location..."
+	copy_from_remote
+elif [ "$COPY_FROM" = false ] ; then
+	echo "Copying to remote location..."
+	copy_to_remote	
+else 
+	echo "Incorrect value/syntax provided for parameter COPY_FROM."
+	echo "Check scripts syntax!"
+fi
 #copy_to_remote
 copy_from_remote
-
 echo "rsync copy complete! "
-echo ""
-
 if [ "$VALIDATE" = true ] ; then
 	echo "Running rsync validation..."
 	validate_copy
