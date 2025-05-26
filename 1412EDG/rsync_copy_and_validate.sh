@@ -178,7 +178,7 @@ copy_from_remote(){
         fi
 		echo ""
         echo "" | tee -a ${LOG_FILE}
-        echo "Copying from ${REMOTE_NODE_IP}:${DEST_FOLDER} to ${ORIGIN_FOLDER}..."  | tee -a ${LOG_FILE}
+        echo "Copying from ${REMOTE_NODE_IP}:${ORIGIN_FOLDER} to ${DEST_FOLDER}..."  | tee -a ${LOG_FILE}
         rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${USER}@${REMOTE_NODE_IP}:${ORIGIN_FOLDER}/ ${DEST_FOLDER}/"
 		echo "(You can check rsync command and exclude list in ${LOG_FILE})"
         eval $rsync_command >> ${LOG_FILE}

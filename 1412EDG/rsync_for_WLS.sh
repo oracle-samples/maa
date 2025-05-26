@@ -67,7 +67,13 @@ fi
 
 ORIGIN_FOLDER=$LOCAL_CONFIG_FOLDER
 
-DEST_FOLDER=$LOCAL_CONFIG_FOLDER
+if [ -z "${DEST_FOLDER}" ]; then
+	echo ""
+	echo "(Variable DEST_FOLDER is not set so will use same path in target as in source for the copy.)"
+	DEST_FOLDER=$LOCAL_CONFIG_FOLDER
+else
+        echo "WIll use $DEST_FOLDER as local path for copy"
+fi
 
 # Provide custom exclude list. These folders/files will not be included in the rsync copy
 #CUSTOM_EXCLUDE_LIST="--exclude dir1/ --exclude dir2/"
