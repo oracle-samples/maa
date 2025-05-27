@@ -248,8 +248,8 @@ def main():
                 "name" : f"{sysconfig['oci']['wls']['node_prefix']}BV{count + 1}"
             })
         
-    # 2 products filesystems
-    for suffix in [1, 2]:
+    # 2 products filesystems if more than 1 wls node, else 1
+    for suffix in range(1, min(int(sysconfig['oci']['wls']['nodes_count']), 2) + 1):
         sysconfig['oci']['storage']['fss']['products'].append(
             {
                 "name" : f"{sysconfig['oci']['storage']['fss']['products_prefix_name']}{suffix}", 
@@ -277,6 +277,8 @@ def main():
             logger.writelog("error", "SOA domain selected, but OS version selected is lower than the minimum 8.")
             exit_failure(logger, sysconfig_file, 1)
     # get domain from wls fqdn listen addresses
+    if type(sysconfig['prem']['wls']['listen_addresses']) != list:
+        sysconfig['prem']['wls']['listen_addresses'] = [sysconfig['prem']['wls']['listen_addresses']]
     sysconfig['prem']['network']['fqdn'] = re.match(r".*?\.(.*)", sysconfig['prem']['wls']['listen_addresses'][0])[1]
     # strip domain from listen addresses - expected format for creating private views
     for idx in range(0, len(sysconfig['prem']['wls']['listen_addresses'])):

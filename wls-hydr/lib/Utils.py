@@ -273,13 +273,10 @@ class Utils:
         if validation_type in ['pull', 'lifecycle', 'tnsnames']:
             primary_ohs_nodes = config[PRIMARY]['ohs_nodes'].split("\n") if config[PRIMARY]['ohs_nodes'] else []
             primary_wls_nodes = config[PRIMARY]['wls_nodes'].split("\n")
-            # check that we have at least 2 wls and 2 ohs nodes if ohs is used
-            if len(primary_ohs_nodes) < 2 and len(primary_ohs_nodes) != 0:
+            # check that we have at least 1 wls node
+            if len(primary_wls_nodes) < 1:
                 valid = False
-                errors.append(f"A minimum of 2 primary OHS nodes required - [{len(primary_ohs_nodes)}] present in config file")
-            if len(primary_wls_nodes) < 2:
-                valid = False
-                errors.append(f"A minimum of 2 primary WLS nodes required - [{len(primary_wls_nodes)}] present in config file")
+                errors.append(f"A minimum of 1 primary WLS nodes required - [{len(primary_wls_nodes)}] present in config file")
             for ip in primary_ohs_nodes:
                 if not Utils.validate_ip(ip):
                     valid = False
@@ -311,12 +308,9 @@ class Utils:
         if validation_type in ['push', 'lifecycle', 'tnsnames']:
             standby_ohs_nodes = config[STANDBY]['ohs_nodes'].split("\n") if config[STANDBY]['ohs_nodes'] else []
             standby_wls_nodes = config[STANDBY]['wls_nodes'].split("\n")
-            if len(standby_ohs_nodes) < 2 and len(standby_ohs_nodes) != 0:
+            if len(standby_wls_nodes) < 1:
                 valid = False
-                errors.append(f"A minimum of 2 standby OHS nodes required - [{len(standby_ohs_nodes)}] present in config file")
-            if len(standby_wls_nodes) < 2:
-                valid = False
-                errors.append(f"A minimum of 2 standby WLS nodes required - [{len(standby_wls_nodes)}] present in config file")
+                errors.append(f"A minimum of 1 standby WLS nodes required - [{len(standby_wls_nodes)}] present in config file")
             for ip in standby_ohs_nodes:
                 if not Utils.validate_ip(ip):
                     valid = False
