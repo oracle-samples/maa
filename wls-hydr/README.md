@@ -82,12 +82,12 @@ In it's default configuration the WLS_HYDR framework assumes that:
 -   Every WebLogic Server, including the Admin Server, uses a precise hostname as listen address. This means the listen address is not blank nor an IP.
 -   There is a single WebLogic Managed Servers' listen address per host in the WebLogic domain. This address may resolve to a different IP from the one provided for the SSH access. I.e. all WebLogic Managed servers in node "A" in a domain use the same hostname for their listen addresses (different port). The Admin Server, however, can listen on an additional virtual hostname (VHN mapping to a VIP). This is the recommended approach for and Enterprise Deployment (where the Admin Server can failover across nodes in the domain). These VHN and VIP must be manually configured in secondary after running the framework.
 -   The nodes in the WebLogic domain have access to the domain shared config folder (used to failover the Admin Server).
--   There is one WebLogic domain configuration folder private to each WebLogic host. This directory does not reside directly in the boot volume /. Using the boot volume in primary for storing the domain config is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations). Each private domain configuration folder can be an NFS private mount or a Block Volume, mounted individually in each host in the WLS domain.
--   The Oracle products installations in the WebLogic hosts do not reside in the boot volume /. Using boot volume in primary for storing binaries is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations). By default, the WLS_HYDR framework assumes that there are 2 redundant shared binary homes (NFS) in primary: one mounted by half of the nodes and the other mounted by the other half. This is the configuration recommended by the Enterprise Deployment Guide and is also the storage topology that is created in OCI.
+-   There is one WebLogic domain configuration folder private to each WebLogic host. This directory does not reside directly in the boot volume /. Using the boot volume in primary for storing the domain config is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations-in-primary). Each private domain configuration folder can be an NFS private mount or a Block Volume, mounted individually in each host in the WLS domain.
+-   The Oracle products installations in the WebLogic hosts do not reside in the boot volume /. Using boot volume in primary for storing binaries is supported by the framework also, although not recommended. Refer to [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations-in-primary). By default, the WLS_HYDR framework assumes that there are 2 redundant shared binary homes (NFS) in primary: one mounted by half of the nodes and the other mounted by the other half. This is the configuration recommended by the Enterprise Deployment Guide and is also the storage topology that is created in OCI.
 -   A TNS alias is used in the database connection strings of the primary WebLogic's datasources. TNS alias can be configured before the execution of the Hybrid DR framework. Using TNS alias is recommended even without DR in the picture. Refer to Database Considerations in the Oracle FMW DR Guide for details (https://docs.oracle.com/en/middleware/fusion-middleware/12.2.1.4/asdrg/setting-and-managing-disaster-recovery-sites.html#GUID-445693AB-B592-4E11-9B44-A208444B75F2)
 -   The WebLogic Administration Server runs collocated with managed servers in one of the hosts.
 
-See the section below [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations) for non-default configurations and how to use this framework with them.
+See the section below [ABOUT TOPOLOGY VARIATIONS](#about-topology-variations-in-primary) for non-default configurations and how to use this framework with them.
 
 Users and roles required
 --------------------------------------
@@ -461,6 +461,9 @@ In this case the WLS_HYDR framework will create an HTTP listener and the user wi
 
 #### 8. The topology is using an different HTTP server from OHS
 In this case, use the tool as prescribed in variation #5 and then manually configure the LBR, the HTTP server nodes and the HTTP server itself.
+
+#### 9. The topology is using a single OHS node and a single WLS node
+Oracle does not recommend configuring Disaster Protection when primary is not highly available in the scope of the primary data center (providing local redundancy for each component ). The WLS_HYDR framework, however, supports this use case for testing and development purposes.  In this case, use the tool providing only one IP for OHS and one IP for WLS in the appropriate properties in the prem.env file. The framework will create only one node in OCI for OHS and only one node for WLS in secondary.
 
 KNOWN ISSUES/ OTHER LIMITATIONS
 ==================================================

@@ -125,7 +125,8 @@ else:
     try:
         DataReplication.run(args.debug, "pull")
     except Exception as e:
-        logger.writelog("error", "Pulling data from primary environment failed - please check specific logs for more information and help")
+        logger.writelog("error", f"Pulling data from primary environment failed: {repr(e)}")
+        logger.writelog("error", "Please check specific logs for more information and help")
         custom_exit(1)
         
 logger.writelog("info", "Running discovery")
@@ -160,7 +161,8 @@ logger.writelog("info", "Pushing data to newly created OCI resources")
 try:
     DataReplication.run(args.debug, "push")
 except Exception as e:
-    logger.writelog("error", "Pushing data to secondary environment failed - please check specific logs for more information and help")
+    logger.writelog("error", f"Pushing data to secondary environment failed: {repr(e)}")
+    logger.writelog("Please check specific logs for more information and help")
     custom_exit(1)
 
 if args.no_connectivity:
@@ -170,13 +172,15 @@ else:
     try:
         DataReplication.run(args.debug, "tnsnames", pull=True)
     except Exception as e:
-        logger.writelog("error", "Pulling tnsnames.ora file from primary environment failed - please check specific logs for more information and help")
+        logger.writelog("error", f"Pulling tnsnames.ora file from primary environment failed; {repr(e)}")
+        logger.writelog("Please check specific logs for more information and help")
         custom_exit(1)
 
 logger.writelog("info", "Updating staged tnsnames.ora file and uploading to secondary environment")
 try:
     DataReplication.run(args.debug, "tnsnames", push=True)
 except Exception as e:
-    logger.writelog("error", "Updating and/or uploading tnsnames.ora file failed - please check specific logs for more information and help")
+    logger.writelog("error", f"Updating and/or uploading tnsnames.ora file failed: {repr(e)}")
+    logger.writelog("Please check specific logs for more information and help")
     custom_exit(1)
 logger.writelog("info", "All operations completed successfully") 

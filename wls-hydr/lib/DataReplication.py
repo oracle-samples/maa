@@ -377,23 +377,24 @@ def pull(logger, config, data, instance):
                 logger.writelog("error", f"Pull failed: {reason}")
                 logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                 pull_successful = False
-            logger.writelog("info", f"Pulling WLS products2 from primary [{PRIMARY}]")
-            pull_success, reason = transfer_data(
-                transfer_type='pull',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[PRIMARY]['wls_osuser'],
-                host=primary_wls_nodes[1],
-                key_path=config[PRIMARY]["wls_ssh_key"],
-                origin_path=config[DIRECTORIES]['WLS_PRODUCTS'],
-                destination_path=config[DIRECTORIES]['STAGE_WLS_PRODUCTS2'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_products'].split("\n")
-            )
-            if not pull_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                pull_successful = False
+            if len(primary_wls_nodes) > 1:
+                logger.writelog("info", f"Pulling WLS products2 from primary [{PRIMARY}]")
+                pull_success, reason = transfer_data(
+                    transfer_type='pull',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[PRIMARY]['wls_osuser'],
+                    host=primary_wls_nodes[1],
+                    key_path=config[PRIMARY]["wls_ssh_key"],
+                    origin_path=config[DIRECTORIES]['WLS_PRODUCTS'],
+                    destination_path=config[DIRECTORIES]['STAGE_WLS_PRODUCTS2'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_products'].split("\n")
+                )
+                if not pull_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    pull_successful = False
             # also pull jdk with products if path supplied in config
             if not config[DIRECTORIES]['WLS_JDK_DIR']:
                 logger.writelog("info", "WLS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not pull")
@@ -530,7 +531,7 @@ def pull(logger, config, data, instance):
                     stage_destination = f"{config[DIRECTORIES]['STAGE_WLS_SHARED_ADDITIONAL']}/{dir}"
                     if not os.path.isdir(stage_destination):
                         try:
-                            logger.writelog("error", f"Creating directory {stage_destination}")
+                            logger.writelog("info", f"Creating directory {stage_destination}")
                             os.makedirs(stage_destination)
                         except Exception as e:
                             logger.writelog("error", f"Failed creating directory {stage_destination}")
@@ -579,23 +580,24 @@ def pull(logger, config, data, instance):
                     logger.writelog("error", f"Pull failed: {reason}")
                     logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                     pull_successful = False
-                logger.writelog("info", f"Pulling OHS products2 from primary [{PRIMARY}]")
-                pull_success, reason = transfer_data(
-                    transfer_type='pull',
-                    use_delete=config.getboolean(OPTIONS, 'delete'),
-                    username=config[PRIMARY]['ohs_osuser'],
-                    host=primary_ohs_nodes[1],
-                    key_path=config[PRIMARY]["ohs_ssh_key"],
-                    origin_path=config[DIRECTORIES]['OHS_PRODUCTS'],
-                    destination_path=config[DIRECTORIES]['STAGE_OHS_PRODUCTS2'],
-                    logger=logger,
-                    retries=config[OPTIONS]['rsync_retries'],
-                    exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
-                )
-                if not pull_success:
-                    logger.writelog("error", f"Pull failed: {reason}")
-                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                    pull_successful = False
+                if len(primary_ohs_nodes) > 1:
+                    logger.writelog("info", f"Pulling OHS products2 from primary [{PRIMARY}]")
+                    pull_success, reason = transfer_data(
+                        transfer_type='pull',
+                        use_delete=config.getboolean(OPTIONS, 'delete'),
+                        username=config[PRIMARY]['ohs_osuser'],
+                        host=primary_ohs_nodes[1],
+                        key_path=config[PRIMARY]["ohs_ssh_key"],
+                        origin_path=config[DIRECTORIES]['OHS_PRODUCTS'],
+                        destination_path=config[DIRECTORIES]['STAGE_OHS_PRODUCTS2'],
+                        logger=logger,
+                        retries=config[OPTIONS]['rsync_retries'],
+                        exclude_list=config[OPTIONS]['exclude_ohs_products'].split("\n")
+                    )
+                    if not pull_success:
+                        logger.writelog("error", f"Pull failed: {reason}")
+                        logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                        pull_successful = False
                 # also pull jdk with products if jdk path supplied in config
                 if not config[DIRECTORIES]['OHS_JDK_DIR']:
                     logger.writelog("info", "OHS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not pull")
@@ -666,23 +668,24 @@ def push(logger, config, data, instance):
                 logger.writelog("error", f"Push failed: {reason}")
                 logger.writelog("error", f"Check log file {LOG_FILE} for further information")
                 push_successful = False
-            logger.writelog("info", f"Pushing wls products2 to standby [{STANDBY}]")
-            push_success, reason = transfer_data(
-                transfer_type='push',
-                use_delete=config.getboolean(OPTIONS, 'delete'),
-                username=config[STANDBY]['wls_osuser'],
-                host=standby_wls_nodes[1],
-                key_path=config[STANDBY]["wls_ssh_key"],
-                origin_path=config[DIRECTORIES]['STAGE_WLS_PRODUCTS2'],
-                destination_path=config[DIRECTORIES]['WLS_PRODUCTS'],
-                logger=logger,
-                retries=config[OPTIONS]['rsync_retries'],
-                exclude_list=config[OPTIONS]['exclude_wls_products'].split("\n")
-            )
-            if not push_success:
-                logger.writelog("error", f"Pull failed: {reason}")
-                logger.writelog("error", f"Check log file {LOG_FILE} for further information")
-                push_successful = False
+            if len(standby_wls_nodes) > 1:
+                logger.writelog("info", f"Pushing wls products2 to standby [{STANDBY}]")
+                push_success, reason = transfer_data(
+                    transfer_type='push',
+                    use_delete=config.getboolean(OPTIONS, 'delete'),
+                    username=config[STANDBY]['wls_osuser'],
+                    host=standby_wls_nodes[1],
+                    key_path=config[STANDBY]["wls_ssh_key"],
+                    origin_path=config[DIRECTORIES]['STAGE_WLS_PRODUCTS2'],
+                    destination_path=config[DIRECTORIES]['WLS_PRODUCTS'],
+                    logger=logger,
+                    retries=config[OPTIONS]['rsync_retries'],
+                    exclude_list=config[OPTIONS]['exclude_wls_products'].split("\n")
+                )
+                if not push_success:
+                    logger.writelog("error", f"Pull failed: {reason}")
+                    logger.writelog("error", f"Check log file {LOG_FILE} for further information")
+                    push_successful = False
             # also push jdk to all wls nodes if path supplied in config
             if not config[DIRECTORIES]['WLS_JDK_DIR']:
                 logger.writelog("info", "WLS_JDK_DIR not supplied in replication.properties - assumed it is under products and will not push")
