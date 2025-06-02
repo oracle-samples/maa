@@ -179,6 +179,8 @@ You will be prompted to make some selections based on the information detected i
 
 - If your WLS/FMW domain is using a database, use the steps at https://docs.oracle.com/en/solutions/configure-standby-db/index.html to configure an Oracle Data Guard standby in OCI.
 
+Refer to the video recording at [WLS-HYDR DEMO I - COMPLETE HYBRID DR SETUP](https://videohub.oracle.com/media/WLS-HYDR+DEMO+I+-+COMPLETE+HYBRID+DR+SETUP/1_pto77lrv/379099062) for a detailed drive through the steps for this scenario.
+
 ## Running "BACKUP AND RESTORE TO OCI"
 
 To perform a "BACKUP AND RESTORE TO OCI", follow these steps:
@@ -208,8 +210,11 @@ You will be prompted to make some selections based on the information detected i
 
 - If your WLS/FMW domain is using a database, use the steps at https://github.com/oracle-samples/maa/tree/main/fmw_schemas_exp_imp to run an Oracle Data Pump export from the primary DataBase and an Oracle Data Pump import to an Oracle DataBase in OCI (refer to the export_fmw.sh and import_fmw.sh scripts details).
 
+Refer to the video recording at [WLS-HYDR DEMO II - RESTORE TO OCI
+](https://videohub.oracle.com/media/WLS-HYDR+DEMO+II+-+RESTORE+TO+OCI/1_z7bf055n/379099062) for a detailed drive through the steps for this scenario.
+
 ## Running "INFRASTRUCTURE CREATION"
-If you want to use the framework simply to create in OCI the artifacts typically required by a highly available WLS/FMW system (see [LIST OF THE RESOURCES](#list-of-the-resources))  follow these steps:
+If you want to use the framework simply to create in OCI the artifacts typically required by a highly available WLS/FMW system (see [LIST OF THE RESOURCES](#list-of-the-resources)) follow these steps:
 
 - Upload to the bastion the SSH keys that will be used in the OCI nodes . You need to upload both the SSH private and the SSH public key since those will be used in the new OCI environment. Note down the path, you will have to provide it as an input in the sysconfig spreadsheet.
 
@@ -217,7 +222,7 @@ If you want to use the framework simply to create in OCI the artifacts typically
 
 - Edit the `<WLS-HYDR_BASE>/config/prem.env` file. Even when there is no primary system, this file is used to identify the number of nodes and users that will be created in the OCI system. Provide the values requested (the file contains a description of each entry).
 
-- Transfer the `<WLS-HYDR_BASE>/sysconfig.xlsx` file to a Windows node to facilitate its edition. Fill in the entries in the excel file marked as "needs custom input". The entries marked as "default value can be used" can be customized or left in their default value.
+- Transfer the `<WLS-HYDR_BASE>/sysconfig.xlsx` file to a Windows node to facilitate its edition. Fill in the entries in the excel file marked as "needs custom input". The entries marked as "default value can be used" can be customized or left in their default value. In the entries that refer to the "primary" environment, provide the actual values that you wish to use in the new environment.
 
 - Once edited, save the excel as a CSV (Comma delimited) file format (do not use CSV UTF-8, use plain CSV format) and upload it to the bastion again. You can use any file name for the saved copy, the examples provided only use the name XXX_sysconfig.csv to differentiate use cases.
 
@@ -498,8 +503,8 @@ This table lists all the resources that this framework creates in OCI.
 |                              | DNS Private View                                                | \<primary_listen_addresses_fqdn_domain\>_DR_VIRTUAL_HOSTNAMES                |                                                                                   |
 |                              | HyDR-DHCP                                                | \<primary_listen_addresses_fqdn_domain\>_DHCP Options                                  |                                                                                   |
 |                              | Virtual Address for Administration Server                              | The listen address of the Admin Server added to the private view, pointing to administration node IP   | Created only if the value is provided (it is an optional input).                                               |
-| Compute Instances            | N compute instances for OHS                                 | \<custom ohs prefix\>-N                      | Created using Oracle WebLogic Server Enterprise Edition UCM Image       |
-|                              | N compute instances for WLS                                 | \<custom wls prefix\>-N                      | Created using Oracle WebLogic Suite UCM Image              |
+| Compute Instances            | N compute instances for OHS                                 | \<custom ohs prefix\>-N                      | Created using "Oracle WebLogic Server Enterprise Edition UCM Image"       |
+|                              | N compute instances for WLS                                 | \<custom wls prefix\>-N                      | Created using "Oracle WebLogic Suite UCM Image". If using SOA, MFT, or OSB, image used is "Oracle SOA Suite Compute Image (PAID)"              |
 | Storage Resources            | FSS Mount target                                            | \<custom_prefix\>Target1 (2)                 | 1 (or 2 if using 2 availability domains).                                         |
 |                              | FSS File System for WLS shared config                       | \<custom_prefix\>configFSS                   |                                                                                   |
 |                              | FSS File System for WLS products 1                          | \<custom_prefix\>productsFSS1                |                                                                                   |
@@ -511,14 +516,14 @@ This table lists all the resources that this framework creates in OCI.
 |                              | Ruleset                                                     | SSLHeaders                                 |                                                                                   |
 |                              | Listener (for HTTPS)                                        | LBR_APP_listener                         |                                                                                   |
 |                              | Listener (for HTTP)                                         | LBR_Redirect_listener                          | In port 80 and same hostname than "Listener (for HTTPS)", redirects all to "Listener (for HTTPS)" |
-|                              | Listener (for WLS Admin Console, HTTP)                      | LBR_Admin_listener                             |                                                                                   |
+|                              | Listener (for WLS Admin Console, HTTP)                      | LBR_Admin_listener                             | Optional                                                                              |
 |                              | Listener (for internal accesses, HTTTP)                     | LBR_Internal_listenerr                     | Optional                                                                          |
 |                              | Certificate                                                 | HyDR_lbr_cert                              |                                                                                   |
 |                              | Hostname (frontend for HTTPS access)                        | HyDR_LBR_virtual_hostname                  |                                                                                   |
 |                              | Hostname (frontend for accesing to WLS Admin Console)       | HyDR_LBR_admin_hostname                    | Optional                                                                                  |
 |                              | Hostname (frontend for Internal HTTP acccess)               | HyDR_LBR_internal_hostname                 | Optional                                                                          |
 |                              | Backendset for the "Listener (for HTTPS)"                   | OHS_App_backendset                    |                                                                                   |
-|                              | Backendset for the "Listener (for WLS Admin Console, HTTP)" | OHS_Admin_backendset                       |                                                                                   |
+|                              | Backendset for the "Listener (for WLS Admin Console, HTTP)" | OHS_Admin_backendset                       | Optional                                                                           |
 |                              | Beackenset for the "Listener (for HTTP)"                    | empty_backendset                           |                                                                                   |
 |                              | Backendset for the Listener (for internal access, HTTP)  | OHS_Internal_backendset            | Optional                                                                          |
 | Additional actions performed | In the OHS compute instances                                    | Create user/group as primary               |                                                                                   |
