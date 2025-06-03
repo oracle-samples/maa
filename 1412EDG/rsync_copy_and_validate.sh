@@ -164,50 +164,15 @@ echo ""
 # FUNCTIONS TO COPY A FOLDER TO REMOTE NODE AND VALIDATE THE COPY
 ###########################################################################
 
-copy_from_remote(){
-        if [ -z "$SSH_KEYFILE" ]; then
-                SSH_OPTION=""
-        else
-                SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
-        fi
-
-        if [ "$DELETE" = true ] ; then
-                DELETE_OPTION="--delete"
-        else
-                DELETE_OPTION=""
-        fi
-		echo ""
+rsync_copy(){
+        echo ""
+	rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${SOURCE} ${TARGET}"
         echo "" | tee -a ${LOG_FILE}
-        echo "Copying from ${REMOTE_NODE_IP}:${ORIGIN_FOLDER} to ${DEST_FOLDER}..."  | tee -a ${LOG_FILE}
-        rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${USER}@${REMOTE_NODE_IP}:${ORIGIN_FOLDER}/ ${DEST_FOLDER}/"
-		echo "(You can check rsync command and exclude list in ${LOG_FILE})"
+        echo "(You can check rsync command and exclude list in ${LOG_FILE})"
         eval $rsync_command >> ${LOG_FILE}
-	echo ""
+        echo ""
 }
 
-
-copy_to_remote(){
-	if [ -z "$SSH_KEYFILE" ]; then
-		SSH_OPTION=""
-	else
-		SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
-	fi
-
-	if [ "$DELETE" = true ] ; then
-		DELETE_OPTION="--delete"
-	else
-		DELETE_OPTION=""
-	fi
-	echo ""
-	echo "" | tee -a ${LOG_FILE}
-	echo "Copying ${ORIGIN_FOLDER} to ${REMOTE_NODE_IP}:${DEST_FOLDER}..."  | tee -a ${LOG_FILE}
-	echo ""
-	rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${EXCLUDE_LIST} ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/"
-	echo ""
-	echo "(You can check rsync command and exclude list in ${LOG_FILE})"
-	eval $rsync_command >> ${LOG_FILE}
-	echo ""
-}
 
 validate_copy(){
 	echo "" | tee -a ${LOG_FILE}
@@ -215,8 +180,8 @@ validate_copy(){
 	max_rsync_retries=4
 	stilldiff="true"
         diff_file=${LOG_FILE}_diffs
-	rsync_compare_command="rsync ${SSH_OPTION} -niaHc ${EXCLUDE_LIST} ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/ --modify-window=1"
-	rsync_pending_command="rsync ${SSH_OPTION} --stats --modify-window=1 --files-from=${diff_file}_pending ${ORIGIN_FOLDER}/ ${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/"
+	rsync_compare_command="rsync ${SSH_OPTION} -niaHc ${EXCLUDE_LIST} ${SOURCE} ${TARGET} --modify-window=1"
+	rsync_pending_command="rsync ${SSH_OPTION} --stats --modify-window=1 --files-from=${diff_file}_pending ${SOURCE} ${TARGET}"
 	while [ $stilldiff == "true" ]
 	do
 		eval $rsync_compare_command > $diff_file 
@@ -228,16 +193,15 @@ validate_copy(){
 			if [ "$rsynccount" -eq "$max_rsync_retries" ];then
 				stilldiff="false"
 				echo "Maximum number of retries reached" 2>&1 | tee -a $rsync_log_file
-				echo "******************************WARNING:************************************************************" 2>&1 | tee -a ${LOG_FILE}
-				echo "Copy retried $max_rsync_retries and there are still differences between" 2>&1 | tee -a ${LOG_FILE}
+				echo "******************************WARNING:*********************************************************************" 2>&1 | tee -a ${LOG_FILE}
+				echo "Copy retried $max_rsync_retries time and there are still differences between" 2>&1 | tee -a ${LOG_FILE}
 				echo "source and target directories (besides the explicitly excluded files)." 2>&1 | tee -a ${LOG_FILE}
 				echo "It is recommended to verify that the copied domain files are valid in your secondary location." 2>&1 | tee -a ${LOG_FILE}
-				echo "To perform this verification, convert the standby database to snapshot and start the secondary WLS domain servers" 2>&1 | tee -a ${LOG_FILE}
-				echo "**************************************************************************************************" 2>&1 | tee -a ${LOG_FILE}	
-				echo ""
-				echo "Check log file at ${LOG_FILE}"
-				echo "The differences reported are :"
-				cat $diff_file
+				echo "To perform this verification, convert the standby database to snapshot and start the secondary WLS servers" 2>&1 | tee -a ${LOG_FILE}
+				echo "***********************************************************************************************************" 2>&1 | tee -a ${LOG_FILE}	
+				echo "Check log file at ${LOG_FILE}" 2>&1 | tee -a ${LOG_FILE}
+				echo "The differences reported are :" 2>&1 | tee -a ${LOG_FILE}
+				cat $diff_file 2>&1 | tee -a ${LOG_FILE}
 			else
 				stilldiff="true"
 				echo "Differences are: " >> ${LOG_FILE}
@@ -263,22 +227,61 @@ validate_copy(){
 ###########################################################
 
 echo "Starting rsync copy..."
-if [ "$COPY_FROM" = true ] ; then
-	echo "Copying from remote location..."
-	copy_from_remote
-elif [ "$COPY_FROM" = false ] ; then
-	echo "Copying to remote location..."
-	copy_to_remote	
-else 
-	echo "Incorrect value/syntax provided for parameter COPY_FROM."
-	echo "Check scripts syntax!"
-fi
-#copy_to_remote
-copy_from_remote
-echo "rsync copy complete! "
-if [ "$VALIDATE" = true ] ; then
-	echo "Running rsync validation..."
-	validate_copy
-	echo " rsync validation complete!"
 
+if [ -z "$SSH_KEYFILE" ]; then
+	export SSH_OPTION=""
+else
+        export SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
 fi
+
+if [ "$COPY_FROM" = true ] ; then
+        echo "Copying from remote location..." 2>&1 | tee -a ${LOG_FILE}
+        export SOURCE="${USER}@${REMOTE_NODE_IP}:${ORIGIN_FOLDER}/"
+        export TARGET="${DEST_FOLDER}/"
+	if [ -z "$SSH_KEYFILE" ]; then
+        	export SSH_OPTION=""
+	else
+        	export SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
+	fi
+	mkdir -p $TARGET
+
+elif [ "$COPY_FROM" = false ] ; then
+        echo "Copying to remote location..." 2>&1 | tee -a ${LOG_FILE}
+        export SOURCE="${ORIGIN_FOLDER}/"
+        export TARGET="${USER}@${REMOTE_NODE_IP}:${DEST_FOLDER}/"
+	if [ -z "$SSH_KEYFILE" ]; then
+                export SSH_OPTION=""
+                ssh ${USER}@${REMOTE_NODE_IP} "mkdir -p ${DEST_FOLDER}"
+        else
+                export SSH_OPTION="-e \"ssh -i ${SSH_KEYFILE}\""
+		ssh -i $SSH_KEYFILE ${USER}@${REMOTE_NODE_IP} "mkdir -p ${DEST_FOLDER}"
+        fi
+else
+        echo "Incorrect value/syntax provided for parameter COPY_FROM."
+        echo "Check scripts syntax!"
+        exit
+fi
+
+echo "Will transfer from $SOURCE to $TARGET..."
+
+if [ "$DELETE" = true ] ; then
+	export DELETE_OPTION="--delete"
+else
+        export DELETE_OPTION=""
+fi
+
+rsync_copy
+if [ "$VALIDATE" = true ] ; then
+	echo "Running rsync validation..." 2>&1 | tee -a ${LOG_FILE}
+	validate_copy
+elif [ "$VALIDATE" = false ] ; then
+	echo "Validate parameter is $VALIDATE" 2>&1 | tee -a ${LOG_FILE}
+	echo "Will not run detailed validation" 2>&1 | tee -a ${LOG_FILE}
+else 
+	echo "Incorrect value/syntax provided for parameter VALIDATE." 2>&1 | tee -a ${LOG_FILE}
+	echo "Check scripts syntax!"2>&1 | tee -a ${LOG_FILE}
+	exit
+fi
+
+echo "Rsync operations complete!" 2>&1 | tee -a ${LOG_FILE}
+

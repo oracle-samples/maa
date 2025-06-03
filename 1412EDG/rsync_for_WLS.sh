@@ -31,6 +31,9 @@
 ### -To replicate the primary system's WebLogic Domain private configuration used in the Enteprise Deployment Guide:
 ### rsync_for_WLS.sh 172.11.2.113 /u02/oracle/config /home/oracle/keys/SSHKey.priv"
 
+### By default the scripts copies from remote location, i.e. performs a pull, not a push
+### To push to a remote node, set COPY_FROM to false
+export COPY_FROM=true
 
 if [[ $# -eq 3 ]];
 then
@@ -72,7 +75,8 @@ if [ -z "${DEST_FOLDER}" ]; then
 	echo "(Variable DEST_FOLDER is not set so will use same path in target as in source for the copy.)"
 	DEST_FOLDER=$LOCAL_CONFIG_FOLDER
 else
-        echo "WIll use $DEST_FOLDER as local path for copy"
+	echo ""
+        echo "Will use $DEST_FOLDER as target path for copy"
 fi
 
 # Provide custom exclude list. These folders/files will not be included in the rsync copy
@@ -88,10 +92,9 @@ export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # PREPARE VARIABLES AND RUN THE SCRIPT THAT PERFORMS THE COPY
 ###########################################################################
 
-EXCLUDE_LIST_MSERVER="--exclude .snapshot --exclude '*/servers/*/data/nodemanager/*.lck' --exclude '*/servers/*/data/nodemanager/*.pid' --exclude '*/servers/*/data/nodemanager/*.state' --exclude 'servers/*/tmp' "
+EXCLUDE_LIST_MSERVER="--exclude tnsnames.ora --exclude .snapshot --exclude '*/servers/*/data/nodemanager/*.lck' --exclude '*/servers/*/data/nodemanager/*.pid' --exclude '*/servers/*/data/nodemanager/*.state' --exclude 'servers/*/tmp' "
 EXCLUDE_LIST_NM="--exclude 'nodemanager/*.id' --exclude 'nodemanager/*.lck'"
 EXCLUDE_LIST="${CUSTOM_EXCLUDE_LIST} ${EXCLUDE_LIST_MSERVER} ${EXCLUDE_LIST_NM}"
 
 # Run the script
-mkdir -p $LOCAL_CONFIG_FOLDER
-$exec_path/rsync_copy_and_validate.sh $ORIGIN_FOLDER $DEST_FOLDER $REMOTE_NODE true "$EXCLUDE_LIST"
+$exec_path/rsync_copy_and_validate.sh $ORIGIN_FOLDER $DEST_FOLDER $REMOTE_NODE $COPY_FROM "$EXCLUDE_LIST"
