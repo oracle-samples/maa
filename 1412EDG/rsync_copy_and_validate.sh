@@ -166,7 +166,7 @@ echo ""
 
 rsync_copy(){
         echo ""
-	rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION}  --stats --modify-window=1 ${SOURCE} ${TARGET}"
+	rsync_command="rsync ${SSH_OPTION} -avz ${DELETE_OPTION} ${EXCLUDE_LIST} --stats --modify-window=1 ${SOURCE} ${TARGET}"
         echo "" | tee -a ${LOG_FILE}
         echo "(You can check rsync command and exclude list in ${LOG_FILE})"
         eval $rsync_command >> ${LOG_FILE}
