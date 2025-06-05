@@ -89,21 +89,20 @@ VALIDATE=true
 # True for using "--delete" in rsync commands
 # If true, files on the target destination side will be deleted if they do not exist at the source.
 DELETE=true
+export LOGDIR=$exec_path/logs
 
-# Provide the folder name for the output logs (it can be absolute or relative path)
-LOGDIR=logs
 ###########################################################################
 # END of internal parametrizable values
 ###########################################################################
 export exec_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export LOGDIR=$exec_path/logs
 mkdir -p $LOGDIR
 
 ###########################################################################
 # Checks on input parameters
 ###########################################################################
 date_label=$(date '+%d-%m-%Y-%H-%M-%S')
-LOG_FILE=${LOGDIR}/rsync_${date_label}.log
+path_label="$(echo "$ORIGIN_FOLDER" | sed -r 's/\//_/g')"
+LOG_FILE=${LOGDIR}/rsync${path_label}_${date_label}.log
 
 echo ""
 echo "##########################################################################"
