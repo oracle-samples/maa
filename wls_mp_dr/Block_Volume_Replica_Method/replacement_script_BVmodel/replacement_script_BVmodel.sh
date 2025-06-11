@@ -83,8 +83,8 @@ replace_tnsnamesora_tnsadmin(){
 
 
 remove_tmp_lck_files(){
-	rm ${DOMAIN_HOME}/servers/*/data/nodemanager/*.lck
-	rm ${DOMAIN_HOME}/servers/*/data/nodemanager/*.state
+	rm -f ${DOMAIN_HOME}/servers/*/data/nodemanager/*.lck
+	rm -f ${DOMAIN_HOME}/servers/*/data/nodemanager/*.state
 }
 
 
