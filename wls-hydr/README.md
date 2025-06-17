@@ -143,7 +143,7 @@ Run the following steps as preparation for the execution of the scripts in all s
 2. Create a subnet in the VCN for the bastion. 
 3. Provision a bastion host in the subnet. The bastion host must use OL8 or OL9. A "VM.Standard.E4.Flex with 1 OCPU and 16GB memory" shape is enough to run the framework. The amount of information that is copied to the bastion can be high (around 40GB for the typical FMW SOA product and config directories), so you can attach an additional block volume of this size during the bastion creation process itself. You can use this formula for a rough estimate of the required storage size: _[2xFMW products] + [WLS_domain_size x (nº wls nodes + 1)] + [2xOHS products] + [OHS domain_size x (nº of OHS nodes)]_
 4. For the "COMPLETE DR SETUP" use case, setup connectivity between primary hosts and the bastion host (FastConnect, VPN, Peering). This is not required if you are performing a "BACKUP AND RESTORE TO OCI".
-5. Download the WLS_HYDR framework to the bastion server (example location <HOME>/wls_hydr).
+5. Download the WLS_HYDR framework to the bastion server (example location `<HOME>/wls_hydr`).
 6. Prepare the bastion host to run the framework:
     1. Make sure pip is installed and updated:  
     `sudo yum install python3-pip`  
