@@ -1815,7 +1815,10 @@ class OciManager:
         if not isinstance(name, str):
             return False, f"Listing name must be a string"
         try:
-            listing = self.marketplace_client.list_listings(name=name)
+            listing = oci.pagination.list_call_get_all_results(
+                self.marketplace_client.list_listings,
+                name=name
+            )
         except oci.exceptions.ServiceError as e:
             return False, e.message
         except Exception as e:
