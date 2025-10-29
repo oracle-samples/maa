@@ -52,8 +52,6 @@ ALWAYS test these scripts on a test environment before promoting them to a produ
 
 The scripts are grouped into these folders:  
 
-=====================================
-
 | Folder | Content |
 | ------ | ------ |
 | AppTier | Wrapper scripts for startup and shutdown and rsync, standard functions, and .env files |
