@@ -1,0 +1,38 @@
+# LDAP Passwords
+#
+LDAP_USER_PWD="Password1"
+LDAP_ADMIN_PWD="Password1"
+LDAP_KEYSTORE_PWD="Password1"
+LDAP_TRUSTSTORE_PWD="Password1"
+
+# OUDSM Passwords
+#
+OUDSM_PWD="Password1"
+
+# OAM Passwords
+#
+OAM_WLS_PWD=Password1
+OAM_NM_PWD=Password1
+OAM_DB_SYS_PWD="Sys__Password1"
+OAM_DB_SCHEMA_PWD="Schema__Password1"
+OAM_KEYSTORE_PWD="Password1"
+OAM_TRUSTSTORE_PWD="Password1"
+
+# OIG Passwords
+#
+OIG_WLS_PWD=Password1
+OIG_NM_PWD=Password1
+OIG_DB_SYS_PWD="Sys__Password1"
+OIG_DB_SCHEMA_PWD="Schema__Password1"
+OIG_KEYSTORE_PWD="Password1"
+OIG_TRUSTSTORE_PWD="Password1"
+OIG_BI_USER_PWD="Password1"
+
+# OHS Passwords
+#
+NM_ADMIN_PWD=$LDAP_USER_PWD
+OHS_OAM_ADMIN_KS_PWD="Password1"
+OHS_OAM_LOGIN_KS_PWD="Password1"
+OHS_OIG_ADMIN_KS_PWD="Password1"
+OHS_OIG_OIM_KS_PWD="Password1"
+OHS_OIG_INT_KS_PWD="Password1"

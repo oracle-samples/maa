@@ -1,0 +1,23 @@
+login:/oam:OAM_OAM_PORT
+login:/oamservices/rest/auth:OAM_OAM_PORT
+login:/oamservices/rest/access:OAM_OAM_PORT
+login:/iam/access:OAM_OAM_PORT
+login:/oamfed:OAM_OAM_PORT
+login:/otpfp:OAM_OAM_PORT
+login:/ms_oauth:OAM_OAM_PORT
+login:/oauth2:OAM_OAM_PORT
+login: /.well-known/openid-configuration:OAM_OAM_PORT
+login: /.well-known/oidc-configuration:OAM_OAM_PORT
+login: /CustomConsent:OAM_OAM_PORT
+iadadmin:/console:OAM_ADMIN_ADMIN_PORT
+iadadmin:/management:OAM_ADMIN_ADMIN_PORT
+iadadmin:/em:OAM_ADMIN_ADMIN_PORT
+iadadmin:/oamconsole:OAM_ADMIN_ADMIN_PORT
+iadadmin:/oam/admin/api:OAM_ADMIN_PORT
+iadadmin:/oam/services/rest:OAM_ADMIN_PORT
+iadadmin:/iam/admin:OAM_ADMIN_PORT
+iadadmin:/oam/services/rest/11.1.2.0.0:OAM_ADMIN_PORT
+iadadmin:/oam/services/rest/ssa:OAM_ADMIN_PORT
+iadadmin:/dms:OAM_ADMIN_PORT
+iadadmin:/oam:OAM_OAM_PORT
+iadadmin:/access:OAM_POLICY_PORT

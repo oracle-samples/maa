@@ -1,0 +1,6 @@
+LDAPHOSTS="ldaphost1.dbsubnet.example.com"
+LDAPHOST_LBR="idstore.example.com"
+OAMHOSTS="oamhost1.example.com,oamhost2.example.com"
+OIGHOSTS="oighost1.example.com,oighost2.example.com"
+LBRHOSTS="iadadmin.example.com,igdadmin.example.com,login.example.com,oim.example.com,igdinternal.example.com"
+OHSHOSTS="webhost1.example.com webhost2.example.com"
