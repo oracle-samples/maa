@@ -41,8 +41,6 @@ ALWAYS test scripts thoroughly on a test environment before promoting them to a 
 
 The scripts for starting and stopping the application with awareness of switchover, failover, and operating as a snapshot standby for testing purposes  
 
-=====================================
-
 | Script | Content |
 | ------ | ------ |
 | ebsAppTier.env | Configuration details for middle tier scripts, so the scripts themselves are kept generic |
@@ -75,9 +73,6 @@ SCRIPT_DIR=/u02/app/ebs/custom_admin_scripts/VISPRD
 
 
 Note: These scripts are built with the assumption that the EBS application tiers are deployed on shared file systems in OCI.  We used OCI’s File System Service (FSS).
-
-
-=====================================
 
 | File | Content |
 | ------ | ------ |
