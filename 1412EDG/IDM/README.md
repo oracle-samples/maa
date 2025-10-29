@@ -19,20 +19,22 @@ The automation scripts are available for download from GitHub.
 To obtain the scripts, use the following command:
 
 ```
-git clone https://github.com/oracle/fmw-kubernetes.git
+git clone https://github.com/oracle-samples/maa.git
 ```
 
 The scripts appear in the following directory:
 
 ```
-fmw-kubernetes/FMWKubernetesMAA/OracleEnterpriseDeploymentAutomation/OracleIdentityManagement
+maa/1412EDG/IDM
 ```
 
 Move these template scripts to your working directory. For example:
 
 ```
-cp -R kubernetes/FMWKubernetesMAA/OracleEnterpriseDeploymentAutomation/OracleIdentityManagement/* /workdir/scripts
+cp -R maa/1412EDG/IDM/* /workdir/scripts
 ```
+
+You must also download the Oracle Binaries and latest Bundle Patch Sets as described in [Identifying and Obtaining Software Distribution for an Enterprise Deployment](https://docs.oracle.com/en/middleware/fusion-middleware/14.1.2/imedg/procuring-resources-premises-enterprise-deployment.html#GUID-5D38B09D-6A0B-4304-B8F9-8006F91E82F3)
 
 If you are provisioning Oracle Identity Governance you must also Download the Oracle connector Bundle for OUD and extract it to a location which is accessible by the provisioning scripts.  For example, /workdir/connectors/OID-12.2.1.3.0.    The connector directory name must start with OID-12.2.1.
 
@@ -272,6 +274,7 @@ These parameters are specific to OUD. When deploying OUD, you also require the g
 |**OUD\_LDAP\_PORT** | `1389`| The port you wish to use for non-ssl LDAP queries.|
 |**OUD\_LDAPS\_PORT** | `1636`| The port you wish to use for ssl LDAP queries.|
 |**OUD\_REPLICATION\_PORT** | `8989`| The port you wish to use for replication.|
+|**OUDOUDSERVER\_PCT** | `75%`| Amount of server memory to assign to the OUD instance.|
 
 ### OUDSM Parameters
 List of parameters used to determine how Oracle Directory Services Manager will be deployed.
