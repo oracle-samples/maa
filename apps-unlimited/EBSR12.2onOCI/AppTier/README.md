@@ -67,10 +67,10 @@ The rsync direction is managed through site role transitions.  The scripts are d
 We recommend the actual rsync script be run on a dedicated pair of compute instances, one at each site, so that snapshot standby testing at the DR site can take place without disrupting replication of production changes to the standby file system.
 
 Example CRON job entries for the rsync scripts:  
-SCRIPT_DIR=/u02/app/ebs/custom_admin_scripts/VISPRD  
-*/5 * * * * applmgr $SCRIPT_DIR/syncEBS.sh $SCRIPT_DIR/fastFiles.env  
-0 1 * * * applmgr $SCRIPT_DIR/syncEBS.sh $SCRIPT_DIR/slowFiles.env
 
+    SCRIPT_DIR=/u02/app/ebs/custom_admin_scripts/VISPRD  
+    */5 * * * * applmgr $SCRIPT_DIR/syncEBS.sh $SCRIPT_DIR/fastFiles.env  
+    0 1 * * * applmgr $SCRIPT_DIR/syncEBS.sh $SCRIPT_DIR/slowFiles.env
 
 Note: These scripts are built with the assumption that the EBS application tiers are deployed on shared file systems in OCI.  We used OCI’s File System Service (FSS).
 
@@ -81,9 +81,9 @@ Note: These scripts are built with the assumption that the EBS application tiers
 | ebsRsync.env | Environment settings for rsync scripts.  They need database access and the ability to connect to the remote app tiers |
 | slowFiles.env | Pointers to the files detailing directories to copy and files to exclude from those directories, and the files to copy in addition to those in the directories, for files and directories that DO NOT change frequently |
 | fastFiles.env | Pointers to the files detailing directories to copy and files to exclude from those directories, and the files to copy in addition to those in the directories, for files and directories that DO change frequently |
-| <static or dynamic>Directories.txt | Files holding one line per directory to be synchronized by either the "slow" (static) or "fast" (dynamic) synchronization runs |
-| <static or dynamic>ExcludeFiles.txt | Files holding one line per file to be excluded from either the "slow" (static) or "fast" (dynamic) synchronization runs |
-| <static or dynamic>IncludeFiles.txt | Files holding one line per file to be added to either the "slow" (static) or "fast" (dynamic) synchronization runs |
+| staticDirectories.txt or dynamicDirectories.txt | Files holding one line per directory to be synchronized by either the "slow" (static) or "fast" (dynamic) synchronization runs |
+| staticExcludeFiles.txt or dynamicExcludeFiles.txt | Files holding one line per file to be excluded from either the "slow" (static) or "fast" (dynamic) synchronization runs |
+| staticIncludeFiles.txt or dynamicIncludeFiles.txt | Files holding one line per file to be added to either the "slow" (static) or "fast" (dynamic) synchronization runs |
 | enable_ebs_rsync.sh | Set this site up to be the source for file system replication, and enable the processes |
 | disable_ebs_rsync.sh | Disable the rsync process at this site.  Must be done at the standby site. |
 | syncEBS.sh | Multi-threaded file system synchronization driver. |
