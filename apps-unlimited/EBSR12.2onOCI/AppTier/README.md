@@ -69,11 +69,10 @@ The rsync direction is managed through site role transitions.  The scripts are d
 We recommend the actual rsync script be run on a dedicated pair of compute instances, one at each site, so that snapshot standby testing at the DR site can take place without disrupting replication of production changes to the standby file system.
 
 Example CRON job entries for the rsync scripts:
-,,,
 SCRIPT_DIR=/u02/app/ebs/custom_admin_scripts/VISPRD
 */5 * * * * applmgr $SCRIPT_DIR/syncEBS.sh $SCRIPT_DIR/fastFiles.env
 0 1 * * * applmgr $SCRIPT_DIR/syncEBS.sh $SCRIPT_DIR/slowFiles.env
-,,,
+
 
 Note: These scripts are built with the assumption that the EBS application tiers are deployed on shared file systems in OCI.  We used OCI’s File System Service (FSS).
 
