@@ -46,8 +46,6 @@ ALWAYS test scripts thoroughly on a test environment before promoting them to a 
 
 The scripts for starting and stopping the application with awareness of switchover, failover, and operating as a snapshot standby for testing purposes  
 
-=====================================
-
 | Script | Content |
 | ------ | ------ |
 | EBSCFG.env | Values needed to reconfigure EBS metadata post switchover or failover |
