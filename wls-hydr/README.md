@@ -431,7 +431,7 @@ In this step, the tool retrieves the tnsnames.ora file from the primary WLS/FMW 
 
 ## Replication during lifecycle
 
-For the "COMPLETE DR SETUP" use case, ongoing replication can be stablished between primary and secondary to maintain both sites in sync. You can cron the copy at regular intervals in the bastion node using the DataReplication.py script. 
+For the "COMPLETE DR SETUP" use case, ongoing replication can be stablished between primary and secondary to maintain both sites in sync. You can cron the copy at regular intervals in the bastion node using the DataReplication.py script. If both primary and secondary systems are hosted on OCI, using the framework replication module for the replica throughout the lifecycle is not mandatory. You may leverage OCI native storage replication options, such as Block Volume replication or File Storage replication. For guidance on mid-tier replication during the system lifecycle, refer to the Oracle solution playbook "[Implement mid-tier replication in an OCI disaster recovery architecture](https://docs.oracle.com/en/solutions/mid-tier-replication-oci-dr-arch/index.html)".
 
 For the "BACKUP AND RESTORE TO OCI" use case, users can push backups to the bastion on a regular basis. For disaster protection purposes it is recommended however to test the secondary on a regular basis. Run the complete wls_full_setup.py for "BACKUP AND RESTORE TO OCI", verify the correct start of servers and if required (to reduce costs incurred by having running compute instances) use the `<WLS-HYDR_BASE>/cleanup.py` script to remove the created resources.
 
