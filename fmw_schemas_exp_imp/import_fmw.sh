@@ -75,7 +75,6 @@ if [ -f $cfgdir/prefix.cfg ]; then
 else
         echo "Prefix marker file $cfgdir/prefix.cfg does not exist."
         echo "Importing only custom schemas."
-        exit 1
 fi
 
 echo
