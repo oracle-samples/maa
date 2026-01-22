@@ -19,6 +19,7 @@
 # No parameters passed in
 #
 # Rev:
+# 1/14/26  De-personalized parameter values
 # 8/23/24  Re-formed as a standard routine to execute from different scripts
 # 1/15/24  Created
 #############################################################################
@@ -37,7 +38,10 @@ LogMsg "PERLBIN = $PERLBIN"
 
 PATH=${PERLBIN}:${PATH}
 
-PERL5LIB=$ORACLE_HOME/perl/lib/5.32.0:$ORACLE_HOME/perl/lib/site_perl/5.32.0:$ORACLE_HOME/appsutil/perl 
+# Replace <perl version> with the correct number for your install,
+# e.g. 5.32.0 for 19c
+# PERL5LIB=$ORACLE_HOME/perl/lib/5.32.0:$ORACLE_HOME/perl/lib/site_perl/5.32.0:$ORACLE_HOME/appsutil/perl 
+PERL5LIB=$ORACLE_HOME/perl/lib/<perl version>:$ORACLE_HOME/perl/lib/site_perl/<perl version>:$ORACLE_HOME/appsutil/perl 
 
 # If logical hostname is passed in, call txkSyncDBConfig.pl with the
 # -logicalhostname parameter, else call it without this parameter.
