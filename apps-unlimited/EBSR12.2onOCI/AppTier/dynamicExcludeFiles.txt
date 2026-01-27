@@ -1,0 +1,8 @@
+# files or directories to exclude from the copy
+#
+# Copyright (c) 2025 Oracle and/or its affiliates
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/ 
+#
+/u02/app/ebs/visprd/EBSapps.env
+/u02/app/ebs/visprd/fs1/inst/apps/VISPRD_ebsapp1/ora/10.1.2/network/admin
+/u02/app/ebs/visprd/fs2/inst/apps/VISPRD_ebsapp1/ora/10.1.2/network/admin                                                                             
