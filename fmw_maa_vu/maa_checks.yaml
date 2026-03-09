@@ -1,0 +1,217 @@
+version: 1
+
+sections:
+  - name: "config.xml"
+    checks:
+      - id: prod_mode
+        type: xml
+        file: "config/config.xml"
+        description: "Domain is in Production Mode (production-mode-enabled)"
+        selector: "production-mode-enabled"
+        operator: equals
+        expected: "true"
+        on_fail: FAIL
+        recommendation: "Enable Production Mode to enforce stronger runtime defaults and reduce risk from dev settings."
+
+      - id: cluster_unicast
+        type: xml_each
+        file: "config/config.xml"
+        description: "Cluster uses unicast (cluster-messaging-mode)"
+        context: "cluster"
+        require_children: ["name"]   # avoids <server><cluster>CLUSTERNAME</cluster> membership refs
+        value: "cluster-messaging-mode"
+        operator: equals
+        expected: "unicast"
+        on_fail: FAIL
+        recommendation: "Configure cluster messaging to unicast to align with modern network constraints and enterprise deployment defaults."
+
+      - id: cluster_db_leasing_warn
+        type: xml_each
+        file: "config/config.xml"
+        description: "WARN if cluster is not using database leasing (migration-basis)"
+        context: "cluster"
+        require_children: ["name"]
+        value: "migration-basis"
+        operator: equals
+        expected: "database"
+        on_fail: WARN
+        recommendation: "If leasing/server migration is required for this cluster, set <migration-basis>database</migration-basis> and ensure the supporting migration datasource is configured."
+
+      - id: listen_addresses_explicit
+        type: xml_each
+        file: "config/config.xml"
+        description: "Listen addresses are explicit and not all-interfaces (listen-address)"
+        context: "server"
+        require_children: ["name"]
+        value: "listen-address"
+        operator: not_empty
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Set explicit hostname/VIP as listen-address for each server to avoid ambiguous binds and to support predictable DR/DNS behaviors."
+
+      - id: servers_mapped_to_machines
+        type: xml_each
+        file: "config/config.xml"
+        description: "Machines are defined and servers mapped to machines (server.machine)"
+        context: "server"
+        require_children: ["name"]
+        value: "machine"
+        operator: not_empty
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Map all servers (including AdminServer) to machines to support Node Manager control and HA workflows."
+
+      - id: jta_tlog_jdbc_store_enabled
+        type: xml_each
+        file: "config/config.xml"
+        description: "JTA transaction log uses JDBC store (transaction-log-jdbc-store enabled)"
+        context: "server"
+        require_children: ["name"]
+        value: "transaction-log-jdbc-store.enabled"
+        operator: equals
+        expected: "true"
+        on_fail: FAIL
+        recommendation: "Enable transaction-log-jdbc-store (JDBC TLOG) on servers that require HA/DR-safe transaction recovery."
+
+      - id: jms_persistent_stores_are_jdbc
+        type: xml
+        file: "config/config.xml"
+        description: "JMS persistent stores are configured as JDBC stores (jdbc-store present)"
+        selector: "jdbc-store"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Configure JMS persistent stores as JDBC stores to align with HA/DR requirements."
+
+      - id: central_ldap_authenticator_present
+        type: xml
+        file: "config/config.xml"
+        description: "Domain uses a central LDAP authenticator (OUDAuthenticator/OIDAuthenticator/OVDAuthenticator present)"
+        selector: "security-configuration.realm.authentication-provider.name"
+        operator: regex
+        expected: "^(OUDAuthenticator|OIDAuthenticator|OVDAuthenticator)$"
+        on_fail: FAIL
+        recommendation: "Configure a central LDAP authenticator (OUD/OID/OVD as applicable) and avoid relying on the default file-based authenticator."
+
+  - name: "Node Manager"
+    checks:
+      - id: nm_listenaddress_any
+        type: properties
+        file: "nodemanager/nodemanager.properties"
+        description: "Node Manager ListenAddress is blank (listens on ANY/all interfaces)"
+        key: "ListenAddress"
+        operator: equals
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Set ListenAddress= (blank) if your standard requires Node Manager to listen on all interfaces."
+
+      - id: nm_domains_two_paths
+        type: nodemanager_domains
+        file: "nodemanager/nodemanager.domains"
+        description: "nodemanager.domains lists two paths for the domain (admin;managed) (min 2 paths)"
+        operator: min_paths
+        expected: 2
+        on_fail: FAIL
+        recommendation: "List two domain paths separated by ';' if AdminServer and Managed Servers use separate domain directories."
+
+  - name: "JDBC"
+    checks:
+      - id: jdbc_agl_marker_fan_enabled_present
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "AGL/GridLink marker present via jdbc-oracle-params.fan-enabled (12.2+ rule)"
+        selector: "jdbc-oracle-params.fan-enabled"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Add <jdbc-oracle-params><fan-enabled>true/false</fan-enabled></jdbc-oracle-params> to configure the datasource as Active GridLink per your standard."
+
+      - id: jdbc_url_service_not_sid
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Datasource URL uses Service Name (not SID) (best-effort; may be NA for TNS alias)"
+        selector: "jdbc-driver-params.url"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Use service-name-based connect descriptors (not SID) to support RAC services and planned failover."
+
+      - id: jdbc_test_table_isvalid
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Test Table Name is SQL ISVALID"
+        selector: "jdbc-connection-pool-params.test-table-name"
+        operator: equals_ci_ws
+        expected: "SQL ISVALID"
+        on_fail: FAIL
+        recommendation: "Set <test-table-name>SQL ISVALID</test-table-name> for lightweight Oracle connection validation."
+
+      - id: jdbc_validate_on_reserve
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Connection validation enabled (test-connections-on-reserve=true)"
+        selector: "jdbc-connection-pool-params.test-connections-on-reserve"
+        operator: equals
+        expected: "true"
+        on_fail: FAIL
+        recommendation: "Enable test-connections-on-reserve (or approved validation policy) to reduce stale connection risk after outages."
+
+      - id: jdbc_trust_idle_zero
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Seconds to trust idle connections is zero"
+        selector: "jdbc-connection-pool-params.seconds-to-trust-an-idle-pool-connection"
+        operator: equals
+        expected: "0"
+        on_fail: FAIL
+        recommendation: "Set seconds-to-trust-an-idle-pool-connection to 0 to avoid trusting potentially stale idle connections."
+
+      - id: jdbc_statement_cache_size_set
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Statement cache size configured (statement-cache-size > 0)"
+        selector: "jdbc-connection-pool-params.statement-cache-size"
+        operator: int_gt
+        expected: 0
+        on_fail: FAIL
+        recommendation: "Set a non-zero statement-cache-size (tested) to reduce parse overhead and improve steady-state performance."
+
+      - id: jdbc_pool_capacities_present
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Initial/Min/Max capacity explicitly set (initial/min/max-capacity exist)"
+        selector: "jdbc-connection-pool-params.initial-capacity"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Set initial/min/max capacities explicitly (and validate sizing) to avoid unintended defaults."
+
+      - id: jdbc_pool_min_capacity_present
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Min capacity explicitly set (min-capacity exists)"
+        selector: "jdbc-connection-pool-params.min-capacity"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Set min-capacity explicitly to avoid unintended defaults and stabilize pool behavior."
+
+      - id: jdbc_pool_max_capacity_present
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "Max capacity explicitly set (max-capacity exists)"
+        selector: "jdbc-connection-pool-params.max-capacity"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Set max-capacity explicitly based on concurrency and DB limits to avoid starvation or storms."
+
+      - id: jdbc_global_tx_protocol_present
+        type: xml_each_file
+        file: "config/jdbc/*-jdbc.xml"
+        description: "global-transactions-protocol is set"
+        selector: "jdbc-data-source-params.global-transactions-protocol"
+        operator: exists
+        expected: ""
+        on_fail: FAIL
+        recommendation: "Set global-transactions-protocol appropriately (XA for 2PC where required, Non-XA otherwise) to align with the transaction model."
