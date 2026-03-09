@@ -11,6 +11,7 @@ It generates a single HTML report per domain directory by inspecting:
     nodemanager/nodemanager.domains
     config/jdbc/*-jdbc.xml (JDBC datasources)
      
+NOTE: To execute the framework, the WLS configuration files need to be placed in a structure per the above. It is not needed to use a complete WLS domain directory nor a formal domain and nodenamager directory structure, simply use a "config" directory with the "jdbc" and "nodemanager" subdirectories per the above to run the utility.
 
 All checks and recommendations are defined in a YAML file (maa_checks.yml) so you can add/modify checks without changing Python code. 
 
