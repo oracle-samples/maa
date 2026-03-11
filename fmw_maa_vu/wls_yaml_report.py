@@ -8,7 +8,7 @@ Licensed under the Universal Permissive License v 1.0 as shown at https://oss.or
 
 Generates an HTML report for MAA bets practices in a FMW/WebLogic "domain directory" using YAML-driven checks.
 
-Expected domain directory layout:
+Expected directory layout:
   DOMAIN_DIR/
     config/config.xml
     config/jdbc/*.xml
@@ -112,6 +112,11 @@ def eval_operator(values, operator, expected):
     if operator == "regex":
         rx = re.compile(str(expected))
         return len(values) > 0 and all(rx.search(v or "") for v in values)
+
+# Allow any LDAP auth
+    if operator == "any_regex":
+        rx = re.compile(str(expected))
+        return len(values) > 0 and any(rx.search(v or "") for v in values)
 
     # numeric operators (optional)
     if operator in ("int_eq", "int_ge", "int_gt", "int_le", "int_lt"):
@@ -329,8 +334,44 @@ def eval_one_check(domain_dir, domain_name, check):
             rec = "" if status in ("PASS", "NA") else recommendation
             ev = f"{context}='{ctx_name}' value-path='{value}' value='{values[0] if values else ''}' expected='{expected}'"
             out.append(CheckResult(f"{desc} ({ctx_name})", status, evidence=ev, recommendation=rec))
-
+     
         return out if out else [check_result(desc, "NA", evidence=f"No applicable <{context}> elements found")]
+        # ---- xml_each_attr_any: PASS if ANY context element's attribute matches expected via operator ----
+    if ctype == "xml_each_attr_any":
+        path = files[0]
+        try:
+            root = ET.parse(path).getroot()
+        except Exception as e:
+            return [check_result(desc, "FAIL", evidence=f"XML parse error: {e}", recommendation=recommendation)]
+
+        context = check["context"]                 # e.g. "authentication-provider"
+        require_children = check.get("require_children", [])
+        attr = check["attr"]                       # e.g. "xsi:type"
+        expected = check.get("expected", "")
+
+        # Resolve namespaced attribute key for xsi:type
+        attr_key = attr
+        if attr == "xsi:type":
+            attr_key = "{http://www.w3.org/2001/XMLSchema-instance}type"
+
+        values = []
+        for ctx in root.iter():
+            if localname(ctx.tag) != context:
+                continue
+            ok_req = True
+            for rc in require_children:
+                if first_child(ctx, rc) is None:
+                    ok_req = False
+                    break
+            if not ok_req:
+                continue
+            values.append(ctx.attrib.get(attr_key, ""))
+
+        ok = eval_operator(values, operator, expected)  # use operator any_regex for "at least one match"
+        ev = f"{os.path.basename(path)} context={context} attr={attr} values={values}"
+        status = "PASS" if ok else on_fail
+        rec = "" if status in ("PASS","NA") else recommendation
+        return [CheckResult(desc, status, evidence=ev, recommendation=rec)]
 
     return [check_result(desc, "NA", evidence=f"Unsupported check type: {ctype}")]
 
@@ -386,7 +427,7 @@ def write_report(out_path, domain_dir, domain_name, config_xml_path, checks_yaml
 <html>
 <head>
   <meta charset="utf-8">
-  <title>WLS DOMAIN {html.escape(domain_name)} checks</title>
+  <title>WLS DOMAIN {html.escape(domain_name)} MAA checks</title>
   <style>
     body {{ font-family: Arial, sans-serif; margin: 18px; }}
     h1 {{ margin: 0 0 10px 0; font-size: 18px; }}
@@ -403,7 +444,7 @@ def write_report(out_path, domain_dir, domain_name, config_xml_path, checks_yaml
   </style>
 </head>
 <body>
-  <h1>WLS DOMAIN {html.escape(domain_name)} checks</h1>
+  <h1>WLS DOMAIN {html.escape(domain_name)} MAA checks</h1>
   <div class="meta">
     Domain dir: <code>{html.escape(os.path.abspath(domain_dir))}</code><br/>
     config.xml: <code>{html.escape(config_xml_path)}</code><br/>

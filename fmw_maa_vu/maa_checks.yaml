@@ -11,7 +11,7 @@ sections:
         operator: equals
         expected: "true"
         on_fail: FAIL
-        recommendation: "Enable Production Mode to enforce stronger runtime defaults and reduce risk from dev settings."
+        recommendation: "Enable Production Mode to enforce stronger runtime defaults and reduce risk from dev settings. https://docs.oracle.com/middleware/12213/wls/WLACH/taskhelp/domainconfig/ChangeRuntimeModes.html"
 
       - id: cluster_unicast
         type: xml_each
@@ -83,15 +83,16 @@ sections:
         on_fail: FAIL
         recommendation: "Configure JMS persistent stores as JDBC stores to align with HA/DR requirements."
 
-      - id: central_ldap_authenticator_present
-        type: xml
+      - id: ldap_authenticator_type_present
+        type: xml_each_attr_any
         file: "config/config.xml"
-        description: "Domain uses a central LDAP authenticator (OUDAuthenticator/OIDAuthenticator/OVDAuthenticator present)"
-        selector: "security-configuration.realm.authentication-provider.name"
-        operator: regex
-        expected: "^(OUDAuthenticator|OIDAuthenticator|OVDAuthenticator)$"
+        description: "At least one LDAP authenticator provider is configured (by xsi:type)"
+        context: "authentication-provider"
+        attr: "xsi:type"
+        operator: any_regex
+        expected: "(OracleUnifiedDirectory-authenticatorType|OracleInternetDirectory-authenticatorType|OracleVirtualDirectory-authenticatorType)"
         on_fail: FAIL
-        recommendation: "Configure a central LDAP authenticator (OUD/OID/OVD as applicable) and avoid relying on the default file-based authenticator."
+        recommendation: "Configure at least one central LDAP authenticator (OUD/OID/OVD) in the security realm instead of relying only on DefaultAuthenticator."
 
   - name: "Node Manager"
     checks:
@@ -176,15 +177,15 @@ sections:
         on_fail: FAIL
         recommendation: "Set a non-zero statement-cache-size (tested) to reduce parse overhead and improve steady-state performance."
 
-      - id: jdbc_pool_capacities_present
+      - id: jdbc_pool_initial_capacity_present
         type: xml_each_file
         file: "config/jdbc/*-jdbc.xml"
-        description: "Initial/Min/Max capacity explicitly set (initial/min/max-capacity exist)"
+        description: "Initial capacity explicitly set (initial-capacity exists)"
         selector: "jdbc-connection-pool-params.initial-capacity"
         operator: exists
         expected: ""
         on_fail: FAIL
-        recommendation: "Set initial/min/max capacities explicitly (and validate sizing) to avoid unintended defaults."
+        recommendation: "Set initial-capacity explicitly to avoid unintended defaults and stabilize startup behavior."
 
       - id: jdbc_pool_min_capacity_present
         type: xml_each_file
@@ -194,7 +195,7 @@ sections:
         operator: exists
         expected: ""
         on_fail: FAIL
-        recommendation: "Set min-capacity explicitly to avoid unintended defaults and stabilize pool behavior."
+        recommendation: "Set min-capacity explicitly to avoid unintended defaults and reduce pool thrashing under load."
 
       - id: jdbc_pool_max_capacity_present
         type: xml_each_file
@@ -204,7 +205,7 @@ sections:
         operator: exists
         expected: ""
         on_fail: FAIL
-        recommendation: "Set max-capacity explicitly based on concurrency and DB limits to avoid starvation or storms."
+        recommendation: "Set max-capacity explicitly based on concurrency and DB limits to avoid starvation or connection storms."
 
       - id: jdbc_global_tx_protocol_present
         type: xml_each_file
