@@ -19,6 +19,7 @@ All checks and recommendations are defined in a YAML file (maa_checks.yml) so yo
 | ------------- | ------------- |
 | [wls_yaml_report.py](./wls_yaml_report.py) | This is the script generating the report per se.  |
 | [maa_checks.yaml](./maa_checks.yaml) | This yamls file contains the MAA aspects being verified, the criteria for PASS/FAIL/WARN and a recommendation for the implementation (in many cases including link to documentation for reference. |
+| [wls_maa_config_analyzer_extract.sh](./wls_maa_config_analyzer_extract.sh) | This script can  be used to gather the configuration of a WebLogic domain int he diretory structure/format required by wls_yaml_report.py. |
 
 # What the script produces 
 
