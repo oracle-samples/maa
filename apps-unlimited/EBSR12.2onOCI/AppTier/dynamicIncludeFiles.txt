@@ -1,0 +1,7 @@
+# Files to copy that aren't inside a directory being copied
+#
+# Copyright (c) 2025 Oracle and/or its affiliates
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/ 
+#
+/u02/app/ebs/visprd/fs1/EBSapps/appl/INCLUDEME.txt /u02/app/ebs/visprd/fs1/EBSapps/appl/INCLUDEME.txt
+/u02/app/ebs/visprd/fs2/EBSapps/appl/INCLUDEME.txt /u02/app/ebs/visprd/fs2/EBSapps/appl/INCLUDEME.txt
